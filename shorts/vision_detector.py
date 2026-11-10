@@ -365,6 +365,12 @@ class VisionScanner:
 #  КРОК 2. Аналіз показань -> події
 # =====================================================================================
 
+def _digit_swap(old: int, new: int) -> bool:
+    """Змінилась рівно одна цифра і на ≥1000 (1184 → 4184) — типова помилка розпізнавання."""
+    a, b = str(old), str(new)
+    return len(a) == len(b) and sum(x != y for x, y in zip(a, b)) == 1 and new - old >= 1000
+
+
 class DamageTracker:
     """Лічильник завданої шкоди: кожне підтверджене зростання = влучання."""
 
@@ -388,7 +394,9 @@ class DamageTracker:
         if self.change_t is None:
             self.change_t = t
         diff = v - self.value
-        if 0 < diff <= self.cfg["max_jump"]:
+        if 0 < diff <= self.cfg["max_jump"] and _digit_swap(self.value, v):
+            need = self.cfg["resync_frames"] * 4              # «1184 → 4184»: схоже на хибну цифру
+        elif 0 < diff <= self.cfg["max_jump"]:
             need = self.cfg["confirm_frames"]
         elif v == 0:
             need = self.cfg["reset_confirm_frames"]          # новий бій: лічильник показує 0
@@ -418,8 +426,10 @@ class DamageTracker:
             return []
         diff = v - old
         if 0 < diff <= self.cfg["max_jump"]:
-            return [Event(ev_t, E.HIT, "vision:лічильник", value=diff, confidence=1.0,
-                          detail=f"{old} → {v}", extra={"counter": v})]
+            swap = _digit_swap(old, v)
+            return [Event(ev_t, E.HIT, "vision:лічильник", value=diff, confidence=0.5 if swap else 1.0,
+                          detail=f"{old} → {v}" + (" (змінилась одна цифра — перевіряю повідомленням)" if swap else ""),
+                          extra={"counter": v, "digit_swap": swap})]
         if v == 0 and old > 0:
             return [Event(ev_t, E.BATTLE_START, "vision:лічильник", value=0, detail=f"лічильник {old} → 0")]
         # тривале інше значення — виправлення помилки розпізнавання, НЕ влучання
@@ -821,6 +831,14 @@ def merge_events(evs: list[Event], profile: dict) -> list[Event]:
             out.append(Event(e.t, E.HIT, "vision:" + ("повідомлення" if is_msg else "лог"), value=e.value,
                              confidence=0.7 if is_msg else 0.6, detail=e.detail))
 
+    # 1б) Стрибок лічильника «змінилась одна цифра» без повідомлення про шкоду поруч — помилка розпізнавання.
+    msgs = [e for e in evs if e.type == E.LOG_DAMAGE]
+    bad = [h for h in hits if h.extra.get("digit_swap")
+           and not any(abs(m.t - h.t) <= b["log_match_s"] for m in msgs)]
+    for h in bad:
+        log.info("  Відкинуто ймовірну помилку розпізнавання лічильника: %s %s", fmt_time(h.t), h.detail)
+    evs = [e for e in evs if not any(e is h for h in bad)]
+
     # 2) Отримана шкода з логу й з міцності — одна подія.
     taken = sorted([e for e in evs if e.type == E.DAMAGE_TAKEN], key=lambda e: e.t)
     merged_taken: list[Event] = []
@@ -872,17 +890,38 @@ def merge_events(evs: list[Event], profile: dict) -> list[Event]:
     return out
 
 
-def _timer_battles(evs: list[Event], start: float, end: float) -> list[dict] | None:
+def _counter_zero_near(readings: list[dict] | None, t: float) -> bool:
+    """Чи показував лічильник шкоди 0 біля моменту t (на початку бою він завжди 0).
+    Якщо лічильник не читався взагалі — не заважаємо (True)."""
+    if not readings:
+        return True
+    rows = [r for r in readings if t - 30 <= r["t"] <= t + 120 and "dmg_raw" in r]
+    if not rows:
+        return True
+    return sum(1 for r in rows if first_number(r.get("dmg_raw") or "") == 0) >= 3
+
+
+def _timer_battles(evs: list[Event], start: float, end: float, readings: list[dict] | None = None) -> list[dict] | None:
     """Бої строго за таймером: [початок відліку … зникнення таймера]. Події поза боями (ангар,
     результати) відкидаються. None — якщо таймер не розпізнавався (тоді — старий спосіб)."""
     starts = sorted([e for e in evs if e.type == E.BATTLE_START and "таймер" in e.source], key=lambda e: e.t)
     if not starts:
         return None
+    # «Таймер почав відлік» без «замороженого» 15:00 — новий бій лише якщо лічильник поруч показує 0
+    # (інакше це той самий бій: таймер просто ховався, а потім з'явився, напр., на 10:30).
+    valid = []
+    for i, s_ev in enumerate(starts):
+        if i == 0 or "відлік перед боєм" in s_ev.detail or _counter_zero_near(readings, s_ev.t):
+            valid.append(s_ev)
+        else:
+            log.info("  %s: таймер з'явився, але лічильник не 0 — це продовження бою, не новий бій", fmt_time(s_ev.t))
+    starts = valid
     ends = sorted([e for e in evs if e.type == E.BATTLE_END and "таймер" in e.source], key=lambda e: e.t)
     battles = []
     for i, s in enumerate(starts):
         nxt = starts[i + 1].t if i + 1 < len(starts) else end
-        e_end = next((x.t for x in ends if s.t < x.t <= nxt), nxt)
+        inside = [x.t for x in ends if s.t < x.t <= nxt]
+        e_end = inside[-1] if inside else nxt      # останній «кінець» перед наступним боєм
         battles.append({"start": max(start, s.t), "stop": e_end, "events": []})
     dropped = dropped_hits = 0
     for e in sorted(evs, key=lambda e: e.t):
@@ -907,10 +946,11 @@ def _timer_battles(evs: list[Event], start: float, end: float) -> list[dict] | N
     return battles
 
 
-def split_battles(evs: list[Event], profile: dict, start: float, end: float) -> list[dict]:
+def split_battles(evs: list[Event], profile: dict, start: float, end: float,
+                  readings: list[dict] | None = None) -> list[dict]:
     """Поділ на бої. Є таймер — строго за ним; інакше: обнулення лічильника, смерть + пауза, довга пауза."""
     gap = float(profile["battles"]["split_gap_s"])
-    battles: list[dict] = _timer_battles(evs, start, end) or []
+    battles: list[dict] = _timer_battles(evs, start, end, readings) or []
     if battles:
         return _battle_results(battles, end)
     # без таймера: межі за обнуленням лічильника, смертю + паузою і довгими паузами
@@ -984,7 +1024,7 @@ def detect(settings: dict, profile: dict, info: VideoInfo, start: float = 0.0, e
     raw = analyze_readings(readings, profile)
     evs = merge_events(raw, profile)
     end_t = info.duration if end is None else min(end, info.duration)
-    battles = split_battles(evs, profile, start, end_t)
+    battles = split_battles(evs, profile, start, end_t, readings)
     add_battle_stats(battles, readings)
     log_diagnostics(readings, raw, evs, battles)
     return evs, battles, readings
