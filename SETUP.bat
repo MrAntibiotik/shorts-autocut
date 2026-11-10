@@ -4,8 +4,8 @@ rem ================================================================
 rem  Автонарізка шортсів: встановлення та оновлення одним кліком.
 rem  Просто двічі клацніть цей файл. Повторний запуск = оновлення.
 rem ================================================================
-set "BRANCH=main"
-set "URL=https://raw.githubusercontent.com/MrAntibiotik/shorts-autocut/%BRANCH%/setup.ps1"
+set "BRANCH=claude/wonderful-pasteur-vz3090"
+set "URL=https://raw.githubusercontent.com/MrAntibiotik/git-script/%BRANCH%/shorts-tool/setup.ps1"
 set "PS1=%TEMP%\shorts_setup.ps1"
 if exist "%PS1%" del "%PS1%"
 echo Завантажую установник...

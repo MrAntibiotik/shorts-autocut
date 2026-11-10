@@ -26,7 +26,7 @@ V1 — гра, V2 — вебкамера, V3 — лічильники шкоди
 ## Швидке встановлення (рекомендовано) — 3 кроки
 
 1. **Завантажте один файл** `SETUP.bat`:
-   відкрийте <https://github.com/MrAntibiotik/shorts-autocut/blob/main/SETUP.bat>
+   відкрийте <https://github.com/MrAntibiotik/git-script/blob/claude/wonderful-pasteur-vz3090/shorts-tool/SETUP.bat>
    і натисніть кнопку **Download raw file** (стрілка вниз праворуч над текстом файлу).
 2. **Двічі клацніть** завантажений `SETUP.bat`.
    Якщо Windows покаже «Windows захистив ваш ПК», натисніть **Докладніше → Усе одно запустити**.
@@ -60,9 +60,9 @@ V1 — гра, V2 — вебкамера, V3 — лічильники шкоди
 
 ### Крок 2. Папка інструмента
 1. Завантажте архів коду:
-   <https://github.com/MrAntibiotik/shorts-autocut/archive/refs/heads/main.zip>
-2. Розпакуйте його. Усередині є папка **`shorts-autocut-main`**.
-3. Скопіюйте **вміст** папки `shorts-autocut-main` у **`C:\ShortsTool`**. Має вийти, наприклад, `C:\ShortsTool\install.bat`.
+   <https://github.com/MrAntibiotik/git-script/archive/refs/heads/claude/wonderful-pasteur-vz3090.zip>
+2. Розпакуйте його. Усередині є папка **`shorts-tool`**.
+3. Скопіюйте **вміст** папки `shorts-tool` у **`C:\ShortsTool`**. Має вийти, наприклад, `C:\ShortsTool\install.bat`.
 
 > Шлях краще без кирилиці й пробілів. `C:\ShortsTool` — саме те, що треба.
 
