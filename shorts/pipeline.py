@@ -232,9 +232,13 @@ class Job:
         # ---- файли шортсів
         shorts_out = []
         multi = len(self.opts.recordings) > 1
+        from .vision_detector import battle_label
+        labels = {b["index"]: battle_label(b) for b in battles}
         for sh in shorts:
-            # кожен бій — окрема папка: battle_01\ (латиницею: кнопка DaVinci не відкриває шляхи з кирилицею)
-            folder = f"{tag}_battle_{sh.battle:02d}" if multi else f"battle_{sh.battle:02d}"
+            # кожен бій — окрема папка, напр. battle_01_dmg_3837 (латиницею: кнопка DaVinci не відкриває
+            # шляхи з кирилицею); у назві — більша з величин «шкода» / «засвіт»
+            disk_name, media_name = labels.get(sh.battle, (f"battle_{sh.battle:02d}", f"Бій {sh.battle:02d}"))
+            folder = f"{tag}_{disk_name}" if multi else disk_name
             bdir = self.out / folder
             bdir.mkdir(parents=True, exist_ok=True)
             base_name = f"{tag}_battle_{sh.battle:02d}"
@@ -249,7 +253,7 @@ class Job:
                 e.extra["clip"] = f"{folder}/{base_name}.mp4"
             shorts_out.append({
                 "index": sh.index, "battle": sh.battle, "name": sh.name, "file_base": base_name,
-                "dir": folder, "media_folder": f"Бій {sh.battle:02d}",
+                "dir": folder, "media_folder": media_name,
                 "duration": round(sh.duration, 3), "score": round(sh.score, 2),
                 "segments": [{"s": round(s.start, 3), "e": round(s.end, 3)} for s in sh.segments],
                 "layers": [l.to_dict() for l in layout.layers],

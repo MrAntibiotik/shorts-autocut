@@ -265,11 +265,15 @@ def select_shorts(battles: list[dict], profile: dict, rec_start: float, rec_end:
 
 def make_title(sh: Short, battle: dict) -> str:
     evs = sh.events
-    dmg = battle.get("damage_counter") or sum(int(e.value or 0) for e in evs if e.type == E.HIT)
+    dmg = (battle.get("damage_total") or battle.get("damage_counter")
+           or sum(int(e.value or 0) for e in evs if e.type == E.HIT))
+    ast = battle.get("assist_total") or 0
     kills = sum(1 for e in evs if e.type == E.KILL)
     parts = [f"бій {battle['index']}"]
     if dmg:
         parts.append(f"{dmg} шкоди")
+    if ast:
+        parts.append(f"{ast} засвіту")
     if kills:
         parts.append(f"знищень: {kills}")
     if any(e.type == E.DEATH for e in evs):

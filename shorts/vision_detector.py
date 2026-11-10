@@ -52,6 +52,13 @@ def effective_zones(profile: dict) -> dict:
         d = profile["vision"]["damage_counter"]
         fx, fy, fw, fh = d.get("from_block", [0.3, 0.0, 0.7, 0.36])
         zones["damage_counter"] = [cb[0] + cb[2] * fx, cb[1] + cb[3] * fy, cb[2] * fw, cb[3] * fh]
+    # другий і третій рядки блоку: заблокована шкода і засвіт (допомога)
+    oc = profile["vision"].get("other_counters") or {}
+    if cb and oc.get("enabled"):
+        for key, cfg_key in (("blocked_counter", "blocked_from_block"), ("assist_counter", "assist_from_block")):
+            if not zones.get(key) and oc.get(cfg_key):
+                fx, fy, fw, fh = oc[cfg_key]
+                zones[key] = [cb[0] + cb[2] * fx, cb[1] + cb[3] * fy, cb[2] * fw, cb[3] * fh]
     return zones
 
 
@@ -155,6 +162,8 @@ class VisionScanner:
             "damage_counter": self.vcfg["damage_counter"]["enabled"],
             "hit_message": self.vcfg["hit_message"]["enabled"],
             "battle_timer": self.vcfg["battle_timer"]["enabled"],
+            "blocked_counter": (self.vcfg.get("other_counters") or {}).get("enabled", False),
+            "assist_counter": (self.vcfg.get("other_counters") or {}).get("enabled", False),
             "event_log": self.vcfg["event_log"]["enabled"],
             "hp_text": self.vcfg["hp"]["enabled"] and self.vcfg["hp"]["use_text"],
             "hp_bar": self.vcfg["hp"]["enabled"] and self.vcfg["hp"]["use_bar"],
@@ -217,6 +226,14 @@ class VisionScanner:
                     self._dbg(t, "dmg", img, text)
                 self.last["dmg_raw"] = text
             r["dmg_raw"] = self.last.get("dmg_raw", "")
+
+        for key, rk in (("blocked_counter", "blk_raw"), ("assist_counter", "ast_raw")):
+            # заблоковано / засвіт — лише для підсумку бою (назва папки, звіт)
+            if key in self.zones_px:
+                img = self._crop(frame, key)
+                if self.gates[key].changed(img, t):
+                    self.last[rk] = self.ocr.read_line(img, allowlist=DIGITS, scale=ocfg["digit_upscale"])
+                r[rk] = self.last.get(rk, "")
 
         if "hit_message" in self.zones_px:
             # «941 ✕ Шкода пострілом ◆ Progetto 65» посередині екрана — з'являється в момент влучання
@@ -867,7 +884,44 @@ def detect(settings: dict, profile: dict, info: VideoInfo, start: float = 0.0, e
     evs = merge_events(raw, profile)
     end_t = info.duration if end is None else min(end, info.duration)
     battles = split_battles(evs, profile, start, end_t)
+    add_battle_stats(battles, readings)
     return evs, battles, readings
+
+
+def _final_value(values: list[int]) -> int | None:
+    """Підсумкове значення лічильника за бій: найбільше, що прочиталось щонайменше 3 рази
+    (поодинокі помилки розпізнавання відкидаються)."""
+    counts: dict[int, int] = {}
+    for v in values:
+        counts[v] = counts.get(v, 0) + 1
+    good = [v for v, n in counts.items() if n >= 3]
+    return max(good) if good else None
+
+
+def add_battle_stats(battles: list[dict], readings: list[dict]) -> None:
+    """Додає до кожного бою підсумки з блоку лічильників: шкода, заблоковано, засвіт."""
+    for b in battles:
+        a, z = b["start"], b["end"]
+        rows = [r for r in readings if a <= r["t"] <= z]
+        for raw_key, out_key in (("dmg_raw", "damage_total"), ("blk_raw", "blocked_total"),
+                                 ("ast_raw", "assist_total")):
+            vals = [first_number(r.get(raw_key) or "") for r in rows]
+            b[out_key] = _final_value([v for v in vals if v is not None and v <= 50000])
+        if b.get("damage_total") is None:
+            b["damage_total"] = b.get("damage_counter") or (b.get("damage_sum") or None)
+
+
+def battle_label(b: dict) -> tuple[str, str]:
+    """Назва бою за найбільшою з величин «шкода» / «засвіт»:
+    ('battle_03_dmg_3837', 'Бій 03 — шкода 3837')."""
+    n = b["index"]
+    dmg = int(b.get("damage_total") or 0)
+    ast = int(b.get("assist_total") or 0)
+    if ast > dmg:
+        return f"battle_{n:02d}_assist_{ast}", f"Бій {n:02d} — засвіт {ast}"
+    if dmg > 0:
+        return f"battle_{n:02d}_dmg_{dmg}", f"Бій {n:02d} — шкода {dmg}"
+    return f"battle_{n:02d}", f"Бій {n:02d}"
 
 
 def readings_cache_files(settings: dict, profile: dict, info: VideoInfo) -> list[Path]:

@@ -125,6 +125,11 @@ DEFAULT_PROFILE: dict = {
             "reset_confirm_frames": 4,
             "resync_frames": 6,
         },
+        "other_counters": {
+            "enabled": False,
+            "blocked_from_block": [0.35, 0.32, 0.65, 0.36],
+            "assist_from_block": [0.35, 0.64, 0.65, 0.36],
+        },
         "hit_message": {
             "enabled": False,
             "keywords": ["шкода"],
@@ -246,7 +251,8 @@ DEFAULT_PROFILE: dict = {
 }
 
 # Зони, які використовує зоровий детектор (решта — для макета).
-VISION_ZONES = ["damage_counter", "hit_message", "battle_timer", "event_log", "hp_text", "hp_bar", "end_screen"]
+VISION_ZONES = ["damage_counter", "blocked_counter", "assist_counter", "hit_message", "battle_timer",
+                "event_log", "hp_text", "hp_bar", "end_screen"]
 
 
 # ------------------------------------------------------------------ утиліти
