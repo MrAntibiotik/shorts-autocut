@@ -190,6 +190,26 @@ def gui(settings, log_file: Path):
                                       f"{' (рамки збережено)' if ans else ''}.\n{path}")
 
     tk.Button(row, text="Скинути налаштування…", command=reset_settings).pack(side="left")
+
+    def clear_cache_ui():
+        from shorts.cleanup import cache_size, clear_cache, human_size
+        c, r = cache_size(settings, False), cache_size(settings, True)
+        ans = messagebox.askyesnocancel(
+            "Очистити кеш",
+            f"Кеш і тимчасові файли: {human_size(c)}\n"
+            f"Звіти тестів і debug-картинки: {human_size(r - c)}\n\n"
+            "«Так» — видалити все це.\n"
+            "«Ні» — видалити лише кеш (звіти й debug залишити).\n"
+            "«Скасувати» — нічого не міняти.\n\n"
+            "Готові шортси, налаштування, рамки й оригінали записів НЕ видаляються.\n"
+            "Наступний запуск розпізнає записи заново (довше), далі — знову швидко.")
+        if ans is None:
+            return
+        freed, failed = clear_cache(settings, with_reports=ans)
+        messagebox.showinfo("Готово", f"Звільнено {human_size(freed)}."
+                            + (f"\nНе вдалося видалити {failed} (файл відкритий в іншій програмі)." if failed else ""))
+
+    tk.Button(row, text="Очистити кеш…", command=clear_cache_ui).pack(side="left", padx=6)
     last = state.get("profile", "wot")
     if last in profiles:
         combo.current(profiles.index(last))

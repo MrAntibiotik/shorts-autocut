@@ -133,3 +133,52 @@ def cleanup_work(settings: dict, keep: list[Path] | None = None) -> None:
                      n, _mb(freed), days)
     except Exception as e:     # прибирання ніколи не має зламати основну роботу
         log.debug("Прибирання пропущено: %s", e)
+
+
+# ------------------------------------------------------------------ ручне очищення (кнопка)
+def _cache_targets(settings: dict, with_reports: bool) -> list[Path]:
+    from .config import output_dir
+    root = work_dir(settings)
+    out: list[Path] = []
+    for d in root.iterdir():
+        if d.is_dir() and _VIDEO_DIR_RE.match(d.name) and d.name not in ("jobs", "logs"):
+            out.append(d)                                   # кеш розпізнавання записів
+    for name in ("preview", "zone_frame.png"):
+        if (root / name).exists():
+            out.append(root / name)
+    jobs = root / "jobs"
+    if jobs.is_dir():
+        out += [d for d in jobs.iterdir() if d.is_dir() and d.name.startswith("job_")]
+    logs = root / "logs"
+    if logs.is_dir():
+        busy = {Path(h.baseFilename).resolve() for lg in (logging.getLogger(), log)
+                for h in lg.handlers if hasattr(h, "baseFilename")}       # лог поточного запуску
+        out += [f for f in logs.iterdir() if f.is_file() and f.resolve() not in busy]
+    if with_reports:
+        o = output_dir(settings)
+        for name in ("debug", "reports", "audio"):          # картинки test_vision, звіти, тестові доріжки
+            if (o / name).is_dir():
+                out.append(o / name)
+        out += list(o.glob("preview_*.png")) + list(o.glob("zones_*.png"))
+    return out
+
+
+def cache_size(settings: dict, with_reports: bool = True) -> int:
+    return sum(_size(p) for p in _cache_targets(settings, with_reports))
+
+
+def clear_cache(settings: dict, with_reports: bool = True) -> tuple[int, int]:
+    """Видаляє весь кеш (і, за бажанням, звіти/debug). Готові шортси, налаштування й рамки не чіпає.
+    Повертає (скільки звільнено байт, скільки не вдалося видалити — напр. файл зайнятий)."""
+    freed, failed = 0, 0
+    for p in _cache_targets(settings, with_reports):
+        n = _remove(p)
+        if p.exists():
+            failed += 1
+        freed += n
+    log.info("Кеш очищено: звільнено %s%s", _mb(freed), f", не видалено {failed} (зайняті)" if failed else "")
+    return freed, failed
+
+
+def human_size(n: int) -> str:
+    return _mb(n)
