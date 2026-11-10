@@ -7,3 +7,4 @@ whisper/
 __pycache__/
 *.pyc
 config/profiles/*.bak
+defaults/

@@ -124,6 +124,9 @@ New-Item -ItemType Directory -Force -Path $Target | Out-Null
 if ($LASTEXITCODE -ge 8) { Fail "Не вдалося скопіювати файли (robocopy $LASTEXITCODE)" }
 # профілі ігор: нова версія макета/порогів + ваші рамки і категорії звуків
 & $py (Join-Path $src "tools\merge_profiles.py") (Join-Path $src "config\profiles") (Join-Path $Target "config\profiles")
+# стандартні профілі — для кнопки «Скинути налаштування…» (завжди найсвіжіші)
+& robocopy (Join-Path $src "config\profiles") (Join-Path $Target "defaults\profiles") /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
+if ($LASTEXITCODE -ge 8) { Fail "Не вдалося скопіювати стандартні профілі (robocopy $LASTEXITCODE)" }
 foreach ($d in @("config", "samples")) {
     & robocopy (Join-Path $src $d) (Join-Path $Target $d) /E /XC /XN /XO /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -ge 8) { Fail "Не вдалося скопіювати $d (robocopy $LASTEXITCODE)" }

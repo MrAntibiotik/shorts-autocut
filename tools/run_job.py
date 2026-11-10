@@ -21,7 +21,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from shorts.config import list_profiles, load_profile_raw, load_settings, strip_comments, work_dir  # noqa: E402
+from shorts.config import (list_profiles, load_profile_raw, load_settings, reset_profile,  # noqa: E402
+                           strip_comments, work_dir)
 from shorts.errors import UserError  # noqa: E402
 from shorts.logs import setup_logging  # noqa: E402
 from shorts.pipeline import Cancelled, Job, JobOptions, Progress  # noqa: E402
@@ -166,6 +167,29 @@ def gui(settings, log_file: Path):
     combo = ttk.Combobox(row, state="readonly", width=30, values=[f"{names[p]}  ({p})" for p in profiles],
                          textvariable=prof_var)
     combo.pack(side="left", padx=8)
+
+    def reset_settings():
+        if combo.current() < 0:
+            return
+        prof = profiles[combo.current()]
+        ans = messagebox.askyesnocancel(
+            "Скинути налаштування гри",
+            f"Повернути стандартні налаштування для «{names.get(prof, prof)}»?\n\n"
+            "«Так» — скинути все, але ЗАЛИШИТИ ваші обведені рамки.\n"
+            "«Ні» — скинути все, разом із рамками (їх доведеться обвести знову).\n"
+            "«Скасувати» — нічого не міняти.\n\n"
+            "Поточна версія збережеться як .json.bak.")
+        if ans is None:
+            return
+        try:
+            path = reset_profile(prof, keep_zones=ans)
+        except UserError as e:
+            messagebox.showerror("Помилка", str(e))
+            return
+        messagebox.showinfo("Готово", f"Налаштування «{names.get(prof, prof)}» скинуто"
+                                      f"{' (рамки збережено)' if ans else ''}.\n{path}")
+
+    tk.Button(row, text="Скинути налаштування…", command=reset_settings).pack(side="left")
     last = state.get("profile", "wot")
     if last in profiles:
         combo.current(profiles.index(last))

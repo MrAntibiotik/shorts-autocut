@@ -18,6 +18,7 @@ from .errors import UserError
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG_DIR = ROOT / "config"
 PROFILES_DIR = CONFIG_DIR / "profiles"
+DEFAULTS_DIR = ROOT / "defaults" / "profiles"     # стандартні профілі (оновлює SETUP.bat)
 SETTINGS_FILE = CONFIG_DIR / "settings.json"
 
 # ------------------------------------------------------------------ типові значення
@@ -348,6 +349,25 @@ def load_profile(name: str) -> dict:
     prof["id"] = name
     validate_zones(prof)
     return prof
+
+
+def reset_profile(name: str, keep_zones: bool = True) -> Path:
+    """Повертає профіль гри до стандартного. keep_zones — залишити ваші обведені рамки.
+    Поточна версія зберігається поруч як .json.bak."""
+    src = DEFAULTS_DIR / f"{name}.json"
+    if not src.exists():
+        raise UserError(f"Не знайдено стандартний профіль «{name}» ({src}).",
+                        "Запустіть SETUP.bat ще раз — він покладе стандартні профілі в папку defaults.")
+    new = _read_json(src)
+    if keep_zones and profile_path(name).exists():
+        try:
+            old = _read_json(profile_path(name))
+            for key in ("zones", "zones_confirmed"):
+                if key in old:
+                    new[key] = old[key]
+        except UserError:
+            pass   # пошкоджений профіль — просто беремо стандартний
+    return save_profile_raw(name, new)
 
 
 def save_profile_raw(name: str, data: dict) -> Path:
