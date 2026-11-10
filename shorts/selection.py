@@ -211,6 +211,8 @@ def select_battle(battle: dict, cfg: dict, rec_start: float, rec_end: float,
 def _snap(segs: list[Segment], cfg: dict, speech: SpeechMap, rec_start: float, rec_end: float,
           limit: float, gap: float) -> list[Segment]:
     mx, mp = float(cfg["snap_max_s"]), float(cfg["min_pause_s"])
+    # кінець можна тягнути далі — доки ви говорите / реагуєте (snap_after_max_s)
+    mx_after = float(cfg.get("snap_after_max_s", mx))
     out = []
     for s in segs:
         first_ev = min(e.t for e in s.events)
@@ -219,7 +221,7 @@ def _snap(segs: list[Segment], cfg: dict, speech: SpeechMap, rec_start: float, r
         na = speech.find_pause(a, -1, mx, mp)                       # раніше
         if na is None:
             na = speech.find_pause(a, +1, min(mx / 2, max(0.0, first_ev - 0.5 - a)), mp)  # або трохи пізніше
-        nb = speech.find_pause(b, +1, mx, mp)                       # пізніше
+        nb = speech.find_pause(b, +1, mx_after, mp)                 # пізніше: до кінця вашої мови
         if nb is None:
             nb = speech.find_pause(b, -1, min(mx / 2, max(0.0, b - last_ev - 0.5)), mp)
         out.append(Segment(max(rec_start, na if na is not None else a),
