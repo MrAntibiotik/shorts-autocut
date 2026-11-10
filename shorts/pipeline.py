@@ -244,11 +244,12 @@ class Job:
             base_name = f"{tag}_battle_{sh.battle:02d}"
             srt = write_srt(cues_by[sh.index], bdir / f"{base_name}.srt") if cues_by[sh.index] else None
             cta = self._cta(sh)
-            cta_srt = cta_txt = None
+            cta_srt = cta_txt = cta_png = None
             if cta:
                 cta_srt = write_srt([Cue(cta["start"], cta["start"] + cta["dur"], cta["text"])], bdir / "cta.srt")
                 cta_txt = bdir / "cta.txt"
                 cta_txt.write_text(opts.cta_text, encoding="utf-8")
+                cta_png = write_cta_png(st, cta, layout, bdir / "cta.png")
             for e in sh.events:
                 e.extra["clip"] = f"{folder}/{base_name}.mp4"
             shorts_out.append({
@@ -260,6 +261,7 @@ class Job:
                 "srt": str(srt) if srt else None,
                 "cta_srt": str(cta_srt) if cta_srt else None,
                 "cta_txt": str(cta_txt) if cta_txt else None,
+                "cta_png": str(cta_png) if cta_png else None,
                 "cta": cta,
                 "mp4": str(bdir / f"{base_name}.mp4"),
                 "markers": [m | {"t": round(sh.src_to_short(m["t"]) or 0, 3)}
@@ -340,6 +342,20 @@ def build_overlays(settings: dict, cues: list[Cue], cta: dict | None, layout: La
         out.append(Overlay(p, cta["start"], cta["start"] + cta["dur"], (layout.width - img.width) // 2,
                            max(0, int(layout.cta_y or settings["cta"]["y"]) - img.height // 2)))
     return out
+
+
+def write_cta_png(settings: dict, cta: dict, layout: Layout, path: Path) -> Path:
+    """Заклик картинкою на весь кадр (прозоре тло) — для DaVinci, якщо титр Text+ не вставляється.
+    Розмір = кадр шортсу, тож DaVinci кладе її без масштабування, текст рівно там, де в MP4."""
+    from PIL import Image
+    img = render_text(cta["text"], settings["subtitles"], font_size=settings["cta"]["font_size"],
+                      max_width=layout.width - 80)
+    frame = Image.new("RGBA", (layout.width, layout.height), (0, 0, 0, 0))
+    x = (layout.width - img.width) // 2
+    y = max(0, int(layout.cta_y or settings["cta"]["y"]) - img.height // 2)
+    frame.alpha_composite(img, (max(0, x), y))
+    frame.save(path)
+    return path
 
 
 def layout_from_dict(d: dict) -> Layout:

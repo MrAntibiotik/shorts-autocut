@@ -386,11 +386,15 @@ class DamageTracker:
         diff = v - self.value
         if 0 < diff <= self.cfg["max_jump"]:
             need = self.cfg["confirm_frames"]
-        elif diff < 0 and (v == 0 or v < self.value * 0.5):
-            need = self.cfg["reset_confirm_frames"]
-        else:  # неправдоподібний стрибок або «зменшення» — найімовірніше помилка OCR
-            need = self.cfg["resync_frames"] * (2 if diff < 0 else 1)
+        elif v == 0:
+            need = self.cfg["reset_confirm_frames"]          # новий бій: лічильник показує 0
+        else:  # «зменшення» не до 0 або неправдоподібний стрибок — майже завжди помилка розпізнавання
+            need = self.cfg["resync_frames"] * 4
         return self._confirm(t, v, need)
+
+    def reset(self):
+        """Новий бій за таймером: попереднє значення більше не діє."""
+        self.value, self.cand, self.cand_n, self.change_t = None, None, 0, None
 
     def _confirm(self, t: float, v: int, need: int, init: bool = False) -> list[Event]:
         if v == self.cand:
@@ -412,15 +416,9 @@ class DamageTracker:
         if 0 < diff <= self.cfg["max_jump"]:
             return [Event(ev_t, E.HIT, "vision:лічильник", value=diff, confidence=1.0,
                           detail=f"{old} → {v}", extra={"counter": v})]
-        if diff < 0 and (v == 0 or v < old * 0.5):
-            out = [Event(ev_t, E.BATTLE_START, "vision:лічильник", value=v, detail=f"лічильник {old} → {v}")]
-            if v > 0:
-                out.append(Event(ev_t, E.HIT, "vision:лічильник", value=v, confidence=0.6,
-                                 detail=f"0 → {v} (перше влучання)", extra={"counter": v}))
-            return out
-        if diff > 0:
-            return [Event(ev_t, E.HIT, "vision:лічильник", value=diff, confidence=0.5,
-                          detail=f"{old} → {v} (великий стрибок, перевірте)", extra={"counter": v})]
+        if v == 0 and old > 0:
+            return [Event(ev_t, E.BATTLE_START, "vision:лічильник", value=0, detail=f"лічильник {old} → 0")]
+        # тривале інше значення — виправлення помилки розпізнавання, НЕ влучання
         log.debug("%s лічильник: прийнято корекцію %d → %d", fmt_time(ev_t), old, v)
         return []
 
@@ -611,6 +609,13 @@ class BattleTimerTracker:
         self.last_val: int | None = None
         self.last_t = -1e9
         self.cand: tuple[float, int] | None = None
+        self.seen = False                  # чи вже був бій (перший бій може початися з будь-якого часу)
+        self.odd = 0                       # скільки «дивних» читань поспіль
+        self.new_n = 0                     # скільки читань поспіль схожі на новий бій
+        self.cand_n = 0
+
+    def _near_start(self, v: int) -> bool:
+        return v >= self.cfg["max_s"] - self.cfg.get("new_battle_window_s", 90)
 
     def _parse(self, raw: str) -> int | None:
         m = _TIMER_RE.search(raw or "")
@@ -633,30 +638,46 @@ class BattleTimerTracker:
             self.gone = True
         if v is None:
             return out
-        # підтвердження: два читання поспіль, узгоджені з ходом часу (таймер іде вниз)
-        if self.cand is not None:
-            ct, cv = self.cand
-            consistent = abs(v - (cv - (t - ct))) <= 2.5 or (v == cv and cv >= self.cfg["max_s"] - 1)
+        top = self.cfg["max_s"]
+        if self.in_battle:
+            frozen = self.last_val >= top - 1          # відлік перед боєм: таймер стоїть на 15:00
+            expected = self.last_val if frozen else self.last_val - (t - self.last_t)
+            if abs(v - expected) <= 10 or (frozen and v >= top - 30):
+                # звичайний хід часу (або таймер просто ховався) — той самий бій
+                self.last_val, self.last_t, self.gone = v, t, False
+                self.odd, self.new_n = 0, 0
+                return out
+            if self._near_start(v) and v > self.last_val + self.cfg["reset_jump_s"]:
+                # схоже на новий бій — приймаємо, лише якщо таймер стоїть на 15:00 кілька читань поспіль
+                self.new_n += 1
+                if self.new_n < self.cfg.get("new_battle_confirm", 3):
+                    return out
+                out += self._end("таймер зник" if self.gone else "новий бій")
+            else:
+                # дивне значення (помилка розпізнавання) — ігноруємо; якщо тримається довго — підлаштовуємось
+                self.odd += 1
+                if self.odd >= self.cfg.get("resync_readings", 10):
+                    self.last_val, self.last_t, self.gone, self.odd = v, t, False, 0
+                return out
         else:
-            consistent = False
-        self.cand = (t, v)
-        if not consistent:
-            return out
-        if self.in_battle and self.last_val is not None:
-            expected = self.last_val - (t - self.last_t)
-            same_battle = v <= self.last_val + 2 and abs(v - expected) <= 10
-            if self.gone and same_battle:
-                self.gone = False          # таймер просто ховався — бій той самий
-            elif self.gone:
-                out += self._end("таймер зник")
-            elif v > self.last_val + self.cfg["reset_jump_s"]:
-                out += self._end("новий бій")
-        if not self.in_battle:
-            start = t - (self.cfg["max_s"] - v)
-            out.append(Event(start, E.BATTLE_START, "vision:таймер", value=v,
-                             detail=f"таймер {v // 60}:{v % 60:02d} на {fmt_time(t)}"))
-            self.in_battle = True
+            # поза боєм: новий бій — таймер біля 15:00 (перший бій у записі може початися з будь-якого часу)
+            if self.seen and not self._near_start(v):
+                return out
+            if self.cand is not None and abs(v - (self.cand[1] - (t - self.cand[0]))) > 2.5 \
+                    and not (v == self.cand[1] and v >= top - 1):
+                self.cand = (t, v)
+                return out
+            self.cand = (t, v)
+            if self.cand_n < 1:
+                self.cand_n += 1
+                return out
+        # початок бою
+        start = t - (top - v)
+        out.append(Event(start, E.BATTLE_START, "vision:таймер", value=v,
+                         detail=f"таймер {v // 60}:{v % 60:02d} на {fmt_time(t)}"))
+        self.in_battle, self.seen, self.gone = True, True, False
         self.last_val, self.last_t = v, t
+        self.odd, self.new_n, self.cand_n, self.cand = 0, 0, 0, None
         return out
 
     def finish(self) -> list[Event]:
@@ -709,6 +730,12 @@ def analyze_readings(readings: list[dict], profile: dict) -> list[Event]:
     out: list[Event] = []
     for r in readings:
         t = r["t"]
+        if "timer_raw" in r:
+            evs = timer.update(t, r["timer_raw"])
+            if any(e.type == E.BATTLE_START for e in evs):
+                end.reset()
+                dmg.reset()
+            out += evs
         if "dmg_raw" in r:
             evs = dmg.update(t, r["dmg_raw"])
             if any(e.type == E.BATTLE_START for e in evs):
@@ -716,11 +743,6 @@ def analyze_readings(readings: list[dict], profile: dict) -> list[Event]:
             out += evs
         if "msg_raw" in r:
             out += msg.update(t, r["msg_raw"])
-        if "timer_raw" in r:
-            evs = timer.update(t, r["timer_raw"])
-            if any(e.type == E.BATTLE_START for e in evs):
-                end.reset()
-            out += evs
         if "hp_raw" in r:
             out += hp.update_text(t, r["hp_raw"])
         if "hp_bar" in r:
@@ -815,10 +837,39 @@ def merge_events(evs: list[Event], profile: dict) -> list[Event]:
     return out
 
 
+def _timer_battles(evs: list[Event], start: float, end: float) -> list[dict] | None:
+    """Бої строго за таймером: [початок відліку … зникнення таймера]. Події поза боями (ангар,
+    результати) відкидаються. None — якщо таймер не розпізнавався (тоді — старий спосіб)."""
+    starts = sorted([e for e in evs if e.type == E.BATTLE_START and "таймер" in e.source], key=lambda e: e.t)
+    if not starts:
+        return None
+    ends = sorted([e for e in evs if e.type == E.BATTLE_END and "таймер" in e.source], key=lambda e: e.t)
+    battles = []
+    for i, s in enumerate(starts):
+        nxt = starts[i + 1].t if i + 1 < len(starts) else end
+        e_end = next((x.t for x in ends if s.t < x.t <= nxt), nxt)
+        battles.append({"start": max(start, s.t), "stop": e_end, "events": []})
+    dropped = 0
+    for e in sorted(evs, key=lambda e: e.t):
+        if e.type == E.BATTLE_START:
+            continue
+        for b in battles:
+            if b["start"] - 2.0 <= e.t <= b["stop"] + 8.0:
+                b["events"].append(e)
+                break
+        else:
+            dropped += 1
+    if dropped:
+        log.info("  Подій поза боями (ангар, результати) відкинуто: %d", dropped)
+    return battles
+
+
 def split_battles(evs: list[Event], profile: dict, start: float, end: float) -> list[dict]:
-    """Поділ на бої: обнулення лічильника, смерть/кінець бою + пауза, довга пауза."""
+    """Поділ на бої. Є таймер — строго за ним; інакше: обнулення лічильника, смерть + пауза, довга пауза."""
     gap = float(profile["battles"]["split_gap_s"])
-    battles: list[dict] = []
+    battles: list[dict] = _timer_battles(evs, start, end) or []
+    if battles:
+        return _battle_results(battles, end)
     cur: dict | None = None
     finished = False
     last_t = start
@@ -847,7 +898,10 @@ def split_battles(evs: list[Event], profile: dict, start: float, end: float) -> 
         last_t = e.t
     if cur is not None:
         battles.append(cur)
+    return _battle_results(battles, end)
 
+
+def _battle_results(battles: list[dict], end: float) -> list[dict]:
     result = []
     for i, b in enumerate(battles, 1):
         es = b["events"]
@@ -888,27 +942,33 @@ def detect(settings: dict, profile: dict, info: VideoInfo, start: float = 0.0, e
     return evs, battles, readings
 
 
-def _final_value(values: list[int]) -> int | None:
-    """Підсумкове значення лічильника за бій: найбільше, що прочиталось щонайменше 3 рази
-    (поодинокі помилки розпізнавання відкидаються)."""
-    counts: dict[int, int] = {}
+def _confirmed_final(values: list[int | None], max_jump: int = 6000, need: int = 3) -> int | None:
+    """Підсумок лічильника за бій: значення приймається, лише якщо прочиталось `need` разів поспіль,
+    не менше за попереднє прийняте і без неправдоподібного стрибка. Повертає останнє прийняте."""
+    acc = None
+    cand, n = None, 0
     for v in values:
-        counts[v] = counts.get(v, 0) + 1
-    good = [v for v, n in counts.items() if n >= 3]
-    return max(good) if good else None
+        if v is None:
+            continue
+        if v == cand:
+            n += 1
+        else:
+            cand, n = v, 1
+        if n == need and (acc is None or acc <= v <= acc + max_jump):
+            acc = v
+    return acc
 
 
 def add_battle_stats(battles: list[dict], readings: list[dict]) -> None:
-    """Додає до кожного бою підсумки з блоку лічильників: шкода, заблоковано, засвіт."""
+    """Підсумки бою з блоку лічильників. Шкода — останнє значення перевіреного лічильника
+    (те саме, з якого рахуються влучання); заблоковано і засвіт — лише зростають, з підтвердженням."""
     for b in battles:
         a, z = b["start"], b["end"]
         rows = [r for r in readings if a <= r["t"] <= z]
-        for raw_key, out_key in (("dmg_raw", "damage_total"), ("blk_raw", "blocked_total"),
-                                 ("ast_raw", "assist_total")):
+        b["damage_total"] = b.get("damage_counter") or (b.get("damage_sum") or 0) or None
+        for raw_key, out_key in (("blk_raw", "blocked_total"), ("ast_raw", "assist_total")):
             vals = [first_number(r.get(raw_key) or "") for r in rows]
-            b[out_key] = _final_value([v for v in vals if v is not None and v <= 50000])
-        if b.get("damage_total") is None:
-            b["damage_total"] = b.get("damage_counter") or (b.get("damage_sum") or None)
+            b[out_key] = _confirmed_final([v if v is not None and v <= 50000 else None for v in vals])
 
 
 def battle_label(b: dict) -> tuple[str, str]:

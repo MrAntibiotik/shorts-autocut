@@ -314,7 +314,7 @@ local function insert_cta(tl, sh, start, tlfps, job)
   for _, i in ipairs(locked) do pcall(function() tl:SetTrackLock("video", i, false) end) end
   pcall(function() tl:SetTrackLock("audio", 1, false) end)
   if not ok or not ti then
-    warn("Титр заклику (Text+) не вставився: " .. tostring(err or "без відповіді"))
+    log("  Титр Text+ не вставився (" .. tostring(err or "DaVinci не дозволив") .. ") — кладу заклик картинкою")
     return false
   end
   if not set_text_plus(ti, sh.cta.text, job.cta_style or {}) then
@@ -324,6 +324,17 @@ local function insert_cta(tl, sh, start, tlfps, job)
   pcall(function() local a, b = ti:GetTrackTypeAndIndex(); tt = tostring(a) .. tostring(b) end)
   log(string.format("  Заклик: Text+ %d–%d %s", ti:GetStart(), ti:GetEnd(), tt))
   return true
+end
+
+-- Картинка (PNG на весь кадр 1080×1920, прозора) на доріжку track з кадру at тривалістю len кадрів.
+local function place_still(mp, tl, path, at, len, track)
+  if not path or not file_exists(path) then return false end
+  local item = import_media(mp, path)
+  if not item then return false end
+  while tl:GetTrackCount("video") < track do tl:AddTrack("video") end
+  local ti = append_one(mp, { mediaPoolItem = item, startFrame = 0, endFrame = math.max(1, len) - 1,
+                              trackIndex = track, recordFrame = at, mediaType = 1 })
+  return ti ~= nil
 end
 
 local function add_srt(mp, tl, path, start, track_no)
@@ -384,7 +395,7 @@ local function build_short(project, mp, item, cam_item, rec, sh, job, tl_cfg, pa
   local tl = unique_timeline(mp, project, sh.name)
   if not tl then warn("Не вдалося створити таймлайн " .. sh.name) return false end
   local W, H, FPS = tl_cfg.width, tl_cfg.height, tl_cfg.fps
-  if not set_format(tl, W, H, FPS) then
+  if not is_format(tl, W, H) and not set_format(tl, W, H, FPS) then
     -- запасний спосіб: тимчасово робимо проєкт вертикальним, створюємо таймлайн, повертаємо проєкт
     log("  Таймлайн не став " .. W .. "×" .. H .. " — пробую через налаштування проєкту")
     local pw, ph = project:GetSetting("timelineResolutionWidth"), project:GetSetting("timelineResolutionHeight")
@@ -478,10 +489,14 @@ local function build_short(project, mp, item, cam_item, rec, sh, job, tl_cfg, pa
     end
   end
   add_srt(mp, tl, sh.srt, start, 1)
-  if sh.cta then
-    if not insert_cta(tl, sh, start, tlfps, job) and sh.cta_srt then
-      add_srt(mp, tl, sh.cta_srt, start, 2)
-      warn("Заклик для «" .. sh.name .. "» покладено окремою доріжкою субтитрів ST2.")
+  if sh.cta and not insert_cta(tl, sh, start, tlfps, job) then
+    local at = start + frames(sh.cta.start, tlfps)
+    if place_still(mp, tl, sh.cta_png, at, frames(sh.cta.dur, tlfps), 4) then
+      log("  Заклик: картинка на V4 (текст змінюється в cta.txt + rerender або титром вручну)")
+    elseif sh.cta_srt and add_srt(mp, tl, sh.cta_srt, start, 2) then
+      log("  Заклик: доріжка субтитрів ST2")
+    else
+      warn("Заклик для «" .. sh.name .. "» не вдалося покласти на таймлайн — він є в готовому MP4.")
     end
   end
   pcall(function() tl:SetCurrentTimecode(tc_from_frame(start, tlfps)) end)
@@ -489,6 +504,36 @@ local function build_short(project, mp, item, cam_item, rec, sh, job, tl_cfg, pa
 end
 
 -- ------------------------------------------------------------------ імпорт результату
+
+-- Окремий проєкт «Шортси <дата>» 1080×1920, 60 fps: налаштування ПРОЄКТУ DaVinci дозволяє змінювати
+-- через скрипт (на відміну від налаштувань окремого таймлайну), тож усі таймлайни шортсів одразу правильні.
+local function new_shorts_project(pm, job)
+  pcall(function() pm:SaveProject() end)
+  local base = "Шортси " .. os.date("%Y-%m-%d %H-%M")
+  local p, name = nil, base
+  for n = 2, 30 do
+    local ok, res = pcall(function() return pm:CreateProject(name) end)
+    if ok and res then p = res break end
+    name = base .. " (" .. n .. ")"
+  end
+  if not p then
+    log("Не вдалося створити окремий проєкт — працюю в поточному")
+    return nil
+  end
+  pcall(function()
+    local cur = pm:GetCurrentProject()
+    if not cur or cur:GetName() ~= name then pm:LoadProject(name) ; p = pm:GetCurrentProject() end
+  end)
+  local W, H, FPS = job.timeline.width, job.timeline.height, job.timeline.fps
+  for _, kv in ipairs({ { "timelineFrameRate", FPS }, { "timelinePlaybackFrameRate", FPS },
+                        { "timelineResolutionWidth", W }, { "timelineResolutionHeight", H } }) do
+    local ok, r = pcall(function() return p:SetSetting(kv[1], tostring(kv[2])) end)
+    if not ok or r == false then log("  Проєкт: " .. kv[1] .. "=" .. kv[2] .. " → не вдалося") end
+  end
+  log("Створено проєкт «" .. name .. "»: " .. tostring(p:GetSetting("timelineResolutionWidth")) .. "×" ..
+      tostring(p:GetSetting("timelineResolutionHeight")) .. ", " .. tostring(p:GetSetting("timelineFrameRate")) .. " fps")
+  return p
+end
 
 local function import_job(status)
   warnings = {}
@@ -500,7 +545,12 @@ local function import_job(status)
   end
   local resolve_app = get_resolve()
   if not resolve_app then notify("Не вдалося підключитися до DaVinci Resolve.") return end
-  local project = resolve_app:GetProjectManager():GetCurrentProject()
+  local pm = resolve_app:GetProjectManager()
+  local project = nil
+  if ((job.resolve or {}).project_mode or "new") == "new" then
+    project = new_shorts_project(pm, job)
+  end
+  if not project then project = pm:GetCurrentProject() end
   if not project then
     notify("Відкрийте (або створіть) проєкт у DaVinci і натисніть кнопку ще раз.")
     return
@@ -533,7 +583,9 @@ local function import_job(status)
     end
   end
   write_file(TOOL .. "\\work\\jobs\\" .. tostring(job.job_id) .. ".imported", os.date("%Y-%m-%d %H:%M:%S"))
+  pcall(function() pm:SaveProject() end)
   local msg = "Готово! Зібрано таймлайнів шортсів: " .. n_ok .. " з " .. n_short ..
+              "\nПроєкт DaVinci: «" .. tostring(project:GetName()) .. "»" ..
               "\nПапка в медіапулі: «" .. tostring(job.folder_name) .. "»" ..
               "\nГотові MP4 і звіт: " .. tostring(job.job_dir)
   if #warnings > 0 then

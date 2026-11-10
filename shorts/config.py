@@ -92,6 +92,7 @@ DEFAULT_SETTINGS: dict = {
         "tilt_up_positive": True,
         "add_short_markers": True,
         "link_clips": True,
+        "project_mode": "new",
         "marker_colors": {
             "hit": "Green", "damage_taken": "Red", "kill": "Yellow", "death": "Fuchsia",
             "voice": "Cyan", "game_sound": "Blue", "battle_start": "Cream", "battle_end": "Cream",
@@ -144,6 +145,9 @@ DEFAULT_PROFILE: dict = {
             "max_s": 900,
             "end_gap_s": 30,
             "reset_jump_s": 60,
+            "new_battle_window_s": 5,
+            "new_battle_confirm": 3,
+            "resync_readings": 10,
         },
         "event_log": {
             "enabled": True,
