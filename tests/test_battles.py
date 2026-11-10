@@ -6,10 +6,9 @@
 """
 import sys, random; sys.path.insert(0, str(__import__('pathlib').Path(__file__).resolve().parent.parent))
 from shorts.config import load_profile
-from shorts.vision_detector import detect, analyze_readings, merge_events, split_battles, add_battle_stats, battle_label
+from shorts.vision_detector import analyze_readings, merge_events, split_battles, add_battle_stats, battle_label
 from shorts.fusion import fuse
 from shorts.selection import select_shorts
-from shorts.util import fmt_time
 p=load_profile('wot')
 def run(seed):
     random.seed(seed); R=[]; T=[0.0]
