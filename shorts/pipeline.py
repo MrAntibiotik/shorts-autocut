@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import shutil
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -366,7 +365,3 @@ def layout_from_dict(d: dict) -> Layout:
               for l in d["layers"]]
     return Layout(d["width"], d["height"], d["fps"], d["preset"], layers, d["subtitles_y"], d.get("warnings", []),
                   int(d.get("cta_y") or 0))
-
-
-def cleanup_work(job_work: Path):
-    shutil.rmtree(job_work, ignore_errors=True)
