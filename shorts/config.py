@@ -146,6 +146,8 @@ DEFAULT_PROFILE: dict = {
             "confirm_frames": 2,
             "require_keyword": False,
             "reject_colors": ["red"],
+            "reject_keywords": ["розвід", "стриман", "виявив", "інформа", "помістит", "відновлю", "знайомст", "заблок", "ремонт", "запас"],
+            "max_prefix_letters": 3,
         },
         "battle_timer": {
             "enabled": False,
@@ -202,6 +204,9 @@ DEFAULT_PROFILE: dict = {
         "snap_max_s": 1.5,
         "snap_after_max_s": 1.5,
         "min_pause_s": 0.25,
+        "compact_pre_s": 1.5,
+        "compact_post_s": 3.5,
+        "confirmed_first": True,
         "vad_margin_db": 10,
         "max_shorts": 0,
     },

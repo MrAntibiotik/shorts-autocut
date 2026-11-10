@@ -577,12 +577,24 @@ class HitMessageTracker:
         self.cand_t = 0.0
         self.empty = 0
 
+    def _foreign(self, text: str) -> bool:
+        """Не ваш постріл: «Шкода за розвідку», «Удар стримано», «Виявив …», підказки гри
+        («Інформація: помістити в слот», «Відновлює … після ремонту») — або текст ПЕРЕД числом
+        (у повідомленні про шкоду число стоїть першим)."""
+        low = (text or "").lower()
+        if any(k in low for k in self.cfg.get("reject_keywords", [])):
+            return True
+        m = re.search(r"\d", text or "")
+        prefix = (text or "")[: m.start()] if m else ""
+        return sum(ch.isalpha() for ch in prefix) > int(self.cfg.get("max_prefix_letters", 3))
+
     def update(self, t: float, text: str, color: str = "") -> list[Event]:
         v = first_number(text or "")
         ok = (v is not None and self.cfg["min_value"] <= v <= self.cfg["max_value"]
               and color not in self.cfg.get("reject_colors", ["red"])
               and (not self.cfg.get("require_keyword", False)
-                   or contains_keyword(text, self.cfg["keywords"], self.cfg["keyword_ratio"]) is not None))
+                   or contains_keyword(text, self.cfg["keywords"], self.cfg["keyword_ratio"]) is not None)
+              and not self._foreign(text))
         if not ok:
             self.empty += 1
             if self.empty >= 2:           # повідомлення зникло — наступне таке саме число теж буде новим

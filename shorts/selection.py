@@ -143,11 +143,37 @@ def _pad(e: Event, rng: list[float], max_score: float) -> float:
     return lo + (hi - lo) * k
 
 
-def _window(e: Event, cfg: dict, max_score: float) -> tuple[float, float]:
+def _window(e: Event, cfg: dict, max_score: float, compact: bool = False) -> tuple[float, float]:
     # смерть фіксується за екраном «Оцініть бій», що з'являється на 1–2 с пізніше, — беремо більше «до»
-    pre = cfg.get("death_pre_s", 4.0) if e.type == E.DEATH else _pad(e, cfg["pre_s"], max_score)
-    post = cfg.get("death_post_s", 1.5) if e.type == E.DEATH else _pad(e, cfg["post_s"], max_score)
-    return e.t - pre, e.t + post
+    if e.type == E.DEATH:
+        return e.t - cfg.get("death_pre_s", 4.0), e.t + cfg.get("death_post_s", 1.5)
+    if compact:
+        return e.t - float(cfg.get("compact_pre_s", 1.5)), e.t + float(cfg.get("compact_post_s", 3.5))
+    return e.t - _pad(e, cfg["pre_s"], max_score), e.t + _pad(e, cfg["post_s"], max_score)
+
+
+def _confirmed(e: Event) -> bool:
+    """Постріл, підтверджений лічильником шкоди (найнадійніше)."""
+    return e.type == E.HIT and "лічильник" in (e.source or "")
+
+
+def _pack(order: list[Event], cfg: dict, max_score: float, rec_start: float, rec_end: float,
+          limit: float, gap: float, compact: bool) -> list[Segment]:
+    chosen: list[Segment] = []
+    for e in order:
+        a, b = _window(e, cfg, max_score, compact)
+        a, b = max(rec_start, a), min(rec_end, b)
+        trial = _merge(chosen + [Segment(a, b, [e])], gap)
+        if _total(trial) <= limit:
+            chosen = trial
+        elif not chosen:  # навіть один момент не влазить — обрізаємо навколо нього
+            half = limit / 2
+            chosen = [Segment(max(rec_start, e.t - half), min(rec_end, e.t + half), [e])]
+    return chosen
+
+
+def _covered(segs: list[Segment], evs: list[Event]) -> int:
+    return sum(1 for e in evs if any(s.start <= e.t <= s.end for s in segs))
 
 
 def _merge(segs: list[Segment], gap: float) -> list[Segment]:
@@ -179,22 +205,26 @@ def select_battle(battle: dict, cfg: dict, rec_start: float, rec_end: float,
             final = max(finals, key=lambda e: e.t)
     strong = [e for e in moments if float(e.extra.get("score", 0)) >= cfg["min_score"]]
     max_score = max((float(e.extra.get("score", 0)) for e in moments), default=1.0)
-    order = sorted(strong, key=lambda e: -float(e.extra.get("score", 0)))
+    if cfg.get("confirmed_first", True):
+        # спершу постріли, підтверджені лічильником шкоди, потім решта — кожна група від сильнішого
+        order = sorted(strong, key=lambda e: (not _confirmed(e), -float(e.extra.get("score", 0))))
+    else:
+        order = sorted(strong, key=lambda e: -float(e.extra.get("score", 0)))
     if final is not None:
         order = [final] + [e for e in order if e is not final]
 
     limit = float(cfg["max_duration_s"])
     gap = float(cfg["merge_gap_s"])
-    chosen: list[Segment] = []
-    for e in order:
-        a, b = _window(e, cfg, max_score)
-        a, b = max(rec_start, a), min(rec_end, b)
-        trial = _merge(chosen + [Segment(a, b, [e])], gap)
-        if _total(trial) <= limit:
-            chosen = trial
-        elif not chosen:  # навіть один момент не влазить — обрізаємо навколо нього
-            half = limit / 2
-            chosen = [Segment(max(rec_start, e.t - half), min(rec_end, e.t + half), [e])]
+    chosen = _pack(order, cfg, max_score, rec_start, rec_end, limit, gap, compact=False)
+    shots = [e for e in order if _confirmed(e)] or [e for e in order if e.type == E.HIT]
+    if _covered(chosen, shots) < len(shots):
+        # усі постріли з повним запасом не влазять — коротший запас, щоб влізло більше пострілів
+        compact = _pack(order, cfg, max_score, rec_start, rec_end, limit, gap, compact=True)
+        if _covered(compact, shots) > _covered(chosen, shots):
+            log.info("  Бій %s: %d пострілів не влазять у %.0f с з повним запасом — беру коротший запас "
+                     "(%d з %d пострілів)", battle.get("index"), len(shots), limit,
+                     _covered(compact, shots), len(shots))
+            chosen = compact
 
     if speech is not None and cfg["speech_snap"]:
         chosen = _snap(chosen, cfg, speech, rec_start, rec_end, limit, gap)
