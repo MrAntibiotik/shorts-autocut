@@ -26,7 +26,7 @@ V1 — гра, V2 — вебкамера, V3 — лічильники шкоди
 ## Швидке встановлення (рекомендовано) — 3 кроки
 
 1. **Завантажте один файл** `SETUP.bat`:
-   відкрийте <https://github.com/MrAntibiotik/git-script/blob/claude/wonderful-pasteur-vz3090/shorts-tool/SETUP.bat>
+   відкрийте <https://github.com/MrAntibiotik/shorts-autocut/blob/main/SETUP.bat>
    і натисніть кнопку **Download raw file** (стрілка вниз праворуч над текстом файлу).
 2. **Двічі клацніть** завантажений `SETUP.bat`.
    Якщо Windows покаже «Windows захистив ваш ПК», натисніть **Докладніше → Усе одно запустити**.
@@ -60,9 +60,9 @@ V1 — гра, V2 — вебкамера, V3 — лічильники шкоди
 
 ### Крок 2. Папка інструмента
 1. Завантажте архів коду:
-   <https://github.com/MrAntibiotik/git-script/archive/refs/heads/claude/wonderful-pasteur-vz3090.zip>
-2. Розпакуйте його. Усередині є папка **`shorts-tool`**.
-3. Скопіюйте **вміст** папки `shorts-tool` у **`C:\ShortsTool`**. Має вийти, наприклад, `C:\ShortsTool\install.bat`.
+   <https://github.com/MrAntibiotik/shorts-autocut/archive/refs/heads/main.zip>
+2. Розпакуйте його. Усередині є папка **`shorts-autocut-main`**.
+3. Скопіюйте **вміст** папки `shorts-autocut-main` у **`C:\ShortsTool`**. Має вийти, наприклад, `C:\ShortsTool\install.bat`.
 
 > Шлях краще без кирилиці й пробілів. `C:\ShortsTool` — саме те, що треба.
 
@@ -288,6 +288,14 @@ librosa і SciPy. Наприкінці `check_setup` один раз заван�
 - `…_markers.edl` — маркери для DaVinci (якщо треба вручну: ПКМ по таймлайну в медіапулі → Timelines → Import → Timeline Markers from EDL).
 
 ### Правки після обробки
+- **Межі моментів у DaVinci:** кліпи кожного шматка (V1 гра, V2 камера, V3 лічильники, A1 звук) **зв'язані**:
+  - потягніть край будь-якого з них — разом зсунуться всі чотири;
+  - Delete / Shift+Delete прибирає шматок цілим;
+  - кліпи взято з повного запису, тож межу можна тягнути й назовні, щоб додати секунди.
+
+  Щоб змінити рамку лише одного шару (наприклад, Zoom камери в Inspector), клацніть по ньому з **Alt**.
+  Без Alt Inspector змінить усі виділені кліпи. Розв'язати шматок: ПКМ → Link Clips.
+  Субтитри й заклик лежать окремо — після великих зсувів підсуньте їх.
 - **У DaVinci:** текст субтитрів правте прямо на доріжці субтитрів, заклик — у Inspector титру Text+, рамки — в Inspector кліпів V1–V3. Рендер — звичайним Deliver.
 - **Готові MP4 без DaVinci:**
   1. Виправте Блокнотом `…_short_NN.srt` (можна додати емодзі 😱🔥) або `…_short_NN_cta.txt`.
@@ -365,14 +373,14 @@ librosa і SciPy. Наприкінці `check_setup` один раз заван�
 - `voice.scream_min_hz` — від якого тону сплеск вважається криком; `voice.laugh` — параметри сміху;
 - `scoring` — бали й бонуси моментів (див. вище);
 - `selection` — відбір: `max_duration_s` (60), запаси `pre_s`/`post_s`, `merge_gap_s`, `min_score`, `min_battle_score`, підгонка під паузи `speech_snap`/`snap_max_s`, `max_shorts` (0 — без обмеження);
-- `layout` — макет шортсу: `preset` (`split` / `overlay`), висота вебкамери, вікно вебкамери для overlay, `game_zoom`, `game_offset_x/y`, `counters` (позиція V3), `subtitles_y`.
+- `layout` — макет шортсу: `preset` (`overlay` — гра на весь кадр, вебкамера поверх зверху; `split` — вебкамера смугою, гра під нею), `webcam_fit` (`contain` — камера ціла без обрізання, `cover` — заповнити рамку з обрізанням), `game_below_webcam` (зсунути гру так, щоб приціл був під камерою), `webcam_height` (для `contain` — найбільша висота камери, 0 — без обмеження), висота вебкамери, вікно вебкамери для overlay, `game_zoom`, `game_offset_x/y`, `counters` (позиція V3), `subtitles_y`.
 
 **`config\settings.json`** — ще:
 - `render` — кодек (NVENC; якщо не працює — автоматично процесор), якість `cq`;
 - `whisper` — модель, мова, `gpu`, `prompt` (слова-підказки: назви танків, сленг), `hallucinations`;
 - `subtitles` — шрифт, розмір, кольори, контур, тінь, довжина фраз, емодзі;
 - `cta` — тривалість заклику (3 с), розмір шрифту, висота;
-- `resolve` — кольори маркерів; службові `mismatch_mode`, `crop_units`, `tilt_up_positive` (див. «Якщо щось не працює»).
+- `resolve` — кольори маркерів; `link_clips` — зв'язувати кліпи шматка (`true` / `false`); службові `mismatch_mode`, `crop_units`, `tilt_up_positive` (див. «Якщо щось не працює»).
 
 Якщо помилитесь у JSON (зайва кома тощо), інструмент покаже рядок з помилкою.
 Завжди можна повернути попередню версію з файлу `.bak`.
