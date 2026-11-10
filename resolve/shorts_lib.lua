@@ -208,6 +208,13 @@ local function layer_props(layer, tlw, tlh, mode, cfg)
   local Yc = dst[2] + dst[4] / 2
   local pan = Xc - tlw / 2 - zx * du
   local tilt_down = Yc - tlh / 2 - zy * dv
+  -- DaVinci рахує Position не в пікселях кадру, а в пікселях ВПИСАНОГО зображення, розтягнутих на кадр:
+  -- 1 одиниця X = fw/tlw px, 1 одиниця Y = fh/tlh px. (Перевірено на записі 3440×1440 у кадрі 1080×1920:
+  -- по X збігалось, по Y камера стояла в 4,25 раза ближче до центру.) position_units = "pixels" — старий розрахунок.
+  if cfg.position_units ~= "pixels" then
+    pan = pan * tlw / fw
+    tilt_down = tilt_down * tlh / fh
+  end
   local tilt = (cfg.tilt_up_positive == false) and tilt_down or -tilt_down
   local cl, cr, ct, cb = src[1] * bx, (sw - src[1] - src[3]) * bx, src[2] * by, (sh - src[2] - src[4]) * by
   if cfg.crop_units == "source" then

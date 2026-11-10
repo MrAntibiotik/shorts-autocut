@@ -275,6 +275,9 @@ def resolve_params(layer: Layer, tl_w: int, tl_h: int, mode: str = "fit", tilt_u
     Y_c = layer.dst.y + layer.dst.h / 2
     pan = X_c - tl_w / 2 - z * du
     tilt_down = Y_c - tl_h / 2 - z * dv
+    # Position у DaVinci — у пікселях вписаного зображення, розтягнутих на кадр (див. shorts_lib.lua)
+    pan *= tl_w / fw
+    tilt_down *= tl_h / fh
     return {
         "ZoomX": round(z, 4), "ZoomY": round(z, 4),
         "Pan": round(pan, 2), "Tilt": round(-tilt_down if tilt_up_positive else tilt_down, 2),

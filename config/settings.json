@@ -127,6 +127,7 @@
       "battle_end": "Cream"
     },
     "link_clips": true,
-    "project_mode": "new"
+    "project_mode": "new",
+    "position_units": "fitted"
   }
 }

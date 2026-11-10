@@ -90,6 +90,7 @@ DEFAULT_SETTINGS: dict = {
     "resolve": {
         "mismatch_mode": "auto",
         "crop_units": "fitted",
+        "position_units": "fitted",
         "tilt_up_positive": True,
         "add_short_markers": True,
         "link_clips": True,
@@ -149,6 +150,8 @@ DEFAULT_PROFILE: dict = {
             "default_base_s": 900,
             "min_base_s": 300,
             "freeze_s": 5.0,
+            "bases_s": [600, 900, 1200],
+            "start_window_s": 60,
             "end_gap_s": 30,
             "resync_readings": 10,
         },

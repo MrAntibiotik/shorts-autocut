@@ -669,7 +669,7 @@ class BattleTimerTracker:
                 self.frozen = (v, t)
         else:
             self.frozen = None
-        if self.in_battle:
+        if self.in_battle and not self.gone:
             frozen_before = self.last_val % 60 == 0 and self.last_val >= self.cfg.get("min_base_s", 300)
             expected = self.last_val - (t - self.last_t)
             if abs(v - expected) <= self.cfg.get("tolerance_s", 3) or \
@@ -680,26 +680,39 @@ class BattleTimerTracker:
                         self.resume = (t, v)
                         return out
                 self.resume = None
-                self.last_val, self.last_t, self.gone, self.odd = v, t, False, 0
-            elif not whole and not self.gone:
-                # дивне значення — ігноруємо; довго тримається — підлаштовуємось.
-                # (Ціла хвилина або таймер, що зникав, — можливо новий бій: його вирішує «заморожений» таймер.)
+                self.last_val, self.last_t, self.odd = v, t, 0
+            elif not whole:
+                # дивне значення — ігноруємо; довго тримається — підлаштовуємось
                 self.odd += 1
                 if self.odd >= self.cfg.get("resync_readings", 10):
                     self.last_val, self.last_t, self.odd = v, t, 0
             return out
-        if self.seen:
-            return out                           # після бою новий бій — лише через «заморожений» таймер
-        # перший бій у записі (запис почався посеред бою): таймер справді рахує вниз кілька читань поспіль
+
+        # Поза боєм або таймер зникав довше end_gap_s. Дивимось, чи таймер РАХУЄ вниз (кілька читань поспіль).
         if self.cand is not None and v < self.cand[1] and abs(v - (self.cand[1] - (t - self.cand[0]))) <= 2.5:
             self.cand_n += 1
         elif self.cand is None or v != self.cand[1]:
             self.cand_n = 0
         self.cand = (t, v)
-        if self.cand_n >= 3:
-            base = self.cfg.get("default_base_s", 900)
-            base = base if v <= base else self.cfg.get("max_base_s", 1200)
-            return self._start(t - (base - v), t, v, "запис почався посеред бою")
+        if self.cand_n < 3:
+            return out
+        if self.in_battle:   # таймер повернувся після довгої відсутності
+            expected = self.last_val - (t - self.last_t)
+            if abs(v - expected) <= self.cfg.get("tolerance_s", 3):
+                self.gone, self.last_val, self.last_t = False, v, t      # той самий бій
+                return out
+        # Новий бій: таймер з'явився одразу після початку (до хвилини від 10:00 / 15:00 / 20:00).
+        # Буває, що під час відліку перед боєм таймера не видно — тоді «заморожене» 15:00 не спрацює.
+        base = next((b for b in sorted(self.cfg.get("bases_s", [600, 900, 1200]))
+                     if 0 <= b - v <= self.cfg.get("start_window_s", 60)), None)
+        if base is not None or not self.seen:
+            if self.in_battle:
+                out += self._end("таймер зник")
+            if base is None:   # запис почався посеред бою
+                base = self.cfg.get("default_base_s", 900)
+                base = base if v <= base else self.cfg.get("max_base_s", 1200)
+                return out + self._start(t - (base - v), t, v, "запис почався посеред бою")
+            return out + self._start(t - (base - v), t, v, "таймер почав відлік")
         return out
 
     def finish(self) -> list[Event]:
@@ -901,8 +914,8 @@ def split_battles(evs: list[Event], profile: dict, start: float, end: float) -> 
     if battles:
         return _battle_results(battles, end)
     # без таймера: межі за обнуленням лічильника, смертю + паузою і довгими паузами
-    evs = [e for e in evs if not (e.type in (E.BATTLE_START, E.BATTLE_END) and "таймер" in e.source
-                                  and "лічильник" not in e.source)]
+    # (початки боїв за таймером лишаємо як межі — вони надійні; «кінці» за таймером — ні)
+    evs = [e for e in evs if not (e.type == E.BATTLE_END and "таймер" in e.source)]
     cur: dict | None = None
     finished = False
     last_t = start

@@ -239,6 +239,10 @@ def select_shorts(battles: list[dict], profile: dict, rec_start: float, rec_end:
     shorts: list[Short] = []
     skipped = []
     for b in battles:
+        n_hits = sum(1 for e in b["events"] if e.type == E.HIT and e.extra.get("moment"))
+        if n_hits < int(cfg.get("min_hits", 0)):
+            skipped.append((b["index"], "жодного влучання"))
+            continue
         segs, final = select_battle(b, cfg, rec_start, rec_end, speech)
         if not segs:
             skipped.append((b["index"], "немає моментів"))
