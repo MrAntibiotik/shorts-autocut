@@ -130,8 +130,8 @@ DEFAULT_PROFILE: dict = {
         },
         "other_counters": {
             "enabled": False,
-            "blocked_from_block": [0.35, 0.32, 0.65, 0.36],
-            "assist_from_block": [0.35, 0.64, 0.65, 0.36],
+            "blocked_from_block": [0.28, 0.32, 0.72, 0.36],
+            "assist_from_block": [0.28, 0.64, 0.72, 0.36],
         },
         "hit_message": {
             "enabled": False,

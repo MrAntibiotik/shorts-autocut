@@ -51,7 +51,7 @@ def effective_zones(profile: dict) -> dict:
     cb = zones.get("counters_block")
     if cb and not zones.get("damage_counter"):
         d = profile["vision"]["damage_counter"]
-        fx, fy, fw, fh = d.get("from_block", [0.3, 0.0, 0.7, 0.36])
+        fx, fy, fw, fh = d.get("from_block", [0.28, 0.0, 0.72, 0.36])
         zones["damage_counter"] = [cb[0] + cb[2] * fx, cb[1] + cb[3] * fy, cb[2] * fw, cb[3] * fh]
     # другий і третій рядки блоку: заблокована шкода і засвіт (допомога)
     oc = profile["vision"].get("other_counters") or {}
