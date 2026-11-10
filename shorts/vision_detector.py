@@ -39,6 +39,20 @@ from .util import contains_keyword, first_number, fmt_time, partial_ratio, norma
 log = logging.getLogger("vision")
 
 _HP_RE = re.compile(r"(\d{1,5})\s*/\s*(\d{2,5})")
+_TIMER_RE = re.compile(r"(\d{1,2})\s*[:.;]\s*(\d{2})")
+TIMER_CHARS = "0123456789:"
+
+
+def effective_zones(profile: dict) -> dict:
+    """Зони профілю + похідні. Якщо окремо не обведено «число шкоди», беремо верхній рядок
+    блоку лічильників (без іконки зліва): у WoT там завдана шкода."""
+    zones = dict(profile.get("zones") or {})
+    cb = zones.get("counters_block")
+    if cb and not zones.get("damage_counter"):
+        d = profile["vision"]["damage_counter"]
+        fx, fy, fw, fh = d.get("from_block", [0.3, 0.0, 0.7, 0.36])
+        zones["damage_counter"] = [cb[0] + cb[2] * fx, cb[1] + cb[3] * fy, cb[2] * fw, cb[3] * fh]
+    return zones
 
 
 # =====================================================================================
@@ -110,9 +124,10 @@ class ChangeGate:
 # =====================================================================================
 
 def _cache_dir(settings: dict, info: VideoInfo, profile: dict) -> Path:
-    zones = {k: profile["zones"].get(k) for k in VISION_ZONES}
+    zones = effective_zones(profile)
+    zones = {k: zones.get(k) for k in VISION_ZONES}
     key = json.dumps({"z": zones, "fps": profile["vision"]["sample_fps"],
-                      "ocr": settings["ocr"], "v": 2}, sort_keys=True)
+                      "ocr": settings["ocr"], "v": 3}, sort_keys=True)
     h = hashlib.md5(key.encode()).hexdigest()[:8]
     st = info.path.stat()
     vid = hashlib.md5(f"{info.path.name}|{st.st_size}".encode()).hexdigest()[:6]
@@ -134,10 +149,12 @@ class VisionScanner:
         self.debug_count = 0
         ocfg = settings["ocr"]
 
-        zones = profile.get("zones") or {}
+        zones = effective_zones(profile)
         self.zones_px: dict[str, tuple[int, int, int, int]] = {}
         enabled = {
             "damage_counter": self.vcfg["damage_counter"]["enabled"],
+            "hit_message": self.vcfg["hit_message"]["enabled"],
+            "battle_timer": self.vcfg["battle_timer"]["enabled"],
             "event_log": self.vcfg["event_log"]["enabled"],
             "hp_text": self.vcfg["hp"]["enabled"] and self.vcfg["hp"]["use_text"],
             "hp_bar": self.vcfg["hp"]["enabled"] and self.vcfg["hp"]["use_bar"],
@@ -165,6 +182,7 @@ class VisionScanner:
         self.last: dict[str, object] = {}
         self.force: set[str] = set()   # зони, які треба перечитати на наступному кадрі
         self.last_end_t = -1e9
+        self.last_timer_t = -1e9
 
     # ---------------------------------------------------------------- зони
 
@@ -199,6 +217,30 @@ class VisionScanner:
                     self._dbg(t, "dmg", img, text)
                 self.last["dmg_raw"] = text
             r["dmg_raw"] = self.last.get("dmg_raw", "")
+
+        if "hit_message" in self.zones_px:
+            # «941 ✕ Шкода пострілом ◆ Progetto 65» посередині екрана — з'являється в момент влучання
+            img = self._crop(frame, "hit_message")
+            if self.gates["hit_message"].changed(img, t) or "msg" in self.force:
+                self.force.discard("msg")
+                boxes = self.ocr.read_boxes(img, scale=ocfg["text_upscale"])
+                text = " ".join(b.text for b in sorted(boxes, key=lambda b: b.x0))
+                if text != self.last.get("msg_raw"):
+                    self.force.add("msg")
+                    if text:
+                        self._dbg(t, "msg", img, text)
+                self.last["msg_raw"] = text
+            r["msg_raw"] = self.last.get("msg_raw", "")
+
+        if "battle_timer" in self.zones_px:
+            # таймер бою праворуч угорі (15:00 -> 0:00); читаємо раз на секунду
+            tcfg = self.vcfg["battle_timer"]
+            if t - self.last_timer_t >= tcfg["check_every_s"]:
+                self.last_timer_t = t
+                img = self._crop(frame, "battle_timer")
+                self.last["timer_raw"] = self.ocr.read_line(img, allowlist=TIMER_CHARS,
+                                                            scale=ocfg["digit_upscale"] * 1.5)
+            r["timer_raw"] = self.last.get("timer_raw", "")
 
         if "hp_text" in self.zones_px:
             img = self._crop(frame, "hp_text")
@@ -502,6 +544,94 @@ class LogTracker:
         return out
 
 
+class HitMessageTracker:
+    """Повідомлення про шкоду посередині екрана: нове повідомлення = точний момент влучання і його шкода."""
+
+    def __init__(self, cfg: dict, tcorr: float):
+        self.cfg = cfg
+        self.tcorr = tcorr
+        self.shown: int | None = None     # значення, яке зараз на екрані (вже враховане)
+        self.cand: int | None = None
+        self.cand_n = 0
+        self.cand_t = 0.0
+        self.empty = 0
+
+    def update(self, t: float, text: str) -> list[Event]:
+        v = first_number(text or "")
+        ok = (v is not None and self.cfg["min_value"] <= v <= self.cfg["max_value"]
+              and contains_keyword(text, self.cfg["keywords"], self.cfg["keyword_ratio"]) is not None)
+        if not ok:
+            self.empty += 1
+            if self.empty >= 2:           # повідомлення зникло — наступне таке саме число теж буде новим
+                self.shown = None
+            self.cand, self.cand_n = None, 0
+            return []
+        self.empty = 0
+        if v == self.shown:
+            return []
+        if v == self.cand:
+            self.cand_n += 1
+        else:
+            self.cand, self.cand_n, self.cand_t = v, 1, t
+        if self.cand_n < self.cfg["confirm_frames"]:
+            return []
+        self.shown = v
+        self.cand, self.cand_n = None, 0
+        return [Event(self.cand_t + self.tcorr, E.LOG_DAMAGE, "vision:повідомлення", value=v, detail=text)]
+
+
+class BattleTimerTracker:
+    """Таймер бою (15:00 -> 0:00): точні межі боїв.
+    Початок бою = момент, коли таймер почав відлік (рахуємо назад від показаного значення);
+    новий бій — таймер «стрибнув» угору; кінець — таймер зник надовго (екран результатів, ангар)."""
+
+    def __init__(self, cfg: dict):
+        self.cfg = cfg
+        self.in_battle = False
+        self.last_val: int | None = None
+        self.last_t = -1e9
+        self.cand: tuple[float, int] | None = None
+
+    def _parse(self, raw: str) -> int | None:
+        m = _TIMER_RE.search(raw or "")
+        if not m:
+            return None
+        mm, ss = int(m.group(1)), int(m.group(2))
+        if ss > 59:
+            return None
+        v = mm * 60 + ss
+        return v if v <= self.cfg["max_s"] else None
+
+    def update(self, t: float, raw: str) -> list[Event]:
+        out: list[Event] = []
+        v = self._parse(raw)
+        if self.in_battle and t - self.last_t > self.cfg["end_gap_s"]:
+            out.append(Event(self.last_t + 1, E.BATTLE_END, "vision:таймер", detail="таймер зник"))
+            self.in_battle, self.last_val = False, None
+        if v is None:
+            return out
+        # підтвердження: два читання поспіль, узгоджені з ходом часу (таймер іде вниз)
+        if self.cand is not None:
+            ct, cv = self.cand
+            expect = cv - (t - ct)
+            consistent = abs(v - expect) <= 2.5 or (v == cv and cv >= self.cfg["max_s"] - 1)
+        else:
+            consistent = False
+        self.cand = (t, v)
+        if not consistent:
+            return out
+        if self.in_battle and self.last_val is not None and v > self.last_val + self.cfg["reset_jump_s"]:
+            out.append(Event(self.last_t + 1, E.BATTLE_END, "vision:таймер", detail="новий бій"))
+            self.in_battle = False
+        if not self.in_battle:
+            start = t - (self.cfg["max_s"] - v)
+            out.append(Event(start, E.BATTLE_START, "vision:таймер", value=v,
+                             detail=f"таймер {v // 60}:{v % 60:02d} на {fmt_time(t)}"))
+            self.in_battle = True
+        self.last_val, self.last_t = v, t
+        return out
+
+
 class EndScreenTracker:
     """Екран смерті / результатів. Подія — лише при ПОЯВІ напису: поки ви спостерігаєте
     за боєм після смерті, напис висить постійно, і повторних подій бути не повинно."""
@@ -542,11 +672,20 @@ def analyze_readings(readings: list[dict], profile: dict) -> list[Event]:
     hp = HpTracker(v["hp"], tc)
     lg = LogTracker(v["event_log"], tc)
     end = EndScreenTracker(v["end_screen"])
+    msg = HitMessageTracker(v["hit_message"], tc)
+    timer = BattleTimerTracker(v["battle_timer"])
     out: list[Event] = []
     for r in readings:
         t = r["t"]
         if "dmg_raw" in r:
             evs = dmg.update(t, r["dmg_raw"])
+            if any(e.type == E.BATTLE_START for e in evs):
+                end.reset()
+            out += evs
+        if "msg_raw" in r:
+            out += msg.update(t, r["msg_raw"])
+        if "timer_raw" in r:
+            evs = timer.update(t, r["timer_raw"])
             if any(e.type == E.BATTLE_START for e in evs):
                 end.reset()
             out += evs
@@ -569,18 +708,28 @@ def merge_events(evs: list[Event], profile: dict) -> list[Event]:
     hits = [e for e in evs if e.type == E.HIT]
     out: list[Event] = []
 
-    # 1) Зелений рядок логу з числом підтверджує влучання з лічильника.
+    # 1) Повідомлення «941 ✕ Шкода пострілом» (або зелений рядок логу) підтверджує влучання
+    #    з лічильника; час беремо найраніший (повідомлення з'являється точно в момент пострілу).
+    used: set[int] = set()
     for e in evs:
         if e.type != E.LOG_DAMAGE:
             continue
-        near = [h for h in hits if abs(h.t - e.t) <= b["log_match_s"]]
+        is_msg = e.source.endswith("повідомлення")
+        tag = "+повідомлення" if is_msg else "+лог"
+        near = [h for h in hits if abs(h.t - e.t) <= b["log_match_s"] and (id(h) not in used or not is_msg)]
         if near:
             h = min(near, key=lambda h: (abs((h.value or 0) - (e.value or 0)) > 5, abs(h.t - e.t)))
+            used.add(id(h))
             h.confidence = min(1.0, h.confidence + 0.3)
-            if "+лог" not in h.source:
-                h.source += "+лог"
+            if is_msg:
+                h.t = min(h.t, e.t)
+                if h.value and e.value and abs(h.value - e.value) > 5:
+                    h.detail += f" (повідомлення: {int(e.value)})"
+            if tag not in h.source:
+                h.source += tag
         else:
-            out.append(Event(e.t, E.HIT, "vision:лог", value=e.value, confidence=0.6, detail=e.detail))
+            out.append(Event(e.t, E.HIT, "vision:" + ("повідомлення" if is_msg else "лог"), value=e.value,
+                             confidence=0.7 if is_msg else 0.6, detail=e.detail))
 
     # 2) Отримана шкода з логу й з міцності — одна подія.
     taken = sorted([e for e in evs if e.type == E.DAMAGE_TAKEN], key=lambda e: e.t)
@@ -616,7 +765,18 @@ def merge_events(evs: list[Event], profile: dict) -> list[Event]:
             continue
         kills.append(e)
 
-    other = [e for e in evs if e.type in (E.HIT, E.BATTLE_START, E.BATTLE_END)]
+    # 5) Початок/кінець бою з різних джерел (таймер, обнулення лічильника) — по одному.
+    bounds: list[Event] = []
+    for e in sorted([e for e in evs if e.type in (E.BATTLE_START, E.BATTLE_END)], key=lambda e: e.t):
+        win = 90.0 if e.type == E.BATTLE_START else 30.0
+        dup = next((x for x in bounds if x.type == e.type and abs(x.t - e.t) <= win), None)
+        if dup:
+            if e.source not in dup.source:
+                dup.source += "+" + e.source.split(":")[-1]
+            continue
+        bounds.append(e)
+
+    other = [e for e in evs if e.type == E.HIT] + bounds
     out += other + merged_taken + merged_deaths + kills
     out.sort(key=lambda e: (e.t, e.type))
     return out
@@ -630,6 +790,13 @@ def split_battles(evs: list[Event], profile: dict, start: float, end: float) -> 
     finished = False
     last_t = start
     for e in sorted(evs, key=lambda e: e.t):
+        if e.type == E.BATTLE_END:
+            # кінець бою (таймер зник) лише закриває поточний бій, нового не відкриває
+            if cur is not None:
+                cur["events"].append(e)
+                finished = True
+                last_t = e.t
+            continue
         new = False
         if e.type == E.BATTLE_START:
             new = cur is not None
@@ -638,11 +805,11 @@ def split_battles(evs: list[Event], profile: dict, start: float, end: float) -> 
         if cur is None or new:
             if cur is not None:
                 battles.append(cur)
-            cur = {"start": max(start, e.t - 5.0) if e.type != E.BATTLE_START else e.t, "events": []}
+            cur = {"start": max(start, e.t - 5.0) if e.type != E.BATTLE_START else max(start, e.t), "events": []}
             finished = False
         if e.type != E.BATTLE_START:
             cur["events"].append(e)
-        if e.type in (E.DEATH, E.BATTLE_END):
+        if e.type == E.DEATH:
             finished = True
         last_t = e.t
     if cur is not None:

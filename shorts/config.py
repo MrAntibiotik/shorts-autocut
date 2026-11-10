@@ -125,6 +125,21 @@ DEFAULT_PROFILE: dict = {
             "reset_confirm_frames": 4,
             "resync_frames": 6,
         },
+        "hit_message": {
+            "enabled": False,
+            "keywords": ["шкода"],
+            "keyword_ratio": 0.7,
+            "min_value": 1,
+            "max_value": 5000,
+            "confirm_frames": 2,
+        },
+        "battle_timer": {
+            "enabled": False,
+            "check_every_s": 1.0,
+            "max_s": 900,
+            "end_gap_s": 30,
+            "reset_jump_s": 60,
+        },
         "event_log": {
             "enabled": True,
             "kill_keywords": ["знищив", "знищено"],
@@ -157,6 +172,7 @@ DEFAULT_PROFILE: dict = {
         "max_duration_s": 60,
         "pre_s": [2.0, 3.0],
         "post_s": [2.0, 3.0],
+        "death_pre_s": 4.0,
         "death_post_s": 1.5,
         "merge_gap_s": 4.0,
         "min_score": 1.0,
@@ -222,14 +238,15 @@ DEFAULT_PROFILE: dict = {
         "overlay": {"webcam_x": 220, "webcam_y": 40, "webcam_width": 640, "webcam_height": 410,
                     "game_zoom": 1.0, "game_offset_x": 0.0, "game_offset_y": 0.0, "webcam_focus_y": 0.5,
                     "webcam_fit": "cover", "game_below_webcam": False},
-        "counters": {"enabled": False, "x": 0, "y": 1250, "width": 225, "height": 0},
+        "counters": {"enabled": False, "anchor": "absolute", "align": "center", "gap": 12,
+                     "x": 0, "y": 1250, "width": 225, "height": 0},
         "subtitles_y": 1450,
         "avoid_webcam_in_game": True,
     },
 }
 
 # Зони, які використовує зоровий детектор (решта — для макета).
-VISION_ZONES = ["damage_counter", "event_log", "hp_text", "hp_bar", "end_screen"]
+VISION_ZONES = ["damage_counter", "hit_message", "battle_timer", "event_log", "hp_text", "hp_bar", "end_screen"]
 
 
 # ------------------------------------------------------------------ утиліти

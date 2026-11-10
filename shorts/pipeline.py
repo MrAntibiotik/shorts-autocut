@@ -138,7 +138,8 @@ class Job:
                          "height": self.profile["layout"]["output"]["height"],
                          "fps": self.profile["layout"]["output"]["fps"]},
             "resolve": self.settings["resolve"],
-            "cta_style": {"font_size": self.settings["cta"]["font_size"], "y": self.settings["cta"]["y"],
+            "cta_style": {"font_size": self.settings["cta"]["font_size"],
+                          "y": self.profile["layout"].get("cta_y") or self.settings["cta"]["y"],
                           "duration": self.settings["cta"]["duration_s"]},
             "recordings": recs,
             "elapsed_s": round(time.time() - t0, 1),
@@ -320,7 +321,7 @@ def build_overlays(settings: dict, cues: list[Cue], cta: dict | None, layout: La
         p = tmp / "cta.png"
         img.save(p)
         out.append(Overlay(p, cta["start"], cta["start"] + cta["dur"], (layout.width - img.width) // 2,
-                           max(0, int(settings["cta"]["y"]) - img.height // 2)))
+                           max(0, int(layout.cta_y or settings["cta"]["y"]) - img.height // 2)))
     return out
 
 
@@ -328,7 +329,8 @@ def layout_from_dict(d: dict) -> Layout:
     from .layout import Layer, Rect
     layers = [Layer(l["name"], l["track"], l["source"], Rect(*l["src"]), Rect(*l["dst"]), l["src_w"], l["src_h"])
               for l in d["layers"]]
-    return Layout(d["width"], d["height"], d["fps"], d["preset"], layers, d["subtitles_y"], d.get("warnings", []))
+    return Layout(d["width"], d["height"], d["fps"], d["preset"], layers, d["subtitles_y"], d.get("warnings", []),
+                  int(d.get("cta_y") or 0))
 
 
 def cleanup_work(job_work: Path):

@@ -1,7 +1,7 @@
 ﻿# Автоматичне встановлення / оновлення інструмента автонарізки шортсів.
 # Запускається з SETUP.bat. Повторний запуск = оновлення (ваші налаштування, рамки й зразки зберігаються).
 param(
-    [string]$Branch = "claude/wonderful-pasteur-vz3090",
+    [string]$Branch = "main",
     [string]$Target = "C:\ShortsTool"
 )
 
@@ -10,7 +10,7 @@ try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ProgressPreference = "SilentlyContinue"
 
-$Repo = "MrAntibiotik/git-script"
+$Repo = "MrAntibiotik/shorts-autocut"
 $Total = 8
 
 function Step($n, $text) { Write-Host ""; Write-Host "[$n/$Total] $text" -ForegroundColor Cyan }
@@ -114,8 +114,9 @@ $zip = Join-Path $tmp "tool.zip"
 Download "https://github.com/$Repo/archive/refs/heads/$Branch.zip" $zip
 Extract $zip (Join-Path $tmp "src")
 $top = Get-ChildItem (Join-Path $tmp "src") -Directory | Select-Object -First 1
-$src = Join-Path $top.FullName "shorts-tool"
-if (-not (Test-Path (Join-Path $src "shorts"))) { Fail "В архіві немає папки shorts-tool" }
+$src = $top.FullName
+if (Test-Path (Join-Path $src "shorts-tool\shorts")) { $src = Join-Path $src "shorts-tool" }
+if (-not (Test-Path (Join-Path $src "shorts"))) { Fail "В архіві немає файлів інструмента" }
 $update = Test-Path (Join-Path $Target "shorts")
 New-Item -ItemType Directory -Force -Path $Target | Out-Null
 # код — замінюємо; config і samples — лише додаємо нові файли (ваші рамки, пороги й зразки не чіпаємо)

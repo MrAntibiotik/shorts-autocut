@@ -144,7 +144,8 @@ def _pad(e: Event, rng: list[float], max_score: float) -> float:
 
 
 def _window(e: Event, cfg: dict, max_score: float) -> tuple[float, float]:
-    pre = _pad(e, cfg["pre_s"], max_score)
+    # смерть фіксується за екраном «Оцініть бій», що з'являється на 1–2 с пізніше, — беремо більше «до»
+    pre = cfg.get("death_pre_s", 4.0) if e.type == E.DEATH else _pad(e, cfg["pre_s"], max_score)
     post = cfg.get("death_post_s", 1.5) if e.type == E.DEATH else _pad(e, cfg["post_s"], max_score)
     return e.t - pre, e.t + post
 

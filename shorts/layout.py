@@ -67,11 +67,12 @@ class Layout:
     layers: list[Layer]
     subtitles_y: int
     warnings: list[str]
+    cta_y: int = 0
 
     def to_dict(self) -> dict:
         return {"width": self.width, "height": self.height, "fps": self.fps, "preset": self.preset,
                 "layers": [l.to_dict() for l in self.layers], "subtitles_y": self.subtitles_y,
-                "warnings": self.warnings}
+                "warnings": self.warnings, "cta_y": self.cta_y}
 
 
 def _clamp_rect(r: Rect, W: float, H: float) -> Rect:
@@ -192,18 +193,40 @@ def compute_layout(profile: dict, rec_w: int, rec_h: int, webcam_file: dict | No
     c = lay.get("counters", {})
     if c.get("enabled") and zones.get("counters_block"):
         cz = Rect(*zone_px(zones["counters_block"], rec_w, rec_h))
-        bw = float(c["width"])
+        bw = float(c.get("width") or 0)
         bh = float(c.get("height") or 0)
-        if bh <= 0:
-            dst = Rect(float(c["x"]), float(c["y"]), bw, bw * cz.h / cz.w)
-        else:   # вписати без спотворень у заданий прямокутник
+        # масштаб без спотворень: за висотою, за шириною або вписати в обидва
+        if bw > 0 and bh > 0:
             k = min(bw / cz.w, bh / cz.h)
-            dst = Rect(float(c["x"]), float(c["y"]), cz.w * k, cz.h * k)
+        elif bh > 0:
+            k = bh / cz.h
+        else:
+            k = (bw or 225.0) / cz.w
+        w, h = cz.w * k, cz.h * k
+        if c.get("anchor") == "below_webcam" and cam_dst is not None:
+            # одразу під вікном вебкамери
+            y = cam_dst.y1 + float(c.get("gap", 12))
+            align = c.get("align", "center")
+            if align == "left":
+                x = cam_dst.x
+            elif align == "right":
+                x = cam_dst.x1 - w
+            else:
+                x = cam_dst.x + (cam_dst.w - w) / 2
+        elif c.get("anchor") in ("left_middle", "right_middle"):
+            # біля краю кадру, посередині висоти
+            margin = float(c.get("margin", 16))
+            x = margin if c["anchor"] == "left_middle" else W - w - margin
+            y = (H - h) / 2 + float(c.get("offset_y", 0))
+        else:
+            x, y = float(c.get("x", 0)), float(c.get("y", 1250))
+        dst = Rect(max(0.0, min(x, W - w)), max(0.0, min(y, H - h)), w, h)
         layers.append(Layer("counters", 3, "recording", cz, dst, rec_w, rec_h))
     elif c.get("enabled"):
         warnings.append("Лічильники (V3) увімкнені, але зону counters_block не обведено — V3 пропущено.")
 
-    return Layout(W, H, fps, preset, layers, int(lay.get("subtitles_y", 1450)), warnings)
+    return Layout(W, H, fps, preset, layers, int(lay.get("subtitles_y", 1450)), warnings,
+                  int(lay.get("cta_y") or 0))
 
 
 # ------------------------------------------------------------------ ffmpeg
