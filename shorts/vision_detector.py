@@ -40,6 +40,7 @@ log = logging.getLogger("vision")
 
 _HP_RE = re.compile(r"(\d{1,5})\s*/\s*(\d{2,5})")
 _TIMER_RE = re.compile(r"(\d{1,2})\s*[:.;]\s*(\d{2})")
+_TIMER_NOCOLON_RE = re.compile(r"(?<!\d)(\d{1,2})(\d{2})(?!\d)")   # «0959» / «959» — двокрапку не розпізнано
 TIMER_CHARS = "0123456789:"
 
 
@@ -622,7 +623,7 @@ class BattleTimerTracker:
         self.resume: tuple[float, int] | None = None
 
     def _parse(self, raw: str) -> int | None:
-        m = _TIMER_RE.search(raw or "")
+        m = _TIMER_RE.search(raw or "") or _TIMER_NOCOLON_RE.search((raw or "").replace(" ", ""))
         if not m:
             return None
         mm, ss = int(m.group(1)), int(m.group(2))
@@ -870,7 +871,7 @@ def _timer_battles(evs: list[Event], start: float, end: float) -> list[dict] | N
         nxt = starts[i + 1].t if i + 1 < len(starts) else end
         e_end = next((x.t for x in ends if s.t < x.t <= nxt), nxt)
         battles.append({"start": max(start, s.t), "stop": e_end, "events": []})
-    dropped = 0
+    dropped = dropped_hits = 0
     for e in sorted(evs, key=lambda e: e.t):
         if e.type == E.BATTLE_START:
             continue
@@ -880,6 +881,14 @@ def _timer_battles(evs: list[Event], start: float, end: float) -> list[dict] | N
                 break
         else:
             dropped += 1
+            dropped_hits += e.type == E.HIT
+    total_hits = sum(1 for e in evs if e.type == E.HIT)
+    if total_hits and dropped_hits > max(3, 0.3 * total_hits):
+        # багато влучань «поза боями» — таймер розпізнається ненадійно, межам за ним не віримо
+        log.warning("[УВАГА] За таймером поза боями лишилось %d з %d влучань — таймер розпізнається "
+                    "ненадійно (перевірте рамку «Таймер бою»). Ділю на бої за лічильником і паузами.",
+                    dropped_hits, total_hits)
+        return None
     if dropped:
         log.info("  Подій поза боями (ангар, результати) відкинуто: %d", dropped)
     return battles
@@ -891,6 +900,9 @@ def split_battles(evs: list[Event], profile: dict, start: float, end: float) -> 
     battles: list[dict] = _timer_battles(evs, start, end) or []
     if battles:
         return _battle_results(battles, end)
+    # без таймера: межі за обнуленням лічильника, смертю + паузою і довгими паузами
+    evs = [e for e in evs if not (e.type in (E.BATTLE_START, E.BATTLE_END) and "таймер" in e.source
+                                  and "лічильник" not in e.source)]
     cur: dict | None = None
     finished = False
     last_t = start
@@ -961,7 +973,34 @@ def detect(settings: dict, profile: dict, info: VideoInfo, start: float = 0.0, e
     end_t = info.duration if end is None else min(end, info.duration)
     battles = split_battles(evs, profile, start, end_t)
     add_battle_stats(battles, readings)
+    log_diagnostics(readings, raw, evs, battles)
     return evs, battles, readings
+
+
+def log_diagnostics(readings: list[dict], raw: list[Event], evs: list[Event], battles: list[dict]) -> None:
+    """Коротка діагностика в лог: що розпізнається, скільки знайдено, які бої вийшли."""
+    n = len(readings) or 1
+
+    def share(key, ok):
+        rows = [r for r in readings if key in r]
+        if not rows:
+            return "—"
+        return f"{sum(1 for r in rows if ok(r.get(key))) * 100 // len(rows)} %"
+
+    timer_ok = BattleTimerTracker({"max_base_s": 1200})._parse
+    log.info("  Діагностика: кадрів %d; таймер розпізнано %s; число шкоди %s; повідомлення в центрі %s",
+             n, share("timer_raw", lambda v: timer_ok(v or "") is not None),
+             share("dmg_raw", lambda v: first_number(v or "") is not None),
+             share("msg_raw", lambda v: bool(v)))
+    hits = [e for e in evs if e.type == E.HIT]
+    msgs = [e for e in raw if e.type == E.LOG_DAMAGE]
+    log.info("  Знайдено: влучань %d (повідомлень про шкоду %d), смертей %d, початків бою за таймером %d",
+             len(hits), len(msgs), sum(1 for e in evs if e.type == E.DEATH),
+             sum(1 for e in evs if e.type == E.BATTLE_START and "таймер" in e.source))
+    for b in battles:
+        log.info("    бій %d: %s–%s (%s), влучань %d, шкода %s, засвіт %s, кінець: %s", b["index"],
+                 fmt_time(b["start"], 0), fmt_time(b["end"], 0), fmt_time(b["end"] - b["start"], 0),
+                 b["hits"], b.get("damage_total"), b.get("assist_total"), b["ended_by"])
 
 
 def _confirmed_final(values: list[int | None], max_jump: int = 6000, need: int = 3) -> int | None:
