@@ -99,7 +99,7 @@ class Separator:
             from demucs.pretrained import get_model
         except ImportError as e:
             raise UserError(f"Не встановлено Demucs/PyTorch ({e}).",
-                            "Запустіть install.bat ще раз (етап 2 додав нові бібліотеки).")
+                            "Запустіть SETUP.bat ще раз — він доставить бібліотеки.")
         self.torch = torch
         self.apply_model = apply_model
         want = cfg.get("device", "cuda")

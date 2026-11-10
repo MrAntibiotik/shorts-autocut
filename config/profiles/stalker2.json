@@ -1,6 +1,6 @@
 {
   "name": "S.T.A.L.K.E.R. 2",
-  "_зони": "Обведіть рамку вебкамери через pick_zones.bat.",
+  "_зони": "Обведіть рамку вебкамери через extra\\pick_zones.bat.",
   "zones_confirmed": false,
   "zones": {
     "webcam": [

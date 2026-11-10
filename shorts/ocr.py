@@ -43,18 +43,17 @@ class OcrEngine:
     def __init__(self, settings: dict):
         self.cfg = settings["ocr"]
         try:
-            import easyocr  # noqa: F401
+            import easyocr
         except ImportError:
             raise UserError("Не встановлено бібліотеку EasyOCR.",
-                            "Запустіть install.bat ще раз (README, крок 3).")
-        import easyocr
+                            "Запустіть SETUP.bat ще раз — він доставить бібліотеки.")
         gpu = bool(self.cfg.get("gpu", True))
         if gpu:
             try:
                 import torch
                 if not torch.cuda.is_available():
                     log.warning("CUDA недоступна — розпізнавання тексту піде на процесорі (повільніше). "
-                                "Запустіть check_setup.bat, щоб з'ясувати причину.")
+                                "Запустіть extra\\check_setup.bat, щоб з'ясувати причину.")
                     gpu = False
             except Exception:
                 gpu = False

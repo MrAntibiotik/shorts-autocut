@@ -1,6 +1,6 @@
 """Вікно запуску автонарізки: вибір запису, профіль гри, текст заклику -> обробка з прогресом.
 
-Відкривається кнопкою в DaVinci (Workspace → Scripts → Shorts Autocut) або через run_job.bat.
+Відкривається кнопкою в DaVinci (Workspace → Scripts → Shorts Autocut) або через extra\\run_job.bat.
 Після завершення поверніться в DaVinci і натисніть ту саму кнопку ще раз — вона збере таймлайни.
 
 Без вікна (для перевірки): python tools/run_job.py --cli ЗАПИС.mp4 --profile wot --cta "Підпишись!"
@@ -191,10 +191,10 @@ def gui(settings, log_file: Path):
     opts_frame = tk.Frame(setup)
     opts_frame.pack(fill="x", **pad)
     v_render = tk.BooleanVar(value=state.get("render", True))
-    v_subs = tk.BooleanVar(value=state.get("subtitles", True))
+    v_subs = tk.BooleanVar(value=state.get("subtitles_on", bool(settings["whisper"]["enabled"])))
     v_sep = tk.BooleanVar(value=state.get("separation", settings["separation"]["enabled"]))
     tk.Checkbutton(opts_frame, text="Рендерити готові MP4", variable=v_render).pack(anchor="w")
-    tk.Checkbutton(opts_frame, text="Субтитри (whisper.cpp)", variable=v_subs).pack(anchor="w")
+    tk.Checkbutton(opts_frame, text="Субтитри (експериментально; спершу extra\\setup_whisper.bat)", variable=v_subs).pack(anchor="w")
     tk.Checkbutton(opts_frame, text="Відділяти голос від гри (нейромережа)", variable=v_sep).pack(anchor="w")
 
     st = read_status(settings)
@@ -287,7 +287,7 @@ def gui(settings, log_file: Path):
             messagebox.showerror("Відрізок", str(e))
             return
         text = cta.get("1.0", "end").strip()
-        state.update(profile=prof, cta=text, render=v_render.get(), subtitles=v_subs.get(),
+        state.update(profile=prof, cta=text, render=v_render.get(), subtitles_on=v_subs.get(),
                      separation=v_sep.get(), last_dir=state.get("last_dir") or str(Path(recs[0]).parent))
         save_state(settings, state)
         opts = JobOptions(recordings=[Path(r) for r in recs], profile_id=prof, cta_text=text, start=a, end=b,
@@ -366,7 +366,7 @@ def main():
     ap.add_argument("--start")
     ap.add_argument("--end")
     ap.add_argument("--no-render", action="store_true")
-    ap.add_argument("--no-subtitles", action="store_true")
+    ap.add_argument("--subtitles", action="store_true", help="зробити субтитри (експериментально)")
     ap.add_argument("--no-separation", action="store_true")
     args = ap.parse_args()
     settings = load_settings()
@@ -389,7 +389,7 @@ def main():
     if args.cli is not None:
         opts = JobOptions(recordings=[Path(p) for p in args.cli], profile_id=args.profile, cta_text=args.cta,
                           start=parse_time(args.start), end=parse_time(args.end), render=not args.no_render,
-                          subtitles=not args.no_subtitles, separation=not args.no_separation)
+                          subtitles=args.subtitles, separation=not args.no_separation)
         try:
             res = Job(settings, opts).run()
         except UserError as e:

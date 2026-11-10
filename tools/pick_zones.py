@@ -1,6 +1,6 @@
 """Вибір рамок (зон) мишкою на кадрі-зразку з запису.
 
-Запуск: перетягніть файл запису (або скриншот .png/.jpg) на pick_zones.bat.
+Запуск: перетягніть файл запису (або скриншот .png/.jpg) на extra\\pick_zones.bat.
   1. Оберіть профіль гри в консолі.
   2. Для відео — вкажіть секунду, на якій видно HUD (лічильники, лог, міцність, вебкамеру).
   3. У вікні: праворуч оберіть зону, ліворуч обведіть її мишкою. Після кожної рамки
@@ -355,7 +355,7 @@ def main():
         src = input("Перетягніть сюди файл запису або скриншот і натисніть Enter: ").strip().strip('"')
     src = Path(src)
     if not src.exists():
-        raise UserError(f"Файл не знайдено: {src}", "Перетягніть файл на pick_zones.bat.")
+        raise UserError(f"Файл не знайдено: {src}", "Перетягніть файл на extra\\pick_zones.bat.")
     profile_id = args.profile or ask_profile("wot")
     t = parse_time(args.time) if args.time else None
     if t is None and src.suffix.lower() not in IMAGE_EXT and not args.preview:

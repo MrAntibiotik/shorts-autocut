@@ -8,7 +8,7 @@
 Категорія (назва папки) задає тип події в профілі гри (game_audio.categories), напр.:
   samples/wot/пробиття/*.wav  -> влучання
   samples/wot/знищено/*.wav   -> знищення ворога
-Нові зразки зручно вирізати через make_sample.bat.
+Нові зразки зручно вирізати через extra\\make_sample.bat.
 
 Якщо звук не розділено (немає Demucs або вимкнено), пошук іде по міксу,
 а поріг множиться на mix_threshold_factor (знижується).
@@ -127,7 +127,7 @@ class GameSoundDetector:
                          ", ".join(f"{c} — {n}" for c, n in sorted(by_cat.items())))
             else:
                 log.info("У %s ще немає зразків звуків — пошук зразків пропущено. "
-                         "Додайте їх через make_sample.bat (README, етап 2).", root)
+                         "Додати їх можна через extra\\make_sample.bat (необов'язково).", root)
 
     def _cat_cfg(self, cat: str) -> dict:
         d = {"type": E.GAME_SOUND, "weight": 0.5, "threshold": None, "stems": None}

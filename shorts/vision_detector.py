@@ -165,7 +165,7 @@ class VisionScanner:
                 self.zones_px[k] = zone_px(zones[k], info.width, info.height)
         if not self.zones_px:
             raise UserError(f"У профілі «{profile['id']}» не задано жодної зони для розпізнавання.",
-                            "Запустіть pick_zones.bat і обведіть зони на кадрі з запису.")
+                            "Запустіть extra\\pick_zones.bat і обведіть зони на кадрі з запису.")
 
         # Загальний прямокутник усіх зон — ffmpeg віддає лише його.
         xs0 = [z[0] for z in self.zones_px.values()]
@@ -583,11 +583,14 @@ class HitMessageTracker:
 class BattleTimerTracker:
     """Таймер бою (15:00 -> 0:00): точні межі боїв.
     Початок бою = момент, коли таймер почав відлік (рахуємо назад від показаного значення);
-    новий бій — таймер «стрибнув» угору; кінець — таймер зник надовго (екран результатів, ангар)."""
+    новий бій — таймер «стрибнув» угору; кінець — таймер зник надовго (екран результатів, ангар).
+    Якщо таймер зник ненадовго посеред бою (велика карта, таблиця) і повернувся з тим самим
+    відліком — це той самий бій."""
 
     def __init__(self, cfg: dict):
         self.cfg = cfg
         self.in_battle = False
+        self.gone = False                  # таймер зник — можливо, кінець бою (ще не підтверджено)
         self.last_val: int | None = None
         self.last_t = -1e9
         self.cand: tuple[float, int] | None = None
@@ -602,27 +605,35 @@ class BattleTimerTracker:
         v = mm * 60 + ss
         return v if v <= self.cfg["max_s"] else None
 
+    def _end(self, why: str) -> list[Event]:
+        self.in_battle, self.gone = False, False
+        return [Event(self.last_t + 1, E.BATTLE_END, "vision:таймер", detail=why)]
+
     def update(self, t: float, raw: str) -> list[Event]:
         out: list[Event] = []
         v = self._parse(raw)
-        if self.in_battle and t - self.last_t > self.cfg["end_gap_s"]:
-            out.append(Event(self.last_t + 1, E.BATTLE_END, "vision:таймер", detail="таймер зник"))
-            self.in_battle, self.last_val = False, None
+        if self.in_battle and not self.gone and t - self.last_t > self.cfg["end_gap_s"]:
+            self.gone = True
         if v is None:
             return out
         # підтвердження: два читання поспіль, узгоджені з ходом часу (таймер іде вниз)
         if self.cand is not None:
             ct, cv = self.cand
-            expect = cv - (t - ct)
-            consistent = abs(v - expect) <= 2.5 or (v == cv and cv >= self.cfg["max_s"] - 1)
+            consistent = abs(v - (cv - (t - ct))) <= 2.5 or (v == cv and cv >= self.cfg["max_s"] - 1)
         else:
             consistent = False
         self.cand = (t, v)
         if not consistent:
             return out
-        if self.in_battle and self.last_val is not None and v > self.last_val + self.cfg["reset_jump_s"]:
-            out.append(Event(self.last_t + 1, E.BATTLE_END, "vision:таймер", detail="новий бій"))
-            self.in_battle = False
+        if self.in_battle and self.last_val is not None:
+            expected = self.last_val - (t - self.last_t)
+            same_battle = v <= self.last_val + 2 and abs(v - expected) <= 10
+            if self.gone and same_battle:
+                self.gone = False          # таймер просто ховався — бій той самий
+            elif self.gone:
+                out += self._end("таймер зник")
+            elif v > self.last_val + self.cfg["reset_jump_s"]:
+                out += self._end("новий бій")
         if not self.in_battle:
             start = t - (self.cfg["max_s"] - v)
             out.append(Event(start, E.BATTLE_START, "vision:таймер", value=v,
@@ -630,6 +641,10 @@ class BattleTimerTracker:
             self.in_battle = True
         self.last_val, self.last_t = v, t
         return out
+
+    def finish(self) -> list[Event]:
+        """Кінець запису: якщо таймер зник і не повернувся — бій закінчився."""
+        return self._end("таймер зник") if self.in_battle and self.gone else []
 
 
 class EndScreenTracker:
@@ -697,6 +712,7 @@ def analyze_readings(readings: list[dict], profile: dict) -> list[Event]:
             out += lg.update(t, r["log"])
         if "end" in r:
             out += end.update(t, r["end"])
+    out += timer.finish()
     out.sort(key=lambda e: e.t)
     return out
 

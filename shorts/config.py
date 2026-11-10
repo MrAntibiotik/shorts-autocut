@@ -53,7 +53,7 @@ DEFAULT_SETTINGS: dict = {
         "x264_crf": 18,
     },
     "whisper": {
-        "enabled": True,
+        "enabled": False,
         "cli": "auto",
         "model": "models/whisper/ggml-large-v3-turbo.bin",
         "language": "uk",
@@ -361,7 +361,7 @@ def validate_zones(prof: dict) -> None:
             raise UserError(
                 f"Зона «{key}» у профілі «{prof.get('id')}» задана неправильно: {z}",
                 "Формат: [x, y, ширина, висота] у частках кадру від 0 до 1. "
-                "Найпростіше — заново обвести зону через pick_zones.bat.")
+                "Найпростіше — заново обвести зону через extra\\pick_zones.bat.")
 
 
 def zone_px(zone: list[float], width: int, height: int) -> tuple[int, int, int, int]:

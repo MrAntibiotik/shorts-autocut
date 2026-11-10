@@ -12,8 +12,8 @@ DEATH = "death"                # мене знищено / екран смерт
 BATTLE_START = "battle_start"  # початок бою (лічильник обнулився)
 BATTLE_END = "battle_end"      # екран результатів / кінець бою
 LOG_DAMAGE = "log_damage"      # зелений рядок логу з числом (службова, зливається з HIT)
-GAME_SOUND = "game_sound"      # звук гри зі зразків (етап 2)
-VOICE = "voice"                # моя емоція (етап 2)
+GAME_SOUND = "game_sound"      # звук гри зі зразків
+VOICE = "voice"                # моя емоція (крик, сміх, сплеск)
 
 LABELS = {
     HIT: "Влучання",

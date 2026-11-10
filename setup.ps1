@@ -68,7 +68,7 @@ function Find-Python {
 
 Write-Host "======================================================================"
 Write-Host " Встановлення інструмента автонарізки шортсів у $Target"
-Write-Host " Займе 20–60 хв (більшість часу — завантаження ~5 ГБ). Не закривайте вікно."
+Write-Host " Займе 15–45 хв (більшість часу — завантаження ~3,5 ГБ). Не закривайте вікно."
 Write-Host "======================================================================"
 
 $tmp = Join-Path $env:TEMP ("shorts_setup_" + (Get-Random))
@@ -129,6 +129,11 @@ foreach ($d in @("config", "samples")) {
     if ($LASTEXITCODE -ge 8) { Fail "Не вдалося скопіювати $d (robocopy $LASTEXITCODE)" }
 }
 if (-not (Test-Path (Join-Path $Target "SETUP.bat"))) { Copy-Item (Join-Path $src "SETUP.bat") $Target }
+# допоміжні .bat тепер лежать у папці extra — старі копії з кореня прибираємо
+foreach ($old in @("check_setup","install","install_resolve","make_sample","pick_zones","preview_layout","rerender","run_job","setup_whisper","test_audio","test_vision")) {
+    $f = Join-Path $Target "$old.bat"
+    if (Test-Path $f) { Remove-Item -Force $f }
+}
 if ($update) { Ok "Оновлено (ваші налаштування, рамки й зразки збережено)" } else { Ok "Встановлено в $Target" }
 
 # ---------------------------------------------------------------- 4. ffmpeg
@@ -154,9 +159,12 @@ Run $vpy @("-m", "pip", "install", "-r", (Join-Path $Target "requirements.txt"))
 Ok "Бібліотеки встановлено"
 
 # ---------------------------------------------------------------- 6. whisper
-Step 6 "Субтитри: whisper.cpp і модель (~1,6 ГБ)"
-& $vpy (Join-Path $Target "tools\setup_whisper.py") --auto
-if ($LASTEXITCODE -ne 0) { Warn "Субтитри не налаштувались — решта працюватиме. Запустіть setup_whisper.bat пізніше." }
+Step 6 "Субтитри (експериментально — за замовчуванням вимкнені)"
+if (Get-ChildItem (Join-Path $Target "whisper") -Recurse -Filter whisper-cli.exe -ErrorAction SilentlyContinue | Select-Object -First 1) {
+    Ok "whisper.cpp уже встановлено"
+} else {
+    Ok "Пропущено. Щоб спробувати субтитри: запустіть extra\setup_whisper.bat (~1,6 ГБ) і поставте галочку у вікні запуску."
+}
 
 # ---------------------------------------------------------------- 7. DaVinci
 Step 7 "Кнопка в DaVinci Resolve"

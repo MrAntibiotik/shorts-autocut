@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0.."
 echo ================================================================
 echo  Встановлення інструмента автонарізки шортсів
 echo ================================================================
@@ -8,7 +8,7 @@ set "PY="
 where py >nul 2>nul && py -3.11 --version >nul 2>nul && set "PY=py -3.11"
 if not defined PY ( where python >nul 2>nul && set "PY=python" )
 if not defined PY (
-  echo [ПОМИЛКА] Python не знайдено. Встановіть Python 3.11 ^(README, крок 1^) і запустіть цей файл знову.
+  echo [ПОМИЛКА] Python не знайдено. Запустіть SETUP.bat — він встановить усе сам.
   pause
   exit /b 1
 )

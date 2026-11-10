@@ -1,6 +1,6 @@
-"""Етап 1: перевірка зорового детектора WoT на записі + звіт.
+"""Перевірка зорового детектора WoT на записі + звіт (необов'язково, для налаштування порогів).
 
-Найпростіше: перетягніть файл запису на test_vision.bat і дайте відповіді на питання.
+Найпростіше: перетягніть файл запису на extra\\test_vision.bat і дайте відповіді на питання.
 
 Командний рядок (для досвідчених):
   python tools/test_vision.py ЗАПИС.mp4 --profile wot --start 10:00 --end 15:00
@@ -165,7 +165,7 @@ def main() -> int:
                         "Для перевірки етапу 1 оберіть профіль wot.")
     if not profile.get("zones_confirmed"):
         print("\n[УВАГА] Зони в профілі ще не обведені на вашому записі — розпізнавання може не працювати.\n"
-              "        Спершу запустіть pick_zones.bat (README, крок 5).")
+              "        Спершу обведіть рамки: extra\\pick_zones.bat або вікно запуску.")
 
     start, end = parse_time(args.start) or 0.0, parse_time(args.end)
     ref_path = Path(args.reference) if args.reference else None

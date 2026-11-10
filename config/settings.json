@@ -60,8 +60,8 @@
     "x264_crf": 18
   },
   "whisper": {
-    "_опис": "Субтитри whisper.cpp. Програму і модель ставить setup_whisper.bat. gpu=false — рахувати на процесорі (повільніше). prompt — підказка зі словами, які часто звучать (назви танків, сленг). hallucinations — фрази, які whisper іноді «вигадує» в тиші; такі субтитри видаляються.",
-    "enabled": true,
+    "_опис": "Субтитри whisper.cpp — ЕКСПЕРИМЕНТАЛЬНО, за замовчуванням вимкнені (enabled=false). Щоб спробувати: запустіть extra\\setup_whisper.bat і поставте галочку «Субтитри» у вікні запуску. Програму і модель ставить extra\\setup_whisper.bat. gpu=false — рахувати на процесорі (повільніше). prompt — підказка зі словами, які часто звучать (назви танків, сленг). hallucinations — фрази, які whisper іноді «вигадує» в тиші; такі субтитри видаляються.",
+    "enabled": false,
     "cli": "auto",
     "model": "models/whisper/ggml-large-v3-turbo.bin",
     "language": "uk",

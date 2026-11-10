@@ -1,6 +1,6 @@
 {
   "name": "PUBG",
-  "_зони": "Для PUBG потрібна лише рамка вебкамери. Обведіть її через pick_zones.bat.",
+  "_зони": "Для PUBG потрібна лише рамка вебкамери. Обведіть її через extra\\pick_zones.bat.",
   "zones_confirmed": false,
   "zones": {
     "webcam": [

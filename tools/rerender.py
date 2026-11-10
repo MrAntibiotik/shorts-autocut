@@ -3,7 +3,7 @@
 Як користуватися:
   1. У папці результату (output\\job_...) відкрийте Блокнотом файл ..._short_03.srt і виправте текст
      (можна додавати емодзі 😱🔥). Заклик — у файлі ..._short_03_cta.txt (порожній = без заклику).
-  2. Перетягніть ПАПКУ результату на rerender.bat (або запустіть його — візьме останній результат).
+  2. Перетягніть ПАПКУ результату на extra\\rerender.bat (або запустіть його — візьме останній результат).
   3. Вкажіть номери шортсів (напр. «3» або «1,4») або Enter — усі.
 Таймлайни в DaVinci це не змінює — там правте текст прямо на таймлайні.
 """
@@ -37,7 +37,7 @@ def main() -> int:
         job_dir = jobs[-1]
     job_file = job_dir / "job.json"
     if not job_file.exists():
-        raise UserError(f"У папці {job_dir} немає job.json.", "Перетягніть на rerender.bat саму папку output\\job_….")
+        raise UserError(f"У папці {job_dir} немає job.json.", "Перетягніть на extra\\rerender.bat саму папку output\\job_….")
     job = json.loads(job_file.read_text(encoding="utf-8"))
     print(f"Результат: {job_dir}")
     all_shorts = [(rec, sh) for rec in job["recordings"] for sh in rec["shorts"]]

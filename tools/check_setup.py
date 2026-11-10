@@ -1,6 +1,6 @@
 """Перевірка встановлення: Python, ffmpeg (NVENC, CUDA), PyTorch+CUDA, EasyOCR, профілі.
 
-Запуск: check_setup.bat (або venv\\Scripts\\python tools\\check_setup.py)
+Запуск: extra\\check_setup.bat (або venv\\Scripts\\python tools\\check_setup.py)
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def main():
         say(OK, f"Python {v.major}.{v.minor}.{v.micro} ({bits})")
     else:
         say(FAIL, f"Python {v.major}.{v.minor} ({bits}) — потрібен 3.10–3.12, 64-bit",
-            "Встановіть Python 3.11 64-bit (README, крок 1).")
+            "Запустіть SETUP.bat — він встановить Python 3.11.")
 
     # Налаштування
     try:
@@ -74,7 +74,7 @@ def main():
             say(OK, "Кодування NVENC (H.264 на відеокарті) працює")
         else:
             err = test.stderr.decode("utf-8", "replace").strip().splitlines()[-1:] or [""]
-            say(WARN, f"NVENC не працює ({err[0][:120]}) — потрібно для рендеру MP4 (етап 4)",
+            say(WARN, f"NVENC не працює ({err[0][:120]}) — MP4 рендеритимуться процесором (повільніше)",
                 "Оновіть драйвер NVIDIA (GeForce Experience / nvidia.com) і перезавантажте ПК.")
     except UserError as e:
         say(FAIL, e.message, e.hint or "")
@@ -100,14 +100,14 @@ def main():
                     say(OK, f"Обчислення на відеокарті працюють ({arch}, CUDA {torch.version.cuda})")
             except Exception as e:
                 say(FAIL, f"PyTorch не підтримує вашу відеокарту {name} ({arch}): {str(e)[:120]}",
-                    "Для RTX 50xx потрібен PyTorch з CUDA 12.8: видаліть папку venv і запустіть install.bat "
+                    "Для RTX 50xx потрібен PyTorch з CUDA 12.8: видаліть папку venv і запустіть extra\\install.bat "
                     "знову (він ставить саме таку версію). Драйвер NVIDIA — 570 або новіший.")
         else:
             say(FAIL, f"PyTorch {torch.__version__} встановлено, але CUDA недоступна",
-                "1) Оновіть драйвер NVIDIA. 2) Запустіть install.bat ще раз — він поставить PyTorch з CUDA. "
+                "1) Оновіть драйвер NVIDIA. 2) Запустіть SETUP.bat ще раз — він поставить PyTorch з CUDA. "
                 "Якщо у версії PyTorch вище є «+cpu» — це версія без відеокарти.")
     except ImportError:
-        say(FAIL, "PyTorch не встановлено", "Запустіть install.bat (README, крок 3).")
+        say(FAIL, "PyTorch не встановлено", "Запустіть SETUP.bat ще раз.")
 
     # Бібліотеки
     for mod, title in (("cv2", "OpenCV"), ("numpy", "NumPy"), ("PIL", "Pillow"), ("easyocr", "EasyOCR"),
@@ -117,7 +117,7 @@ def main():
             m = __import__(mod)
             say(OK, f"{title} {getattr(m, '__version__', '')}")
         except ImportError:
-            say(FAIL, f"{title} не встановлено", "Запустіть install.bat ще раз.")
+            say(FAIL, f"{title} не встановлено", "Запустіть SETUP.bat ще раз.")
 
     try:
         import tkinter  # noqa: F401
@@ -165,14 +165,17 @@ def main():
             say(FAIL, f"Розділення звуку не запустилось: {e}",
                 "Надішліть цей текст розробнику. Тимчасово можна вимкнути: settings.json → separation.enabled = false.")
 
-    # whisper.cpp (субтитри)
-    try:
+    # whisper.cpp (субтитри) — експериментально
+    if not settings["whisper"]["enabled"] and "--whisper" not in sys.argv:
+        say(OK, "Субтитри вимкнені (експериментальна функція; увімкнути — extra\\setup_whisper.bat)")
+    else:
+      try:
         from shorts.subtitles import find_whisper, whisper_model
         exe = find_whisper(settings)
         model = whisper_model(settings)
         say(OK, f"whisper.cpp: {exe.name}, модель {model.name} ({model.stat().st_size / 1e9:.1f} ГБ), "
                 f"{'відеокарта' if settings['whisper']['gpu'] else 'процесор'}")
-    except UserError as e:
+      except UserError as e:
         say(WARN, e.message + " — без цього не буде субтитрів", e.hint or "")
 
     # Кнопка в DaVinci
@@ -184,7 +187,7 @@ def main():
         if btn.exists():
             say(OK, "Кнопка в DaVinci встановлена (Workspace → Scripts → Shorts Autocut)")
         else:
-            say(WARN, "Кнопку в DaVinci ще не встановлено", "Запустіть install_resolve.bat і перезапустіть DaVinci.")
+            say(WARN, "Кнопку в DaVinci ще не встановлено", "Запустіть extra\\install_resolve.bat і перезапустіть DaVinci.")
 
     # Профілі
     print()
@@ -195,7 +198,7 @@ def main():
                 say(OK, f"Профіль «{p['name']}» ({name}): зони перевірені")
             else:
                 say(WARN, f"Профіль «{p['name']}» ({name}): зони ще не обведені на вашому записі",
-                    "Запустіть pick_zones.bat (README, крок 5).")
+                    "Їх запропонує обвести вікно запуску (або extra\\pick_zones.bat).")
         except UserError as e:
             say(FAIL, str(e))
 

@@ -40,7 +40,7 @@ def find_tool(settings: dict, name: str) -> str:
         if p.exists():
             return str(p)
         raise UserError(f"У settings.json для «{name}» вказано шлях {p}, але файлу там немає.",
-                        f'Виправте шлях або поставте "auto".')
+                        'Виправте шлях або поставте "auto".')
 
     candidates = [ROOT / "ffmpeg" / "bin" / exe]
     candidates += sorted((ROOT / "ffmpeg").glob(f"*/bin/{exe}"))
@@ -53,7 +53,7 @@ def find_tool(settings: dict, name: str) -> str:
         return found
     raise UserError(
         f"Не знайдено {name}.",
-        "Завантажте ffmpeg (див. README, крок 2) і розпакуйте в папку ffmpeg "
+        "Запустіть SETUP.bat ще раз — він завантажить ffmpeg. Або розпакуйте ffmpeg у папку ffmpeg "
         "всередині папки інструмента, щоб вийшло ffmpeg\\...\\bin\\ffmpeg.exe.")
 
 

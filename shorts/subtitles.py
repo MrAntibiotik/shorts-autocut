@@ -61,13 +61,13 @@ def find_whisper(settings: dict) -> Path:
     w = which("whisper-cli")
     if w:
         return Path(w)
-    raise UserError("Не знайдено whisper.cpp (whisper-cli.exe).", "Запустіть setup_whisper.bat (README, етап 5).")
+    raise UserError("Не знайдено whisper.cpp (whisper-cli.exe).", "Субтитри експериментальні: щоб спробувати, запустіть extra\\setup_whisper.bat.")
 
 
 def whisper_model(settings: dict) -> Path:
     p = resolve_path(settings["whisper"]["model"])
     if not p.exists():
-        raise UserError(f"Не знайдено модель whisper: {p}", "Запустіть setup_whisper.bat — він завантажить модель.")
+        raise UserError(f"Не знайдено модель whisper: {p}", "Запустіть extra\\setup_whisper.bat — він завантажить модель.")
     return p
 
 
@@ -91,7 +91,7 @@ def run_whisper(settings: dict, wav: Path, out_base: Path, gpu: bool | None = No
             log.warning("whisper.cpp на відеокарті не спрацював — пробую на процесорі. %s", err.strip()[-300:])
             return run_whisper(settings, wav, out_base, gpu=False)
         raise UserError(f"whisper.cpp завершився з помилкою:\n{err}",
-                        "Перевірте setup_whisper.bat / check_setup.bat. Шортси буде зібрано без субтитрів.")
+                        "Перевірте extra\\setup_whisper.bat / extra\\check_setup.bat. Шортси буде зібрано без субтитрів.")
     data = json.loads(jpath.read_bytes().decode("utf-8", "replace"))
     return data.get("transcription", [])
 

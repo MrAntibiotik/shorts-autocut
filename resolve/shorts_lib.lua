@@ -540,7 +540,7 @@ function M.main(tool_dir, mode)
     end)
   end
   if not launch_python("run_job.py") then
-    notify("Не вдалося відкрити вікно запуску. Запустіть вручну файл run_job.bat у папці " .. TOOL)
+    notify("Не вдалося відкрити вікно запуску. Запустіть вручну файл extra\\run_job.bat у папці " .. TOOL)
   end
 end
 

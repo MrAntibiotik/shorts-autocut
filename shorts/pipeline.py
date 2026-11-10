@@ -5,7 +5,7 @@
   short_01.mp4, short_01.srt, ...      готові шортси + субтитри
   report.csv / report.json             звіт: бій, таймкоди, тип, шкода, score, джерело, кліп
   <запис>_markers.edl                  маркери всіх моментів для DaVinci
-  job.json                             усе для повторного рендеру (rerender.bat)
+  job.json                             усе для повторного рендеру (extra\\rerender.bat)
   job_result.lua                       дані для Lua-кнопки в DaVinci
 """
 
@@ -16,7 +16,7 @@ import logging
 import re
 import shutil
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -27,7 +27,7 @@ from .config import load_profile, output_dir, work_dir
 from .errors import UserError
 from .fusion import assign_to_battles, fuse, split_by_gaps
 from .layout import Layout, compute_layout
-from .media import VideoInfo, probe
+from .media import probe
 from .render import Overlay, render_short
 from .report import write_reports
 from .resolve_export import markers_for, write_lua, write_marker_edl, write_status
@@ -52,7 +52,7 @@ class JobOptions:
     start: float | None = None
     end: float | None = None
     render: bool = True
-    subtitles: bool = True
+    subtitles: bool = False
     separation: bool = True
 
 
@@ -185,7 +185,7 @@ class Job:
         # ---- зоровий детектор
         vision_events, battles = [], []
         if prof["signals"].get("vision"):
-            stage("Розпізнавання екрану (лічильник, лог, міцність)", 0.01, 0.45)
+            stage("Розпізнавання екрану (лічильники, повідомлення про шкоду, таймер)", 0.01, 0.45)
             from .vision_detector import detect
             vision_events, battles, _ = detect(st, prof, info, start, end, progress=P.sub(0, 1))
 
@@ -217,7 +217,7 @@ class Job:
 
         # ---- субтитри
         cues_by: dict[int, list[Cue]] = {sh.index: [] for sh in shorts}
-        if opts.subtitles and st["whisper"]["enabled"] and shorts:
+        if opts.subtitles and shorts:
             stage("Субтитри (whisper.cpp)", 0.68, 0.80)
             try:
                 words = transcribe_shorts(st, shorts, chunks, self.work / tag)
@@ -233,7 +233,7 @@ class Job:
         shorts_out = []
         for sh in shorts:
             base_name = f"{tag}_short_{sh.index:02d}"
-            srt = write_srt(cues_by[sh.index], self.out / f"{base_name}.srt")
+            srt = write_srt(cues_by[sh.index], self.out / f"{base_name}.srt") if cues_by[sh.index] else None
             cta = self._cta(sh)
             cta_srt = None
             if cta:

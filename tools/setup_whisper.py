@@ -1,6 +1,6 @@
 """Встановлення whisper.cpp (з підтримкою NVIDIA CUDA) і моделі розпізнавання мови.
 
-Запуск: setup_whisper.bat. Що робить:
+Запуск: extra\\setup_whisper.bat. Що робить:
   1. Знаходить останню збірку whisper.cpp для Windows з CUDA на GitHub (ggml-org/whisper.cpp)
      і розпаковує її в папку whisper\\.
   2. Завантажує модель (за замовчуванням large-v3-turbo, ~1,6 ГБ) у models\\whisper\\.
@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -26,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np  # noqa: E402
 
-from shorts.config import ROOT, SETTINGS_FILE, load_settings, resolve_path  # noqa: E402
+from shorts.config import ROOT, SETTINGS_FILE, load_settings  # noqa: E402
 
 API = "https://api.github.com/repos/ggml-org/whisper.cpp/releases"
 MODELS = {
@@ -167,6 +166,8 @@ def test_run(exe: Path, model: Path) -> None:
                 update_settings({"gpu": False})
             else:
                 update_settings({"gpu": True})
+            update_settings({"enabled": True})
+            print("  Субтитри увімкнено. У вікні запуску тепер стоятиме галочка «Субтитри».")
             return
         print(f"  {'GPU' if gpu else 'CPU'}: помилка (код {res.returncode}): {err.strip()[-400:]}")
     print("[ПОМИЛКА] whisper.cpp не запускається. Надішліть текст вище розробнику.")
