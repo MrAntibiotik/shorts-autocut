@@ -401,7 +401,7 @@ class DamageTracker:
         elif v == 0:
             need = self.cfg["reset_confirm_frames"]          # новий бій: лічильник показує 0
         else:  # «зменшення» не до 0 або неправдоподібний стрибок — майже завжди помилка розпізнавання
-            need = self.cfg["resync_frames"] * 4
+            need = self.cfg["resync_frames"] * (4 if diff > 0 else 20)   # падіння в бою неможливе — ~1 хв
         return self._confirm(t, v, need)
 
     def reset(self):
@@ -801,35 +801,76 @@ def analyze_readings(readings: list[dict], profile: dict) -> list[Event]:
     return out
 
 
-def merge_events(evs: list[Event], profile: dict) -> list[Event]:
+def _counter_rose(readings: list[dict] | None, t: float) -> bool | None:
+    """Чи зріс лічильник шкоди біля моменту t: True / False, None — якщо лічильник тут не читався."""
+    if not readings:
+        return None
+
+    def stable(a, z):
+        vals = [first_number(r.get("dmg_raw") or "") for r in readings if a <= r["t"] <= z and "dmg_raw" in r]
+        counts: dict[int, int] = {}
+        for v in vals:
+            if v is not None:
+                counts[v] = counts.get(v, 0) + 1
+        good = [v for v, n in counts.items() if n >= 2]
+        return good
+    before, after = stable(t - 5, t - 0.5), stable(t, t + 6)
+    if not before or not after:
+        return None
+    return max(after) > min(before)
+
+
+def merge_events(evs: list[Event], profile: dict, readings: list[dict] | None = None) -> list[Event]:
     """Зливає дублікати з різних зон в одну подію."""
     b = profile["battles"]
     evs = sorted(evs, key=lambda e: e.t)
     hits = [e for e in evs if e.type == E.HIT]
     out: list[Event] = []
+    w = b["log_match_s"]
 
-    # 1) Повідомлення «941 ✕ Шкода пострілом» (або зелений рядок логу) підтверджує влучання
-    #    з лічильника; час беремо найраніший (повідомлення з'являється точно в момент пострілу).
+    # 1) Повідомлення «941 ✕ Шкода пострілом» (або зелений рядок логу) підтверджує влучання з лічильника;
+    #    час беремо найраніший (повідомлення з'являється точно в момент пострілу).
+    #    Спершу зіставляємо за ЧИСЛОМ (1355 ↔ +1355), потім решту.
+    msgs = [e for e in evs if e.type == E.LOG_DAMAGE]
     used: set[int] = set()
-    for e in evs:
-        if e.type != E.LOG_DAMAGE:
-            continue
+    rest: list[Event] = []
+
+    def confirm(h: Event, e: Event):
         is_msg = e.source.endswith("повідомлення")
+        used.add(id(h))
+        h.confidence = min(1.0, h.confidence + 0.3)
+        if is_msg:
+            h.t = min(h.t, e.t)
         tag = "+повідомлення" if is_msg else "+лог"
-        near = [h for h in hits if abs(h.t - e.t) <= b["log_match_s"] and (id(h) not in used or not is_msg)]
-        if near:
-            h = min(near, key=lambda h: (abs((h.value or 0) - (e.value or 0)) > 5, abs(h.t - e.t)))
-            used.add(id(h))
-            h.confidence = min(1.0, h.confidence + 0.3)
-            if is_msg:
-                h.t = min(h.t, e.t)
-                if h.value and e.value and abs(h.value - e.value) > 5:
-                    h.detail += f" (повідомлення: {int(e.value)})"
-            if tag not in h.source:
-                h.source += tag
+        if tag not in h.source:
+            h.source += tag
+
+    for e in msgs:
+        same = [h for h in hits if abs(h.t - e.t) <= w + 1 and id(h) not in used
+                and h.value is not None and e.value is not None and abs(h.value - e.value) <= 5]
+        if same:
+            confirm(min(same, key=lambda h: abs(h.t - e.t)), e)
         else:
-            out.append(Event(e.t, E.HIT, "vision:" + ("повідомлення" if is_msg else "лог"), value=e.value,
-                             confidence=0.7 if is_msg else 0.6, detail=e.detail))
+            rest.append(e)
+    for e in rest:
+        is_msg = e.source.endswith("повідомлення")
+        near = [h for h in hits if abs(h.t - e.t) <= w]
+        if near:
+            free = [h for h in near if id(h) not in used]
+            if free:      # число в повідомленні прочиталось інакше — але влучання є
+                h = min(free, key=lambda h: abs(h.t - e.t))
+                confirm(h, e)
+                if h.value and e.value:
+                    h.detail += f" (повідомлення: {int(e.value)})"
+            continue      # поруч уже є влучання з іншим повідомленням — це засвіт/заблоковане, не постріл
+        rose = _counter_rose(readings, e.t) if is_msg else None
+        if rose is False:
+            # лічильник читається, а шкода не зросла — це повідомлення про засвіт чи заблоковану шкоду
+            log.info("  %s: повідомлення «%s» без зростання шкоди — не постріл (засвіт/заблоковано)",
+                     fmt_time(e.t), e.detail)
+            continue
+        out.append(Event(e.t, E.HIT, "vision:" + ("повідомлення" if is_msg else "лог"), value=e.value,
+                         confidence=0.7 if is_msg else 0.6, detail=e.detail))
 
     # 1б) Стрибок лічильника «змінилась одна цифра» без повідомлення про шкоду поруч — помилка розпізнавання.
     msgs = [e for e in evs if e.type == E.LOG_DAMAGE]
@@ -1022,7 +1063,7 @@ def detect(settings: dict, profile: dict, info: VideoInfo, start: float = 0.0, e
         scanner = VisionScanner(settings, profile, info, debug_dir=debug_dir)
         readings = scanner.scan(start, end, progress=progress)
     raw = analyze_readings(readings, profile)
-    evs = merge_events(raw, profile)
+    evs = merge_events(raw, profile, readings)
     end_t = info.duration if end is None else min(end, info.duration)
     battles = split_battles(evs, profile, start, end_t, readings)
     add_battle_stats(battles, readings)
