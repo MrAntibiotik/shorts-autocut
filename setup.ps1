@@ -133,6 +133,10 @@ foreach ($d in @("config", "samples")) {
 }
 if (-not (Test-Path (Join-Path $Target "SETUP.bat"))) { Copy-Item (Join-Path $src "SETUP.bat") $Target }
 # допоміжні .bat тепер лежать у папці extra — старі копії з кореня прибираємо
+foreach ($f in @("extra\test_battles.bat", "tests\test_battles.py")) {
+    $p = Join-Path $Target $f
+    if (Test-Path $p) { Remove-Item -Force $p }
+}
 foreach ($old in @("check_setup","install","install_resolve","make_sample","pick_zones","preview_layout","rerender","run_job","setup_whisper","test_audio","test_vision")) {
     $f = Join-Path $Target "$old.bat"
     if (Test-Path $f) { Remove-Item -Force $f }
