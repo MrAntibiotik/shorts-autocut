@@ -351,7 +351,13 @@ local function add_srt(mp, tl, path, start, track_no)
   return false
 end
 
-local function build_short(project, mp, item, cam_item, rec, sh, job, tl_cfg)
+local function build_short(project, mp, item, cam_item, rec, sh, job, tl_cfg, parent)
+  -- кожен бій — своя папка в медіапулі («Бій 03»): таймлайн шортсу і його субтитри
+  if parent and sh.media_folder then
+    local sub = nil
+    pcall(function() sub = mp:AddSubFolder(parent, sh.media_folder) end)
+    if sub then mp:SetCurrentFolder(sub) end
+  end
   local tl = unique_timeline(mp, project, sh.name)
   if not tl then warn("Не вдалося створити таймлайн " .. sh.name) return false end
   local W, H, FPS = tl_cfg.width, tl_cfg.height, tl_cfg.fps
@@ -486,7 +492,8 @@ local function import_job(status)
       build_master(project, mp, item, rec, job)
       for _, sh in ipairs(rec.shorts or {}) do
         n_short = n_short + 1
-        local ok, err = pcall(build_short, project, mp, item, cam_item, rec, sh, job, job.timeline)
+        local ok, err = pcall(build_short, project, mp, item, cam_item, rec, sh, job, job.timeline, folder)
+        if folder then pcall(function() mp:SetCurrentFolder(folder) end) end
         if ok and err then n_ok = n_ok + 1
         else warn("Помилка при збиранні «" .. tostring(sh.name) .. "»: " .. tostring(err)) end
       end

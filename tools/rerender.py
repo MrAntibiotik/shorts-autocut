@@ -1,8 +1,8 @@
 """Повторний рендер MP4 після ручних правок субтитрів (SRT) або тексту заклику.
 
 Як користуватися:
-  1. У папці результату (output\\job_...) відкрийте Блокнотом файл ..._short_03.srt і виправте текст
-     (можна додавати емодзі 😱🔥). Заклик — у файлі ..._short_03_cta.txt (порожній = без заклику).
+  1. У папці бою (output\\job_...\\battle_03) змініть Блокнотом заклик у файлі cta.txt
+     (порожній = без заклику; можна емодзі 😱🔥). Субтитри (якщо ввімкнені) — у файлі .srt там само.
   2. Перетягніть ПАПКУ результату на extra\\rerender.bat (або запустіть його — візьме останній результат).
   3. Вкажіть номери шортсів (напр. «3» або «1,4») або Enter — усі.
 Таймлайни в DaVinci це не змінює — там правте текст прямо на таймлайні.
@@ -55,9 +55,10 @@ def main() -> int:
         info = probe(settings, rec["path"])
         layout = layout_from_dict(rec["layout"])
         base = sh["file_base"]
-        srt = job_dir / f"{base}.srt"
+        sdir = job_dir / sh.get("dir", "")
+        srt = Path(sh["srt"]) if sh.get("srt") else sdir / f"{base}.srt"
         cues = read_srt(srt) if srt.exists() else []
-        cta_txt = job_dir / f"{base}_cta.txt"
+        cta_txt = Path(sh["cta_txt"]) if sh.get("cta_txt") else job_dir / f"{base}_cta.txt"
         text = cta_txt.read_text(encoding="utf-8").strip() if cta_txt.exists() else ""
         cta = None
         if text:
@@ -67,7 +68,7 @@ def main() -> int:
         overlays = build_overlays(settings, cues, cta, layout, tmp)
         print(f"Рендерю {base} ({len(cues)} субтитрів{', із закликом' if cta else ''})…")
         render_short(settings, info, layout, [(s["s"], s["e"]) for s in sh["segments"]], overlays,
-                     job_dir / f"{base}.mp4", rec.get("webcam"))
+                     Path(sh["mp4"]) if sh.get("mp4") else sdir / f"{base}.mp4", rec.get("webcam"))
     print("Готово.")
     return 0
 

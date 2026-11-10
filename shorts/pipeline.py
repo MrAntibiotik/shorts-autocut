@@ -231,26 +231,33 @@ class Job:
 
         # ---- файли шортсів
         shorts_out = []
+        multi = len(self.opts.recordings) > 1
         for sh in shorts:
-            base_name = f"{tag}_short_{sh.index:02d}"
-            srt = write_srt(cues_by[sh.index], self.out / f"{base_name}.srt") if cues_by[sh.index] else None
+            # кожен бій — окрема папка: battle_01\ (латиницею: кнопка DaVinci не відкриває шляхи з кирилицею)
+            folder = f"{tag}_battle_{sh.battle:02d}" if multi else f"battle_{sh.battle:02d}"
+            bdir = self.out / folder
+            bdir.mkdir(parents=True, exist_ok=True)
+            base_name = f"{tag}_battle_{sh.battle:02d}"
+            srt = write_srt(cues_by[sh.index], bdir / f"{base_name}.srt") if cues_by[sh.index] else None
             cta = self._cta(sh)
-            cta_srt = None
+            cta_srt = cta_txt = None
             if cta:
-                cta_srt = write_srt([Cue(cta["start"], cta["start"] + cta["dur"], cta["text"])],
-                                    self.out / f"{base_name}_cta.srt")
-                (self.out / f"{base_name}_cta.txt").write_text(opts.cta_text, encoding="utf-8")
+                cta_srt = write_srt([Cue(cta["start"], cta["start"] + cta["dur"], cta["text"])], bdir / "cta.srt")
+                cta_txt = bdir / "cta.txt"
+                cta_txt.write_text(opts.cta_text, encoding="utf-8")
             for e in sh.events:
-                e.extra["clip"] = base_name
+                e.extra["clip"] = f"{folder}/{base_name}.mp4"
             shorts_out.append({
                 "index": sh.index, "battle": sh.battle, "name": sh.name, "file_base": base_name,
+                "dir": folder, "media_folder": f"Бій {sh.battle:02d}",
                 "duration": round(sh.duration, 3), "score": round(sh.score, 2),
                 "segments": [{"s": round(s.start, 3), "e": round(s.end, 3)} for s in sh.segments],
                 "layers": [l.to_dict() for l in layout.layers],
-                "srt": str(srt) if cues_by[sh.index] else None,
+                "srt": str(srt) if srt else None,
                 "cta_srt": str(cta_srt) if cta_srt else None,
+                "cta_txt": str(cta_txt) if cta_txt else None,
                 "cta": cta,
-                "mp4": str(self.out / f"{base_name}.mp4"),
+                "mp4": str(bdir / f"{base_name}.mp4"),
                 "markers": [m | {"t": round(sh.src_to_short(m["t"]) or 0, 3)}
                             for m in markers_for([e for e in sh.events if e.extra.get("moment")],
                                                  st["resolve"]["marker_colors"])],
@@ -282,6 +289,12 @@ class Job:
         assign_battle_events = [e for b in battles for e in b["events"]]
         known = {id(e) for e in assign_battle_events}
         report_events = assign_battle_events + [e for e in all_events if id(e) not in known]
+        # окремий звіт про моменти кожного бою — у папці бою
+        by_battle = {b["index"]: b for b in battles}
+        for so in shorts_out:
+            b = by_battle.get(so["battle"])
+            if b is not None:
+                write_reports(self.out / so["dir"], "moments", path, opts.profile_id, list(b["events"]), [b])
         csv_p, json_p = write_reports(self.out, f"{tag}_report", path, opts.profile_id, report_events, battles,
                                       {"шортси": [{k: v for k, v in so.items() if k not in ("layers", "markers")}
                                                   for so in shorts_out]})
