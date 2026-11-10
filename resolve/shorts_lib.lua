@@ -351,6 +351,29 @@ local function add_srt(mp, tl, path, start, track_no)
   return false
 end
 
+-- Формат таймлайну. ПОРЯДОК ВАЖЛИВИЙ: спершу «власні налаштування», інакше DaVinci ігнорує роздільність.
+local FORMAT_KEYS = { "useCustomSettings", "timelineResolutionWidth", "timelineResolutionHeight",
+                      "timelineOutputResolutionWidth", "timelineOutputResolutionHeight", "timelineFrameRate" }
+
+local function is_format(tl, W, H)
+  return tostring(tl:GetSetting("timelineResolutionWidth")) == tostring(W)
+     and tostring(tl:GetSetting("timelineResolutionHeight")) == tostring(H)
+end
+
+local function set_format(tl, W, H, FPS)
+  local vals = {
+    useCustomSettings = "1",
+    timelineResolutionWidth = tostring(W), timelineResolutionHeight = tostring(H),
+    timelineOutputResolutionWidth = tostring(W), timelineOutputResolutionHeight = tostring(H),
+    timelineFrameRate = tostring(FPS),
+  }
+  for _, k in ipairs(FORMAT_KEYS) do
+    local ok, res = pcall(function() return tl:SetSetting(k, vals[k]) end)
+    if not ok or res == false then log("  SetSetting " .. k .. "=" .. vals[k] .. " → не вдалося") end
+  end
+  return is_format(tl, W, H)
+end
+
 local function build_short(project, mp, item, cam_item, rec, sh, job, tl_cfg, parent)
   -- кожен бій — своя папка в медіапулі («Бій 03»): таймлайн шортсу і його субтитри
   if parent and sh.media_folder then
@@ -361,21 +384,31 @@ local function build_short(project, mp, item, cam_item, rec, sh, job, tl_cfg, pa
   local tl = unique_timeline(mp, project, sh.name)
   if not tl then warn("Не вдалося створити таймлайн " .. sh.name) return false end
   local W, H, FPS = tl_cfg.width, tl_cfg.height, tl_cfg.fps
-  local settings = {
-    useCustomSettings = "1",
-    timelineResolutionWidth = tostring(W), timelineResolutionHeight = tostring(H),
-    timelineOutputResolutionWidth = tostring(W), timelineOutputResolutionHeight = tostring(H),
-    timelineFrameRate = tostring(FPS),
-  }
-  for k, v in pairs(settings) do
-    local ok, res = pcall(function() return tl:SetSetting(k, v) end)
-    if not ok or res == false then log("  SetSetting " .. k .. "=" .. v .. " → не вдалося") end
+  if not set_format(tl, W, H, FPS) then
+    -- запасний спосіб: тимчасово робимо проєкт вертикальним, створюємо таймлайн, повертаємо проєкт
+    log("  Таймлайн не став " .. W .. "×" .. H .. " — пробую через налаштування проєкту")
+    local pw, ph = project:GetSetting("timelineResolutionWidth"), project:GetSetting("timelineResolutionHeight")
+    pcall(function() mp:DeleteTimelines({ tl }) end)
+    pcall(function()
+      project:SetSetting("timelineResolutionWidth", tostring(W))
+      project:SetSetting("timelineResolutionHeight", tostring(H))
+    end)
+    tl = unique_timeline(mp, project, sh.name)
+    if tl then set_format(tl, W, H, FPS) end
+    pcall(function()
+      project:SetSetting("timelineResolutionWidth", tostring(pw))
+      project:SetSetting("timelineResolutionHeight", tostring(ph))
+    end)
+    if not tl then warn("Не вдалося створити таймлайн " .. sh.name) return false end
+    pcall(function() project:SetCurrentTimeline(tl) end)
   end
   local gw, gh = tl:GetSetting("timelineResolutionWidth"), tl:GetSetting("timelineResolutionHeight")
   local tlfps = tonumber(tl:GetSetting("timelineFrameRate")) or FPS
   log("Таймлайн «" .. sh.name .. "»: " .. tostring(gw) .. "×" .. tostring(gh) .. ", " .. tostring(tlfps) .. " fps")
-  if tostring(gw) ~= tostring(W) or tostring(gh) ~= tostring(H) then
-    warn("Таймлайн «" .. sh.name .. "» не став " .. W .. "×" .. H .. " — перевірте Timeline Settings.")
+  if not is_format(tl, W, H) then
+    warn("Таймлайн «" .. sh.name .. "» лишився " .. tostring(gw) .. "×" .. tostring(gh) .. ". Виправити вручну: " ..
+         "ПКМ по таймлайну в медіапулі → Налаштування таймлайну (Timeline Settings) → зняти «Використовувати " ..
+         "налаштування проєкту» → 1080 × 1920. Рамки кліпів уже розраховані під 1080×1920 — після цього все стане на місця.")
   end
   if math.abs(tlfps - FPS) > 0.01 then
     warn("Частота таймлайну " .. tostring(tlfps) .. " замість " .. FPS .. " (у Resolve вона задається до додавання кліпів).")
