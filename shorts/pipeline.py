@@ -23,6 +23,7 @@ from pathlib import Path
 from . import events as E
 from .audio import AudioPrep
 from .audio_detector import GameSoundDetector
+from .cleanup import cleanup_work
 from .config import load_profile, output_dir, work_dir
 from .errors import UserError
 from .fusion import assign_to_battles, fuse, split_by_gaps
@@ -150,6 +151,7 @@ class Job:
                      result_file=str(self.out / "job_result.lua"),
                      message=f"Готово: {total} шортсів за {fmt_time(time.time() - t0, 0)}")
         log.info("ГОТОВО: %d шортсів за %s. Папка: %s", total, fmt_time(time.time() - t0, 0), self.out)
+        cleanup_work(self.settings, keep=[self.work])
         return self.result
 
     # ------------------------------------------------------------------ один запис

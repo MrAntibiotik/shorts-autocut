@@ -43,6 +43,10 @@ DEFAULT_SETTINGS: dict = {
     },
     "processing": {"chunk_minutes": 10, "hwaccel": "cuda"},
     "separation": {"enabled": True, "model": "htdemucs", "device": "cuda", "shifts": 0, "overlap": 0.25},
+    "cleanup": {
+        "enabled": True,
+        "keep_days": 14,
+    },
     "render": {
         "enabled": True,
         "encoder": "h264_nvenc",

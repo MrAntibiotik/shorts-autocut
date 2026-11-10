@@ -29,6 +29,7 @@ import cv2
 import numpy as np
 
 from . import events as E
+from .cleanup import drop_stale_siblings
 from .config import VISION_ZONES, work_dir, zone_px
 from .errors import UserError
 from .events import Event
@@ -142,6 +143,7 @@ def _cache_dir(settings: dict, info: VideoInfo, profile: dict) -> Path:
     safe = re.sub(r"[^\w\-]+", "_", info.path.stem)[:60]
     d = work_dir(settings) / f"{safe}_{vid}" / f"vision_{profile['id']}_{h}"
     d.mkdir(parents=True, exist_ok=True)
+    drop_stale_siblings(settings, d)
     return d
 
 
