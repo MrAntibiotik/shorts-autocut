@@ -623,7 +623,13 @@ class BattleTimerTracker:
         self.resume: tuple[float, int] | None = None
 
     def _parse(self, raw: str) -> int | None:
-        m = _TIMER_RE.search(raw or "") or _TIMER_NOCOLON_RE.search((raw or "").replace(" ", ""))
+        # у рамку таймера іноді потрапляє сторонній текст зліва («909 10:56», «1 1455», «1: 1335») —
+        # беремо ОСТАННЄ значення, схоже на час
+        s = raw or ""
+        toks = s.split()
+        last = toks[-1] if toks else ""
+        m = _TIMER_RE.search(last) or _TIMER_NOCOLON_RE.fullmatch(last) or \
+            _TIMER_RE.search(s) or _TIMER_NOCOLON_RE.search(s.replace(" ", ""))
         if not m:
             return None
         mm, ss = int(m.group(1)), int(m.group(2))
