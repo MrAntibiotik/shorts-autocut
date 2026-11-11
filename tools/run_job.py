@@ -341,6 +341,33 @@ def gui(settings, log_file: Path):
         if missing:
             messagebox.showerror("Файл не знайдено", "\n".join(missing))
             return
+        if v_sai.get():
+            from shorts.speech_ai import available
+            ok, why = available()
+            if not ok:
+                ans = messagebox.askyesnocancel(
+                    "Повні фрази + субтитри — не встановлено",
+                    "Для цієї галочки ще не встановлено бібліотеки (Silero VAD, faster-whisper).\n\n"
+                    "«Так» — відкрити встановлення зараз (extra\\setup_speech_ai.bat, ~3 ГБ моделі); "
+                    "після нього натисніть «Почати» ще раз.\n"
+                    "«Ні» — почати без цієї функції (без субтитрів, межі мови — як раніше).\n"
+                    "«Скасувати» — нічого не робити.")
+                if ans is None:
+                    return
+                if ans:
+                    bat = Path(__file__).resolve().parent.parent / "extra" / "setup_speech_ai.bat"
+                    if os.name == "nt":
+                        import subprocess
+                        subprocess.Popen(["cmd", "/c", str(bat)], cwd=str(bat.parent.parent),
+                                         creationflags=subprocess.CREATE_NEW_CONSOLE)  # type: ignore[attr-defined]
+                    return
+                v_sai.set(False)
+        if not v_sep.get() and (v_sai.get() or v_subs.get()):
+            if not messagebox.askyesno(
+                    "Субтитри без відділення голосу",
+                    "Вимкнено «Відділяти голос від гри» — субтитри розпізнаватимуться з міксу разом зі "
+                    "звуками гри, помилок буде набагато більше.\n\nВсе одно продовжити?"):
+                return
         used = sorted({p for _, p in recs_prof})
         if len(used) > 1:
             messagebox.showerror("Різні ігри", "В одному запуску — записи однієї гри. Зараз у списку: "

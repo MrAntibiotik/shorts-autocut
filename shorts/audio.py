@@ -177,7 +177,7 @@ class AudioPrep:
         safe = re.sub(r"[^\w\-]+", "_", self.info.path.stem)[:60]
         d = work_dir(self.settings) / f"{safe}_{vid}" / f"audio_{h}"
         d.mkdir(parents=True, exist_ok=True)
-        drop_stale_siblings(self.settings, d)
+        drop_stale_siblings(self.settings, d, drop=False)
         return d
 
     def _ensure_separator(self) -> bool:

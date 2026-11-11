@@ -72,9 +72,11 @@ def _mb(n: int) -> str:
     return f"{n / 1024 / 1024:.0f} МБ" if n < 1024 ** 3 else f"{n / 1024 ** 3:.1f} ГБ"
 
 
-def drop_stale_siblings(settings: dict, current: Path) -> None:
+def drop_stale_siblings(settings: dict, current: Path, drop: bool = True) -> None:
     """Поточний кеш запису = current (…/<запис>/vision_wot_ab12cd34). Видаляє інші кеші того ж типу
-    для цього запису (зі старими рамками/налаштуваннями) — вони вже не знадобляться."""
+    для цього запису (зі старими рамками/налаштуваннями) — вони вже не знадобляться.
+    drop=False — лише позначити «користувались щойно» (для звуку: кеш «з розділенням» і «без» —
+    обидва корисні, перемикання галочки не має стирати хвилини роботи Demucs)."""
     for d in (current, current.parent):      # «користувались щойно» — щоб не видалило як старе
         try:
             os.utime(d)
@@ -82,7 +84,7 @@ def drop_stale_siblings(settings: dict, current: Path) -> None:
             pass
     enabled, _ = _cfg(settings)
     m = _CACHE_RE.match(current.name)
-    if not enabled or not m:
+    if not drop or not enabled or not m:
         return
     freed, n = 0, 0
     for d in current.parent.iterdir():
