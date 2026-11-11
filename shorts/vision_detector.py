@@ -335,9 +335,12 @@ class VisionScanner:
                 continue
             f = cache / f"chunk_{c0:09.1f}_{c1:09.1f}.jsonl"
             if f.exists():
-                readings.extend(json.loads(l) for l in f.read_text(encoding="utf-8").splitlines() if l)
-                log.info("  частина %d/%d (%s–%s): з кешу", i + 1, n_chunks, fmt_time(c0, 0), fmt_time(c1, 0))
-                continue
+                try:
+                    readings.extend(json.loads(l) for l in f.read_text(encoding="utf-8").splitlines() if l)
+                    log.info("  частина %d/%d (%s–%s): з кешу", i + 1, n_chunks, fmt_time(c0, 0), fmt_time(c1, 0))
+                    continue
+                except (ValueError, OSError):
+                    log.warning("  Кеш %s пошкоджений — сканую цю частину заново", f.name)
             if self.ocr is None:
                 self.ocr = OcrEngine(self.settings)
             part: list[dict] = []
@@ -1093,7 +1096,10 @@ def load_cached_readings(settings: dict, profile: dict, info: VideoInfo,
     for f in files:
         for l in f.read_text(encoding="utf-8").splitlines():
             if l:
-                r = json.loads(l)
+                try:
+                    r = json.loads(l)
+                except ValueError:
+                    continue
                 if start <= r["t"] < end:
                     by_t[round(r["t"], 2)] = r
     out = [by_t[k] for k in sorted(by_t)]

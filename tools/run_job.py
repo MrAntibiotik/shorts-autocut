@@ -106,7 +106,10 @@ def run_job_thread(settings, opts: JobOptions, q: queue.Queue, cancel: threading
     except Exception as e:  # непередбачена помилка — повний текст у лог
         logging.getLogger("run_job").error("Непередбачена помилка:\n%s", traceback.format_exc())
         write_status(settings, status="error", message=f"{type(e).__name__}: {e}")
-        q.put(("error", f"Непередбачена помилка: {type(e).__name__}: {e}\nПовний текст — у лог-файлі."))
+        tb = traceback.extract_tb(e.__traceback__)
+        where = f"{Path(tb[-1].filename).name}:{tb[-1].lineno}" if tb else "?"
+        q.put(("error", f"Непередбачена помилка: {type(e).__name__}: {e}\nМісце: {where}\n"
+                        "Повний текст — у лог-файлі (Режим розробника → «Останній лог»)."))
     finally:
         hb.stop = True
 

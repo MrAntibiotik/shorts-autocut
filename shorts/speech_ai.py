@@ -341,11 +341,17 @@ class SpeechAI:
         out: list[AiWord] = []
         for i, (a, b) in enumerate(windows):
             f = self.dir / f"win_{a:09.2f}_{b:09.2f}.json"
+            ws = None
             if f.exists():
-                ws = [AiWord(**d) for d in json.loads(f.read_text(encoding="utf-8"))]
-            else:
+                try:
+                    ws = [AiWord(**d) for d in json.loads(f.read_text(encoding="utf-8"))]
+                except (ValueError, TypeError, OSError):
+                    log.warning("  Кеш мови %s пошкоджений — розпізнаю заново", f.name)
+            if ws is None:
                 ws = transcribe_audio(voice_audio(chunks, a, b), self.cfg, offset=a)
-                f.write_text(json.dumps([w.__dict__ for w in ws], ensure_ascii=False), encoding="utf-8")
+                tmp = f.with_suffix(".tmp")
+                tmp.write_text(json.dumps([w.__dict__ for w in ws], ensure_ascii=False), encoding="utf-8")
+                tmp.replace(f)
             out += ws
             if progress:
                 progress((i + 1) / max(1, len(windows)))

@@ -92,7 +92,11 @@ def run_whisper(settings: dict, wav: Path, out_base: Path, gpu: bool | None = No
             return run_whisper(settings, wav, out_base, gpu=False)
         raise UserError(f"whisper.cpp завершився з помилкою:\n{err}",
                         "Перевірте extra\\setup_whisper.bat / extra\\check_setup.bat. Шортси буде зібрано без субтитрів.")
-    data = json.loads(jpath.read_bytes().decode("utf-8", "replace"))
+    try:
+        data = json.loads(jpath.read_bytes().decode("utf-8", "replace"))
+    except ValueError:
+        raise UserError("whisper.cpp не дав результату (порожній файл розпізнавання).",
+                        "Шортси буде зібрано без субтитрів. Спробуйте галочку «Повні фрази + субтитри» замість whisper.cpp.")
     return data.get("transcription", [])
 
 

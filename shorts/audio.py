@@ -199,8 +199,11 @@ class AudioPrep:
         paths = {s: base.with_name(base.name + f"_{s}.flac") for s in ("voice", "game", "mix")}
         meta = base.with_name(base.name + ".json")
         if meta.exists() and all(p.exists() for p in paths.values()):
-            sep = json.loads(meta.read_text(encoding="utf-8")).get("separated", False)
-            return AudioChunk(c0, c1, paths["voice"], paths["game"], paths["mix"], sep)
+            try:
+                sep = json.loads(meta.read_text(encoding="utf-8")).get("separated", False)
+                return AudioChunk(c0, c1, paths["voice"], paths["game"], paths["mix"], sep)
+            except (ValueError, OSError):
+                log.warning("  Кеш звуку %s пошкоджений — готую цю частину заново", meta.name)
 
         rec = self.settings["recording"]
         dur = c1 - c0
