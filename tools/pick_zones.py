@@ -109,7 +109,7 @@ def get_frame(settings: dict, src: Path, t: float | None) -> Image.Image:
     if t is None:
         t = min(60.0, info.duration / 2)
     if t >= info.duration:
-        t = info.duration / 2   # запис коротший — беремо середину
+        t = max(0.0, info.duration - 1.0)   # кінець запису — останній кадр
     png = extract_frame(settings, src, t, work_dir(settings) / "zone_frame.png")
     return Image.open(png).convert("RGB")
 
@@ -138,6 +138,21 @@ def run_gui(settings: dict, profile_id: str, src: Path, t: float | None):
     right.pack(side="right", fill="y")
     right.pack_propagate(False)
 
+    if src.suffix.lower() not in IMAGE_EXT:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from seekbar import SeekBar
+        from shorts.media import probe
+
+        def seek_to(new_t):
+            try:
+                state["img"] = get_frame(settings, src, new_t)
+                render()
+            except UserError as e:
+                messagebox.showerror("Помилка", str(e))
+
+        dur = probe(settings, src).duration
+        SeekBar(left, dur, t if t is not None else min(60.0, dur / 2), seek_to,
+                padx=6, pady=4).pack(side="bottom", fill="x")
     canvas = tk.Canvas(left, bg="#202020", cursor="crosshair", highlightthickness=0)
     hbar = tk.Scrollbar(left, orient="horizontal", command=canvas.xview)
     vbar = tk.Scrollbar(left, orient="vertical", command=canvas.yview)
@@ -272,14 +287,6 @@ def run_gui(settings: dict, profile_id: str, src: Path, t: float | None):
         state["zoom"] = z
         render()
 
-    def reload_frame():
-        try:
-            new_t = parse_time(t_entry.get())
-            state["img"] = get_frame(settings, src, new_t)
-            render()
-        except (UserError, ValueError) as e:
-            messagebox.showerror("Помилка", str(e))
-
     def save():
         raw = load_profile_raw(profile_id)
         raw.setdefault("zones", {})
@@ -319,16 +326,6 @@ def run_gui(settings: dict, profile_id: str, src: Path, t: float | None):
     zrow.pack(fill="x")
     for text, z in (("Вмістити", None), ("100%", 1.0), ("200%", 2.0)):
         tk.Button(zrow, text=text, command=lambda z=z: set_zoom(z)).pack(side="left", expand=True, fill="x")
-
-    if src.suffix.lower() not in IMAGE_EXT:
-        tk.Label(right, text="Інший кадр — секунда запису (напр. 95 або 1:35):",
-                 font=("Segoe UI", 9)).pack(anchor="w", pady=(10, 0))
-        trow = tk.Frame(right)
-        trow.pack(fill="x")
-        t_entry = tk.Entry(trow, width=10)
-        t_entry.insert(0, "" if t is None else str(t))
-        t_entry.pack(side="left", fill="x", expand=True)
-        tk.Button(trow, text="Показати", command=reload_frame).pack(side="left")
 
     tk.Label(right, text="").pack(pady=6)
     btn("Зберегти (Ctrl+S)", save, bg="#3a7d44", fg="white")

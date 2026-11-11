@@ -20,7 +20,7 @@ sys.path.insert(0, str(TOOLS))
 
 from shorts.config import load_profile_raw, strip_comments  # noqa: E402
 from shorts.errors import UserError  # noqa: E402
-from shorts.util import fmt_time, parse_time  # noqa: E402
+
 
 PREVIEW_W = 860
 
@@ -132,18 +132,13 @@ class VideoWizard:
         tk.Label(b, text=note, fg="#a05a00" if not raw.get("zones_confirmed") else "#333",
                  wraplength=PREVIEW_W, justify="left").pack(anchor="w", pady=(0, 4))
 
-        row = tk.Frame(b)
-        row.pack(fill="x", pady=2)
-        tk.Label(row, text="Кадр на:").pack(side="left")
-        self.e_t = tk.Entry(row, width=8)
-        self.e_t.insert(0, fmt_time(self.t, 0))
-        self.e_t.pack(side="left", padx=4)
-        tk.Button(row, text="Показати", command=self.reload).pack(side="left")
-        tk.Label(row, text="(виберіть момент, де видно бій: лічильники, таймер, вебку)", fg="#666").pack(side="left", padx=6)
-
         self.img_lbl = tk.Label(b, text="Завантажую кадр…", bg="#222", fg="#ddd", width=100, height=20)
-        self.img_lbl.pack(pady=6)
-
+        self.img_lbl.pack(pady=(6, 2))
+        tk.Label(b, text="Потягніть повзунок до моменту, де видно бій: лічильники, таймер, вебку.",
+                 fg="#666").pack(anchor="w")
+        from seekbar import SeekBar
+        self.seek = SeekBar(b, self.duration(), self.t, self.show_at)
+        self.seek.pack(fill="x", pady=(2, 4))
         bt = tk.Frame(b)
         bt.pack(fill="x", pady=(6, 0))
         tk.Button(bt, text="✓ Рамки правильні", width=20, font=("Segoe UI", 10, "bold"), bg="#3a7d44", fg="white",
@@ -153,13 +148,20 @@ class VideoWizard:
         tk.Button(bt, text="Скасувати", command=self.cancel).pack(side="left", padx=8)
         self.w.after(50, self.reload)
 
+    def duration(self) -> float:
+        if not hasattr(self, "_dur"):
+            try:
+                from shorts.media import probe
+                self._dur = probe(self.settings, Path(self.path)).duration
+            except Exception:
+                self._dur = max(120.0, self.t * 2)
+        return self._dur
+
+    def show_at(self, t: float):
+        self.t = t
+        self.reload()
+
     def reload(self):
-        try:
-            t = parse_time(self.e_t.get())
-        except ValueError:
-            t = None
-        if t is not None:
-            self.t = t
         try:
             from PIL import ImageTk
             from pick_zones import draw_zones, get_frame
