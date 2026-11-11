@@ -383,6 +383,46 @@ def gui(settings, log_file: Path):
     tk.Button(btns, text="Почати", font=("Segoe UI", 11, "bold"), bg="#3a7d44", fg="white", width=16,
               command=start).pack(side="right", padx=10)
     tk.Button(btns, text="Закрити", width=12, command=root.destroy).pack(side="right")
+
+    # ---------------------------------------------------------------- режим розробника («antibiotik»)
+    def selected_recording():
+        sel = files.curselection()
+        items = files.get(0, "end")
+        return items[sel[0]] if sel else (items[0] if items else None)
+
+    dev_btn = tk.Button(btns, text="🛠 Розробник", width=14)
+
+    def set_dev(on: bool):
+        state["dev_mode"] = on
+        save_state(settings, state)
+        if on and not dev_btn.winfo_ismapped():
+            dev_btn.pack(side="left", padx=10)
+        elif not on:
+            dev_btn.pack_forget()
+
+    def show_dev():
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from dev_panel import open_dev_panel
+        set_dev(True)
+        open_dev_panel(root, settings, selected_recording, on_disable=lambda: set_dev(False))
+
+    dev_btn.config(command=show_dev)
+    if state.get("dev_mode"):
+        dev_btn.pack(side="left", padx=10)
+    key_buf = [""]
+
+    def on_key(event):
+        ch = (event.char or "").lower()
+        if not ch or not ch.isprintable():
+            return
+        key_buf[0] = (key_buf[0] + ch)[-20:]
+        from dev_panel import is_secret
+        if is_secret(key_buf[0]):
+            key_buf[0] = ""
+            show_dev()
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    root.bind_all("<Key>", on_key, add="+")
     stop_btn = tk.Button(pbtns, text="Зупинити", command=stop)
     stop_btn.pack(side="right", padx=10)
 
