@@ -84,6 +84,40 @@
       "субтитрувальниця"
     ]
   },
+  "speech_ai": {
+    "_опис": "ЕКСПЕРИМЕНТАЛЬНО, за замовчуванням вимкнено. Розумне розпізнавання мови: Silero VAD (точні межі фраз) + faster-whisper (текст і час кожного слова). Дає нарізку за реченнями (кінець шматка — до кінця вашої фрази) і кращі субтитри. Встановлення: extra\\setup_speech_ai.bat; перевірка: extra\\test_speech.bat; увімкнення — галочка у вікні запуску. device/compute_type виставляє встановлювач. sentence_max_after_s / sentence_max_before_s — на скільки максимум можна продовжити шматок до кінця/початку фрази.",
+    "enabled": false,
+    "model": "large-v3",
+    "models_dir": "models/faster-whisper",
+    "device": "cuda",
+    "compute_type": "float16",
+    "cpu_threads": 6,
+    "language": "uk",
+    "beam_size": 5,
+    "prompt": "Стрім українською. World of Tanks, PUBG, Сталкер.",
+    "min_word_prob": 0.15,
+    "no_speech_threshold": 0.6,
+    "use_silero_vad": true,
+    "vad_threshold": 0.5,
+    "vad_min_speech_ms": 200,
+    "vad_min_silence_ms": 250,
+    "vad_pad_ms": 60,
+    "window_before_s": 15,
+    "window_after_s": 25,
+    "phrase_gap_s": 0.7,
+    "sentence_cut": true,
+    "sentence_max_before_s": 2.0,
+    "sentence_max_after_s": 5.0,
+    "hallucinations": [
+      "дякую за перегляд",
+      "субтитри",
+      "підписуйтесь на канал",
+      "продовження слідує",
+      "дякуємо за увагу",
+      "редактор субтитрів",
+      "субтитрувальниця"
+    ]
+  },
   "subtitles": {
     "_опис": "Стиль субтитрів у готових MP4: великий білий шрифт з чорним контуром і тінню. Позиція по висоті — у профілі гри (layout.subtitles_y). emotion_emoji — емодзі до фрази, якщо в цей момент ви кричали/сміялися; keyword_emoji — емодзі за словом (частина слова → емодзі). Щоб вимкнути — зробіть {}.",
     "font": "C:/Windows/Fonts/arialbd.ttf",

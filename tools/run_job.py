@@ -239,6 +239,8 @@ def gui(settings, log_file: Path):
     v_sep = tk.BooleanVar(value=state.get("separation", settings["separation"]["enabled"]))
     tk.Checkbutton(opts_frame, text="Рендерити готові MP4", variable=v_render).pack(anchor="w")
     tk.Checkbutton(opts_frame, text="Субтитри (експериментально; спершу extra\\setup_whisper.bat)", variable=v_subs).pack(anchor="w")
+    v_sai = tk.BooleanVar(value=state.get("speech_ai_on", bool(settings.get("speech_ai", {}).get("enabled", False))))
+    tk.Checkbutton(opts_frame, text="Повні фрази і кращі субтитри (експериментально; спершу extra\\setup_speech_ai.bat)", variable=v_sai).pack(anchor="w")
     tk.Checkbutton(opts_frame, text="Відділяти голос від гри (нейромережа)", variable=v_sep).pack(anchor="w")
 
     st = read_status(settings)
@@ -332,10 +334,11 @@ def gui(settings, log_file: Path):
             return
         text = cta.get("1.0", "end").strip()
         state.update(profile=prof, cta=text, render=v_render.get(), subtitles_on=v_subs.get(),
-                     separation=v_sep.get(), last_dir=state.get("last_dir") or str(Path(recs[0]).parent))
+                     speech_ai_on=v_sai.get(), separation=v_sep.get(), last_dir=state.get("last_dir") or str(Path(recs[0]).parent))
         save_state(settings, state)
         opts = JobOptions(recordings=[Path(r) for r in recs], profile_id=prof, cta_text=text, start=a, end=b,
-                          render=v_render.get(), subtitles=v_subs.get(), separation=v_sep.get())
+                          render=v_render.get(), subtitles=v_subs.get(), separation=v_sep.get(),
+                          speech_ai=v_sai.get())
         setup.pack_forget()
         prog.pack(fill="both", expand=True)
         h = QueueHandler(q)
@@ -433,7 +436,8 @@ def main():
     if args.cli is not None:
         opts = JobOptions(recordings=[Path(p) for p in args.cli], profile_id=args.profile, cta_text=args.cta,
                           start=parse_time(args.start), end=parse_time(args.end), render=not args.no_render,
-                          subtitles=args.subtitles, separation=not args.no_separation)
+                          subtitles=args.subtitles, separation=not args.no_separation,
+                          speech_ai=bool(settings.get("speech_ai", {}).get("enabled", False)))
         try:
             res = Job(settings, opts).run()
         except UserError as e:

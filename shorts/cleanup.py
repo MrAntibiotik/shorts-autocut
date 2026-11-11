@@ -22,7 +22,7 @@ from .config import work_dir
 
 log = logging.getLogger("shorts")
 
-_CACHE_RE = re.compile(r"^(vision_[A-Za-z0-9]+|audio)_[0-9a-f]{8}$")
+_CACHE_RE = re.compile(r"^(vision_[A-Za-z0-9]+|audio|speech)_[0-9a-f]{8}$")
 _VIDEO_DIR_RE = re.compile(r"^.+_[0-9a-f]{6}$")
 
 

@@ -32,6 +32,7 @@ from .render import Overlay, render_short
 from .report import write_reports
 from .resolve_export import markers_for, write_lua, write_marker_edl, write_status
 from .selection import Short, SpeechMap, describe, select_shorts
+from .speech_ai import words_for_short
 from .subtitles import Cue, add_emoji, build_cues, transcribe_shorts, write_srt
 from .textimg import render_text
 from .util import fmt_time
@@ -53,6 +54,7 @@ class JobOptions:
     end: float | None = None
     render: bool = True
     subtitles: bool = False
+    speech_ai: bool = False            # експериментально: Silero VAD + faster-whisper
     separation: bool = True
 
 
@@ -153,6 +155,49 @@ class Job:
         cleanup_work(self.settings, keep=[self.work])
         return self.result
 
+    # ------------------------------------------------------------------ експериментально: розумна мова
+    def _silero_speech(self, chunks, cfg: dict, fallback: SpeechMap) -> SpeechMap:
+        if not cfg.get("use_silero_vad", True):
+            return fallback
+        try:
+            from .speech_ai import silero_parts
+            sm = SpeechMap.from_parts(silero_parts(chunks, cfg))
+            log.info("  [Експеримент] Межі мови — Silero VAD")
+            return sm
+        except Exception as e:
+            log.warning("[УВАГА] Silero VAD не спрацював (%s) — межі мови за гучністю, як раніше. "
+                        "Перевірте extra\\setup_speech_ai.bat", e)
+            return fallback
+
+    def _speech_ai(self, chunks, shorts, battles, cfg: dict, start: float, end: float, P):
+        """Слова з часом (faster-whisper) навколо моментів + нарізка за реченнями.
+        Помилка — попередження і звичайна робота без цього."""
+        try:
+            from .speech_ai import SpeechAI, extend_to_phrases, phrases_of, windows_for
+            used = {sh.battle for sh in shorts}
+            wins = windows_for([b for b in battles if b["index"] in used], cfg, start, end)
+            log.info("  [Експеримент] Розпізнаю мову навколо моментів: %d вікон, %.0f с звуку",
+                     len(wins), sum(b - a for a, b in wins))
+            cache = Path(chunks[0].voice).parent.parent
+            words = SpeechAI(self.settings, cache).words(chunks, wins)
+            log.info("  [Експеримент] Розпізнано слів: %d", len(words))
+            if cfg.get("sentence_cut", True) and words:
+                phrases = phrases_of(words, float(cfg.get("phrase_gap_s", 0.7)))
+                sel = self.profile["selection"]
+                c = dict(cfg, merge_gap_s=sel["merge_gap_s"])
+                for sh in shorts:
+                    before = sh.duration
+                    sh.segments = extend_to_phrases(sh.segments, phrases, float(sel["max_duration_s"]), c,
+                                                    start, end)
+                    if abs(sh.duration - before) > 0.05:
+                        log.info("    %s: до кінця фраз %+.1f с → %.1f с", sh.title, sh.duration - before,
+                                 sh.duration)
+            return words
+        except Exception as e:
+            log.warning("[УВАГА] Розумне розпізнавання мови не спрацювало (%s: %s) — працюю як раніше. "
+                        "Перевірте extra\\setup_speech_ai.bat", type(e).__name__, e)
+            return None
+
     # ------------------------------------------------------------------ один запис
     def _process_recording(self, path: Path, idx: int, n: int) -> dict:
         st, prof, opts = self.settings, self.profile, self.opts
@@ -207,7 +252,11 @@ class Job:
         else:
             battles = split_by_gaps(all_events, prof["battles"]["split_gap_s"], start, end)
         speech = SpeechMap(chunks, prof["selection"]["vad_margin_db"])
+        sai_cfg = dict(st.get("speech_ai", {}))
+        if opts.speech_ai:
+            speech = self._silero_speech(chunks, sai_cfg, speech)
         shorts = select_shorts(battles, prof, start, end, speech)
+        ai_words = self._speech_ai(chunks, shorts, battles, sai_cfg, start, end, P) if opts.speech_ai and shorts else None
         log.info("Боїв: %d, шортсів: %d", len(battles), len(shorts))
         for sh in shorts:
             log.info("  %s", describe(sh))
@@ -219,9 +268,12 @@ class Job:
         # ---- субтитри
         cues_by: dict[int, list[Cue]] = {sh.index: [] for sh in shorts}
         if opts.subtitles and shorts:
-            stage("Субтитри (whisper.cpp)", 0.68, 0.80)
+            stage("Субтитри", 0.68, 0.80)
             try:
-                words = transcribe_shorts(st, shorts, chunks, self.work / tag)
+                if ai_words is not None:
+                    words = {sh.index: words_for_short(sh, ai_words) for sh in shorts}
+                else:
+                    words = transcribe_shorts(st, shorts, chunks, self.work / tag)
                 for sh in shorts:
                     cues = build_cues(sh, words.get(sh.index, []), st["subtitles"], speech,
                                       [h.lower() for h in st["whisper"]["hallucinations"]])

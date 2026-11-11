@@ -44,6 +44,13 @@ class SpeechMap:
             speech = _close_gaps(speech, int(0.12 / self.STEP))
             self.parts.append((ch.c0, speech))
 
+    @classmethod
+    def from_parts(cls, parts: list[tuple[float, np.ndarray]]) -> "SpeechMap":
+        """Готова маска мови (напр. від Silero VAD) з тим самим кроком STEP."""
+        obj = cls.__new__(cls)
+        obj.parts = parts
+        return obj
+
     def _get(self, t: float) -> bool | None:
         for c0, arr in self.parts:
             i = int((t - c0) / self.STEP)
