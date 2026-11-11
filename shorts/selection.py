@@ -160,8 +160,8 @@ def _window(e: Event, cfg: dict, max_score: float, compact: bool = False) -> tup
 
 
 def _confirmed(e: Event) -> bool:
-    """Постріл, підтверджений лічильником шкоди (найнадійніше)."""
-    return e.type == E.HIT and "лічильник" in (e.source or "")
+    """Постріл, підтверджений лічильником шкоди, або засвіт з лічильника засвіту (найнадійніше)."""
+    return (e.type == E.HIT and "лічильник" in (e.source or "")) or e.type == E.ASSIST
 
 
 def _pack(order: list[Event], cfg: dict, max_score: float, rec_start: float, rec_end: float,
@@ -276,7 +276,7 @@ def select_shorts(battles: list[dict], profile: dict, rec_start: float, rec_end:
     shorts: list[Short] = []
     skipped = []
     for b in battles:
-        n_hits = sum(1 for e in b["events"] if e.type == E.HIT and e.extra.get("moment"))
+        n_hits = sum(1 for e in b["events"] if e.type in (E.HIT, E.ASSIST) and e.extra.get("moment"))
         if n_hits < int(cfg.get("min_hits", 0)):
             skipped.append((b["index"], "жодного влучання"))
             continue

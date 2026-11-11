@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass, field
 
 # Типи подій та їхні назви українською.
 HIT = "hit"                    # я влучив (лічильник шкоди зріс)
+ASSIST = "assist"              # шкода за моїм засвітом (лічильник засвіту зріс) — режим «Засвіт» у WoT
 DAMAGE_TAKEN = "damage_taken"  # мене влучили
 KILL = "kill"                  # я знищив ворога
 DEATH = "death"                # мене знищено / екран смерті
@@ -17,6 +18,7 @@ VOICE = "voice"                # моя емоція (крик, сміх, спл
 
 LABELS = {
     HIT: "Влучання",
+    ASSIST: "Засвіт",
     DAMAGE_TAKEN: "Отримав шкоду",
     KILL: "Знищив ворога",
     DEATH: "Мене знищено",

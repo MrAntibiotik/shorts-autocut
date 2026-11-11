@@ -130,7 +130,7 @@ DEFAULT_SETTINGS: dict = {
         "link_clips": True,
         "project_mode": "new",
         "marker_colors": {
-            "hit": "Green", "damage_taken": "Red", "kill": "Yellow", "death": "Fuchsia",
+            "hit": "Green", "assist": "Sky", "damage_taken": "Red", "kill": "Yellow", "death": "Fuchsia",
             "voice": "Cyan", "game_sound": "Blue", "battle_start": "Cream", "battle_end": "Cream",
         },
     },

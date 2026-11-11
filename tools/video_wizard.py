@@ -45,6 +45,7 @@ class VideoWizard:
         self.profiles, self.names, self.state = profiles, names, state
         self.others_same = others_same          # (pid) -> скільки інших записів у списку з цим профілем
         self.result: str | None = None
+        self.mode: str | None = None            # режим гри (WoT: damage / assist)
         self.t = float(state.get("zones_preview_t", 60.0))
         self.photo = None
         self.w = tk.Toplevel(root)
@@ -85,11 +86,32 @@ class VideoWizard:
                            font=("Segoe UI", 11)).pack(anchor="w")
         if not ready:
             tk.Label(b, text="Немає готових профілів.", fg="#a00").pack(anchor="w")
+        # режим гри (якщо в профілі є кілька): напр. WoT — «Шкода» / «Засвіт»
+        self.mode_box = tk.Frame(b)
+        self.mode_box.pack(fill="x", pady=(10, 0))
+        self.mode_var = tk.StringVar()
+        self.var.trace_add("write", lambda *_: self.show_modes())
+        self.show_modes()
         bt = tk.Frame(b)
         bt.pack(fill="x", pady=(12, 0))
         tk.Button(bt, text="Далі →", width=14, font=("Segoe UI", 10, "bold"),
                   command=self.to_zones, state="normal" if ready else "disabled").pack(side="right")
         tk.Button(bt, text="Скасувати", width=12, command=self.cancel).pack(side="right", padx=8)
+
+    def show_modes(self):
+        for c in self.mode_box.winfo_children():
+            c.destroy()
+        pid = self.var.get()
+        modes = {k: v for k, v in (_raw(pid).get("modes") or {}).items()} if pid else {}
+        if not modes:
+            self.mode_var.set("")
+            return
+        tk.Label(self.mode_box, text="Режим:", font=("Segoe UI", 11, "bold")).pack(anchor="w")
+        default = self.state.get(f"mode_{pid}") or _raw(pid).get("default_mode") or next(iter(modes))
+        self.mode_var.set(default if default in modes else next(iter(modes)))
+        for k, text in modes.items():
+            tk.Radiobutton(self.mode_box, text=text, value=k, variable=self.mode_var,
+                           font=("Segoe UI", 11)).pack(anchor="w", padx=(16, 0))
 
     def to_zones(self):
         if not self.var.get():
@@ -169,5 +191,8 @@ class VideoWizard:
     def accept(self):
         self.state["zones_preview_t"] = self.t
         self.state["profile"] = self.pid
+        self.mode = self.mode_var.get() or None
+        if self.mode:
+            self.state[f"mode_{self.pid}"] = self.mode
         self.result = self.pid
         self.w.destroy()

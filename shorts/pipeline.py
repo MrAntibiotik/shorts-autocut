@@ -11,11 +11,12 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -56,6 +57,7 @@ class JobOptions:
     render: bool = True
     subtitles: bool = False
     speech_ai: bool = False            # експериментально: Silero VAD + faster-whisper
+    modes: dict = field(default_factory=dict)   # {шлях запису: "damage" | "assist"} — режим гри (WoT)
     separation: bool = True
 
 
@@ -191,6 +193,11 @@ class Job:
     # ------------------------------------------------------------------ один запис
     def _process_recording(self, path: Path, idx: int, n: int) -> dict:
         st, prof, opts = self.settings, self.profile, self.opts
+        mode = opts.modes.get(str(path)) or prof.get("default_mode")
+        if mode:
+            prof = copy.deepcopy(prof)
+            prof["mode"] = mode
+            log.info("Режим: %s", (prof.get("modes") or {}).get(mode, mode))
         P = self.progress
         base, span = idx / n, 1.0 / n
 

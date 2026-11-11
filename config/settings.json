@@ -168,6 +168,7 @@
     "add_short_markers": true,
     "marker_colors": {
       "hit": "Green",
+      "assist": "Sky",
       "damage_taken": "Red",
       "kill": "Yellow",
       "death": "Fuchsia",

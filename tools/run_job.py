@@ -148,7 +148,7 @@ def gui(settings, log_file: Path):
     bcol = tk.Frame(lst_frame)
     bcol.pack(side="left", padx=6)
 
-    recs_prof: list[tuple[str, str]] = []     # (запис, профіль гри) — у тому ж порядку, що й у списку
+    recs_prof: list[tuple[str, str, str | None]] = []   # (запис, профіль гри, режим) — як у списку
 
     def add_paths(paths):
         """Для кожного запису: вибір гри + обов'язкова перевірка рамок (майстер)."""
@@ -156,10 +156,13 @@ def gui(settings, log_file: Path):
         from video_wizard import VideoWizard
         for f in paths:
             wiz = VideoWizard(root, settings, f, profiles, names, state,
-                              others_same=lambda pid: sum(1 for _, p in recs_prof if p == pid))
+                              others_same=lambda pid: sum(1 for _, p, _m in recs_prof if p == pid))
             if wiz.result:
-                recs_prof.append((f, wiz.result))
-                files.insert("end", f"[{names.get(wiz.result, wiz.result)}]  {Path(f).name}    —  {Path(f).parent}")
+                recs_prof.append((f, wiz.result, wiz.mode))
+                mname = ""
+                if wiz.mode:
+                    mname = " · " + ("Засвіт" if wiz.mode == "assist" else "Шкода" if wiz.mode == "damage" else wiz.mode)
+                files.insert("end", f"[{names.get(wiz.result, wiz.result)}{mname}]  {Path(f).name}    —  {Path(f).parent}")
                 save_state(settings, state)
 
     preselected = request_from_resolve(settings)
@@ -343,7 +346,7 @@ def gui(settings, log_file: Path):
         tk.Button(pbtns, text="Закрити", command=root.destroy).pack(side="right", padx=10)
 
     def start():
-        recs = [r for r, _ in recs_prof]
+        recs = [r for r, _, _m in recs_prof]
         if not recs:
             messagebox.showwarning("Немає запису", "Додайте хоча б один файл запису.")
             return
@@ -378,7 +381,7 @@ def gui(settings, log_file: Path):
                     "Вимкнено «Відділяти голос від гри» — субтитри розпізнаватимуться з міксу разом зі "
                     "звуками гри, помилок буде набагато більше.\n\nВсе одно продовжити?"):
                 return
-        used = sorted({p for _, p in recs_prof})
+        used = sorted({p for _, p, _m in recs_prof})
         if len(used) > 1:
             messagebox.showerror("Різні ігри", "В одному запуску — записи однієї гри. Зараз у списку: "
                                  + ", ".join(names.get(p, p) for p in used) + ". Приберіть зайві.")
@@ -396,7 +399,8 @@ def gui(settings, log_file: Path):
         save_state(settings, state)
         opts = JobOptions(recordings=[Path(r) for r in recs], profile_id=prof, cta_text=text, start=a, end=b,
                           render=v_render.get(), subtitles=v_subs.get(), separation=v_sep.get(),
-                          speech_ai=v_sai.get())
+                          speech_ai=v_sai.get(),
+                          modes={str(Path(r)): m for r, _, m in recs_prof if m})
         setup.pack_forget()
         prog.pack(fill="both", expand=True)
         h = QueueHandler(q)
@@ -418,7 +422,7 @@ def gui(settings, log_file: Path):
     # ---------------------------------------------------------------- режим розробника («antibiotik»)
     def selected_recording():
         sel = files.curselection()
-        items = [r for r, _ in recs_prof]
+        items = [r for r, _, _m in recs_prof]
         return items[sel[0]] if sel else (items[0] if items else None)
 
     dev_btn = tk.Button(btns, text="🛠 Розробник", width=14)

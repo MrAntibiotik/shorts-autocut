@@ -785,6 +785,9 @@ def analyze_readings(readings: list[dict], profile: dict) -> list[Event]:
     end = EndScreenTracker(v["end_screen"])
     msg = HitMessageTracker(v["hit_message"], tc)
     timer = BattleTimerTracker(v["battle_timer"])
+    # режим «Засвіт»: зростання третього рядка блоку лічильників = момент засвіту
+    assist_on = profile.get("mode") == "assist"
+    ast = DamageTracker(dict(v["damage_counter"], **(v.get("assist_counter") or {})), tc) if assist_on else None
     out: list[Event] = []
     for r in readings:
         t = r["t"]
@@ -793,12 +796,19 @@ def analyze_readings(readings: list[dict], profile: dict) -> list[Event]:
             if any(e.type == E.BATTLE_START for e in evs):
                 end.reset()
                 dmg.reset()
+                if ast is not None:
+                    ast.reset()
             out += evs
         if "dmg_raw" in r:
             evs = dmg.update(t, r["dmg_raw"])
             if any(e.type == E.BATTLE_START for e in evs):
                 end.reset()
             out += evs
+        if ast is not None and "ast_raw" in r:
+            for e in ast.update(t, r["ast_raw"]):
+                if e.type == E.HIT:
+                    out.append(Event(e.t, E.ASSIST, "vision:засвіт", value=e.value, confidence=1.0,
+                                     detail=e.detail, extra=dict(e.extra)))
         if "msg_raw" in r:
             out += msg.update(t, r["msg_raw"], r.get("msg_color", ""))
         if "hp_raw" in r:
@@ -889,7 +899,7 @@ def merge_events(evs: list[Event], profile: dict) -> list[Event]:
             continue
         bounds.append(e)
 
-    other = [e for e in evs if e.type == E.HIT] + bounds
+    other = [e for e in evs if e.type in (E.HIT, E.ASSIST)] + bounds
     out += other + merged_taken + merged_deaths + kills
     out.sort(key=lambda e: (e.t, e.type))
     return out
@@ -1061,7 +1071,7 @@ def add_battle_stats(battles: list[dict], readings: list[dict]) -> None:
     (те саме, з якого рахуються влучання); заблоковано і засвіт — лише зростають, з підтвердженням."""
     for b in battles:
         a = b["start"]
-        z = min(b["end"], b["stop"]) if b.get("stop") else b["end"]   # лише поки йде бій (є таймер)
+        z = b["stop"] if b.get("stop") else b["end"]   # до кінця бою за таймером (не до останнього моменту)
         rows = [r for r in readings if a <= r["t"] <= z]
         b["damage_total"] = b.get("damage_counter") or (b.get("damage_sum") or 0) or None
         for raw_key, out_key in (("blk_raw", "blocked_total"), ("ast_raw", "assist_total")):
