@@ -299,6 +299,17 @@ class Job:
         multi = len(self.opts.recordings) > 1
         from .vision_detector import battle_label
         labels = {b["index"]: battle_label(b) for b in battles}
+
+        def stats_suffix(b: dict | None) -> str:
+            """Для назви файлу: «_dmg_1156_assist_6133» — шкода і засвіт (що є), більше — першим."""
+            if not b:
+                return ""
+            dmg, ast = int(b.get("damage_total") or 0), int(b.get("assist_total") or 0)
+            parts = [("dmg", dmg), ("assist", ast)]
+            parts.sort(key=lambda p: -p[1])
+            return "".join(f"_{k}_{v}" for k, v in parts if v > 0)
+
+        by_index = {b["index"]: b for b in battles}
         for sh in shorts:
             # кожен бій — окрема папка, напр. battle_01_dmg_3837 (латиницею: кнопка DaVinci не відкриває
             # шляхи з кирилицею); у назві — більша з величин «шкода» / «засвіт»
@@ -306,7 +317,7 @@ class Job:
             folder = f"{tag}_{disk_name}" if multi else disk_name
             bdir = self.out / folder
             bdir.mkdir(parents=True, exist_ok=True)
-            base_name = f"{tag}_battle_{sh.battle:02d}"
+            base_name = f"{tag}_battle_{sh.battle:02d}{stats_suffix(by_index.get(sh.battle))}"
             srt = write_srt(cues_by[sh.index], bdir / f"{base_name}.srt") if cues_by[sh.index] else None
             if srt:
                 log.info("  Субтитри: %s (і вшиті в MP4)", srt)
