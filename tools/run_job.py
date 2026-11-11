@@ -256,9 +256,9 @@ def gui(settings, log_file: Path):
     v_subs = tk.BooleanVar(value=state.get("subtitles_on", bool(settings["whisper"]["enabled"])))
     v_sep = tk.BooleanVar(value=state.get("separation", settings["separation"]["enabled"]))
     tk.Checkbutton(opts_frame, text="Рендерити готові MP4", variable=v_render).pack(anchor="w")
-    tk.Checkbutton(opts_frame, text="Субтитри (експериментально; спершу extra\\setup_whisper.bat)", variable=v_subs).pack(anchor="w")
+    tk.Checkbutton(opts_frame, text="Субтитри через whisper.cpp (експериментально; спершу extra\\setup_whisper.bat)", variable=v_subs).pack(anchor="w")
     v_sai = tk.BooleanVar(value=state.get("speech_ai_on", bool(settings.get("speech_ai", {}).get("enabled", False))))
-    tk.Checkbutton(opts_frame, text="Повні фрази і кращі субтитри (експериментально; спершу extra\\setup_speech_ai.bat)", variable=v_sai).pack(anchor="w")
+    tk.Checkbutton(opts_frame, text="Повні фрази + субтитри (експериментально; спершу extra\\setup_speech_ai.bat)", variable=v_sai).pack(anchor="w")
     tk.Checkbutton(opts_frame, text="Відділяти голос від гри (нейромережа)", variable=v_sep).pack(anchor="w")
 
     st = read_status(settings)

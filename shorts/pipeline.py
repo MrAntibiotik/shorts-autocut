@@ -267,20 +267,27 @@ class Job:
 
         # ---- субтитри
         cues_by: dict[int, list[Cue]] = {sh.index: [] for sh in shorts}
-        if opts.subtitles and shorts:
+        # субтитри: галочка «Субтитри» (whisper.cpp) АБО «Повні фрази і кращі субтитри» (слова вже розпізнано)
+        if shorts and (opts.subtitles or ai_words is not None):
             stage("Субтитри", 0.68, 0.80)
             try:
                 if ai_words is not None:
+                    log.info("  Субтитри — зі слів розумного розпізнавання (faster-whisper)")
                     words = {sh.index: words_for_short(sh, ai_words) for sh in shorts}
                 else:
+                    log.info("  Субтитри — whisper.cpp")
                     words = transcribe_shorts(st, shorts, chunks, self.work / tag)
                 for sh in shorts:
                     cues = build_cues(sh, words.get(sh.index, []), st["subtitles"], speech,
                                       [h.lower() for h in st["whisper"]["hallucinations"]])
                     add_emoji(cues, sh, st["subtitles"])
                     cues_by[sh.index] = cues
+                    log.info("    %s: %d фраз субтитрів%s", sh.title, len(cues),
+                             "" if cues else " (у вибраних шматках ви майже не говорите)")
             except UserError as e:
                 log.warning("[УВАГА] Субтитри не зроблено: %s", e)
+        elif shorts:
+            log.info("  Субтитри вимкнено (галочки «Субтитри» / «Повні фрази і кращі субтитри» не стоять)")
 
         # ---- файли шортсів
         shorts_out = []
@@ -296,6 +303,8 @@ class Job:
             bdir.mkdir(parents=True, exist_ok=True)
             base_name = f"{tag}_battle_{sh.battle:02d}"
             srt = write_srt(cues_by[sh.index], bdir / f"{base_name}.srt") if cues_by[sh.index] else None
+            if srt:
+                log.info("  Субтитри: %s (і вшиті в MP4)", srt)
             cta = self._cta(sh)
             cta_srt = cta_txt = cta_png = None
             if cta:
