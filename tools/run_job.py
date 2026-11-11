@@ -154,16 +154,26 @@ def gui(settings, log_file: Path):
         """Для кожного запису: вибір гри + обов'язкова перевірка рамок (майстер)."""
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from video_wizard import VideoWizard
-        for f in paths:
+        def add(f, pid, mode):
+            recs_prof.append((f, pid, mode))
+            mname = ""
+            if mode:
+                mname = " · " + ("Засвіт" if mode == "assist" else "Шкода" if mode == "damage" else mode)
+            files.insert("end", f"[{names.get(pid, pid)}{mname}]  {Path(f).name}    —  {Path(f).parent}")
+
+        paths = list(paths)
+        for i, f in enumerate(paths):
             wiz = VideoWizard(root, settings, f, profiles, names, state,
-                              others_same=lambda pid: sum(1 for _, p, _m in recs_prof if p == pid))
-            if wiz.result:
-                recs_prof.append((f, wiz.result, wiz.mode))
-                mname = ""
-                if wiz.mode:
-                    mname = " · " + ("Засвіт" if wiz.mode == "assist" else "Шкода" if wiz.mode == "damage" else wiz.mode)
-                files.insert("end", f"[{names.get(wiz.result, wiz.result)}{mname}]  {Path(f).name}    —  {Path(f).parent}")
-                save_state(settings, state)
+                              others_same=lambda pid: sum(1 for _, p, _m in recs_prof if p == pid),
+                              remaining=len(paths) - i - 1)
+            if not wiz.result:
+                continue
+            add(f, wiz.result, wiz.mode)
+            save_state(settings, state)
+            if wiz.apply_rest.get():
+                for g in paths[i + 1:]:
+                    add(g, wiz.result, wiz.mode)
+                break
 
     preselected = request_from_resolve(settings)
     if preselected:

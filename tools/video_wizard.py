@@ -40,12 +40,14 @@ class VideoWizard:
     """Модальне вікно. result — id профілю або None (запис не додається)."""
 
     def __init__(self, root: tk.Misc, settings: dict, path: str, profiles: list[str], names: dict,
-                 state: dict, others_same: callable):
+                 state: dict, others_same: callable, remaining: int = 0):
         self.root, self.settings, self.path = root, settings, path
         self.profiles, self.names, self.state = profiles, names, state
         self.others_same = others_same          # (pid) -> скільки інших записів у списку з цим профілем
         self.result: str | None = None
         self.mode: str | None = None            # режим гри (WoT: damage / assist)
+        self.remaining = remaining              # скільки ще записів вибрано разом з цим
+        self.apply_rest = tk.BooleanVar(value=False)
         self.t = float(state.get("zones_preview_t", 60.0))
         self.photo = None
         self.w = tk.Toplevel(root)
@@ -141,6 +143,10 @@ class VideoWizard:
         self.seek.pack(fill="x", pady=(2, 4))
         bt = tk.Frame(b)
         bt.pack(fill="x", pady=(6, 0))
+        if self.remaining > 0:
+            tk.Checkbutton(b, variable=self.apply_rest, font=("Segoe UI", 10),
+                           text=f"Те саме (гра, режим, рамки) для решти вибраних записів — ще {self.remaining}; "
+                                f"майстер для них не відкриватиметься").pack(anchor="w", pady=(0, 4), before=bt)
         tk.Button(bt, text="✓ Рамки правильні", width=20, font=("Segoe UI", 10, "bold"), bg="#3a7d44", fg="white",
                   command=self.accept).pack(side="right")
         tk.Button(bt, text="Обвести нові…", width=16, command=self.redraw).pack(side="right", padx=8)
