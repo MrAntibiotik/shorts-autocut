@@ -176,7 +176,7 @@ DEFAULT_PROFILE: dict = {
             "confirm_frames": 2,
             "require_keyword": False,
             "reject_colors": ["red"],
-            "reject_keywords": ["розвід", "стриман", "виявив", "інформа", "помістит", "відновлю", "знайомст", "заблок", "ремонт", "запас"],
+            "reject_keywords": ["критичн", "розвід", "стриман", "виявив", "інформа", "помістит", "відновлю", "знайомст", "заблок", "ремонт", "запас"],
             "max_prefix_letters": 3,
         },
         "battle_timer": {

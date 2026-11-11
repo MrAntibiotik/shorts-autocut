@@ -1,5 +1,5 @@
 {
-  "profile_version": 16,
+  "profile_version": 17,
   "name": "World of Tanks",
   "ready": true,
   "modes": {
@@ -97,6 +97,7 @@
         "red"
       ],
       "reject_keywords": [
+        "критичн",
         "розвід",
         "стриман",
         "виявив",

@@ -245,6 +245,12 @@ class Job:
 
         # ---- об'єднання, бої, відбір
         stage("Відбір моментів", 0.66, 0.68)
+        if prof.get("mode") == "assist":
+            n_ast = sum(1 for e in vision_events if e.type == E.ASSIST)
+            log.info("  Режим «Засвіт»: знайдено моментів засвіту: %d", n_ast)
+            if n_ast == 0 and any((b.get("assist_total") or 0) > 0 for b in battles):
+                log.warning("[УВАГА] Засвіт у бою є, але жодного його зростання не відстежено — перевірте рамку "
+                            "«Блок лічильників» (третій рядок) у майстрі.")
         all_events = fuse(vision_events, sounds, voices, prof)
         if prof["signals"].get("vision"):
             assign_to_battles(battles, sounds + voices)
@@ -361,7 +367,8 @@ class Job:
         for so in shorts_out:
             b = by_battle.get(so["battle"])
             if b is not None:
-                write_reports(self.out / so["dir"], "moments", path, opts.profile_id, list(b["events"]), [b])
+                write_reports(self.out / so["dir"], "moments", path, opts.profile_id, list(b["events"]), [b],
+                              {"режим": prof.get("mode") or "—"})
         csv_p, json_p = write_reports(self.out, f"{tag}_report", path, opts.profile_id, report_events, battles,
                                       {"шортси": [{k: v for k, v in so.items() if k not in ("layers", "markers")}
                                                   for so in shorts_out]})
