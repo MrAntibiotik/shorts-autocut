@@ -333,6 +333,13 @@ def gui(settings, log_file: Path):
         if result.get("job_dir"):
             tk.Button(pbtns, text="Відкрити папку з результатами", command=lambda: open_folder(result["job_dir"])
                       ).pack(side="left", padx=10)
+
+            def edit_subs():
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                from subs_editor import SubsEditor
+                SubsEditor(root, settings, Path(result["job_dir"]))
+
+            tk.Button(pbtns, text="Редагувати субтитри…", command=edit_subs).pack(side="left")
         tk.Button(pbtns, text="Закрити", command=root.destroy).pack(side="right", padx=10)
 
     def start():

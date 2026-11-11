@@ -25,6 +25,35 @@ from shorts.render import render_short  # noqa: E402
 from shorts.subtitles import read_srt  # noqa: E402
 
 
+def short_paths(job_dir: Path, sh: dict) -> tuple[Path, Path, Path]:
+    """(srt, cta.txt, mp4) шортсу."""
+    base = sh["file_base"]
+    sdir = job_dir / sh.get("dir", "")
+    srt = Path(sh["srt"]) if sh.get("srt") else sdir / f"{base}.srt"
+    cta_txt = Path(sh["cta_txt"]) if sh.get("cta_txt") else sdir / "cta.txt"
+    mp4 = Path(sh["mp4"]) if sh.get("mp4") else sdir / f"{base}.mp4"
+    return srt, cta_txt, mp4
+
+
+def rerender_short(settings: dict, job: dict, job_dir: Path, rec: dict, sh: dict, log=print) -> Path:
+    """Перерендер одного шортсу з поточними .srt і cta.txt у його папці."""
+    info = probe(settings, rec["path"])
+    layout = layout_from_dict(rec["layout"])
+    srt, cta_txt, mp4 = short_paths(job_dir, sh)
+    cues = read_srt(srt) if srt.exists() else []
+    text = cta_txt.read_text(encoding="utf-8").strip() if cta_txt.exists() else ""
+    cta = None
+    if text:
+        d = min(float(settings["cta"]["duration_s"]), sh["duration"])
+        cta = {"text": text, "start": sh["duration"] - d, "dur": d}
+    tmp = work_dir(settings) / "jobs" / job["job_id"] / "rerender" / sh["file_base"]
+    overlays = build_overlays(settings, cues, cta, layout, tmp)
+    log(f"Рендерю {sh['file_base']} ({len(cues)} субтитрів{', із закликом' if cta else ''})…")
+    render_short(settings, info, layout, [(s["s"], s["e"]) for s in sh["segments"]], overlays, mp4,
+                 rec.get("webcam"))
+    return mp4
+
+
 def main() -> int:
     settings = load_settings()
     setup_logging("rerender", work_dir(settings) / "logs")
@@ -48,27 +77,9 @@ def main() -> int:
     if ans:
         pick = {int(x) for x in ans.replace(" ", "").split(",") if x.isdigit()}
 
-    cta_dur = float(settings["cta"]["duration_s"])
     for i, (rec, sh) in enumerate(all_shorts, 1):
-        if i not in pick:
-            continue
-        info = probe(settings, rec["path"])
-        layout = layout_from_dict(rec["layout"])
-        base = sh["file_base"]
-        sdir = job_dir / sh.get("dir", "")
-        srt = Path(sh["srt"]) if sh.get("srt") else sdir / f"{base}.srt"
-        cues = read_srt(srt) if srt.exists() else []
-        cta_txt = Path(sh["cta_txt"]) if sh.get("cta_txt") else job_dir / f"{base}_cta.txt"
-        text = cta_txt.read_text(encoding="utf-8").strip() if cta_txt.exists() else ""
-        cta = None
-        if text:
-            d = min(cta_dur, sh["duration"])
-            cta = {"text": text, "start": sh["duration"] - d, "dur": d}
-        tmp = work_dir(settings) / "jobs" / job["job_id"] / "rerender" / base
-        overlays = build_overlays(settings, cues, cta, layout, tmp)
-        print(f"Рендерю {base} ({len(cues)} субтитрів{', із закликом' if cta else ''})…")
-        render_short(settings, info, layout, [(s["s"], s["e"]) for s in sh["segments"]], overlays,
-                     Path(sh["mp4"]) if sh.get("mp4") else sdir / f"{base}.mp4", rec.get("webcam"))
+        if i in pick:
+            rerender_short(settings, job, job_dir, rec, sh, log=print)
     print("Готово.")
     return 0
 
