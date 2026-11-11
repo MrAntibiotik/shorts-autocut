@@ -226,6 +226,85 @@ def phrases_of(words: list[AiWord], max_gap_s: float = 0.7) -> list[Phrase]:
     return out
 
 
+# ====================================================================== фільтр фраз (гра, вигадки моделі)
+
+GAME_PHRASES = [
+    # голос екіпажу / швидкі команди WoT (українська озвучка) — можна доповнювати в settings.json
+    "потрібна допомога", "чекаю наказу відкрити вогонь", "відкрити вогонь", "ворога виявлено",
+    "нас виявили", "нас помітили", "є пробиття", "не пробив", "рикошет", "ворога знищено",
+    "танк знищено", "ціль знищено", "двигун пошкоджено", "гармату пошкоджено", "гусеницю збито",
+    "боєукладку пошкоджено", "пожежа", "загоряння", "командира контужено", "навідника контужено",
+    "механіка-водія контужено", "радиста контужено", "заряджаючого контужено", "вогнегасник",
+    "атакую", "тримаю позицію", "захоплюємо базу", "захищаємо базу", "так точно", "ніяк ні",
+    "дякую", "відступаємо", "за мною",
+]
+GAME_WORDS = ["пошкоджено", "контужено", "збито", "знищено", "наказу"]
+
+
+def _norm(t: str) -> list[str]:
+    return [w for w in re.sub(r"[^\w\s'ʼ-]", " ", t.lower()).replace("-", " ").split() if w]
+
+
+def _similar(a: str, b: str, r: float = 0.75) -> bool:
+    if a == b:
+        return True
+    from difflib import SequenceMatcher
+    return min(len(a), len(b)) >= 3 and SequenceMatcher(None, a, b).ratio() >= r
+
+
+def _covers(phrase_toks: list[str], pattern: str, need: float) -> bool:
+    """Частка слів шаблону, що (приблизно) є у фразі."""
+    pt = _norm(pattern)
+    if not pt:
+        return False
+    hit = sum(1 for p in pt if any(_similar(p, w) for w in phrase_toks))
+    return hit / len(pt) >= need
+
+
+def phrase_reject_reason(p: Phrase, cfg: dict) -> str | None:
+    toks = _norm(p.text)
+    if not toks:
+        return "порожньо"
+    ws = p.words
+    zero = sum(1 for w in ws if w.end - w.start < 0.03)
+    if len(ws) >= 3 and zero / len(ws) >= 0.5:
+        return "вигадка моделі (слова без тривалості)"
+    mean_p = sum(w.prob for w in ws) / len(ws)
+    if mean_p < float(cfg.get("min_phrase_prob", 0.5)):
+        return f"низька впевненість ({mean_p:.2f})"
+    for h in cfg.get("hallucinations", []):
+        if len(_norm(h)) >= 2 and _covers(toks, h, 0.67):
+            return f"типова вигадка моделі («{h}»)"
+    if cfg.get("filter_game_phrases", True):
+        phrases = list(cfg.get("game_phrases") or GAME_PHRASES)
+        for g in phrases:
+            gt = _norm(g)
+            if len(gt) >= 2 and _covers(toks, g, 0.7) and len(toks) <= len(gt) + 3:
+                return f"фраза з гри («{g}»)"
+            # обірвана фраза гри: 1–2 слова, усі — з фрази гри («Потрібна» … «допомога!»)
+            if len(toks) <= 2 and all(any(_similar(t, x) for x in gt) for t in toks) and \
+                    any(len(t) >= 5 for t in toks):
+                return f"шматок фрази з гри («{g}»)"
+        if len(toks) <= 4:
+            for gw in cfg.get("game_words") or GAME_WORDS:
+                if any(_similar(gw, t, 0.8) for t in toks):
+                    return f"фраза з гри (слово «{gw}»)"
+    return None
+
+
+def filter_phrases(words: list[AiWord], cfg: dict) -> tuple[list[AiWord], list[tuple[Phrase, str]]]:
+    """Прибирає фрази з гри (голос екіпажу) і вигадки моделі. Повертає (слова, [(фраза, причина)])."""
+    kept: list[AiWord] = []
+    dropped: list[tuple[Phrase, str]] = []
+    for p in phrases_of(words, float(cfg.get("phrase_gap_s", 0.7))):
+        why = phrase_reject_reason(p, cfg)
+        if why:
+            dropped.append((p, why))
+        else:
+            kept += p.words
+    return kept, dropped
+
+
 def windows_for(battles: list[dict], cfg: dict, rec_start: float, rec_end: float) -> list[tuple[float, float]]:
     """Вікна для розпізнавання: навколо кожного моменту бою (з контекстом), близькі — зливаються."""
     before, after = float(cfg.get("window_before_s", 15)), float(cfg.get("window_after_s", 25))
@@ -277,7 +356,10 @@ class SpeechAI:
             if dedup and abs(w.start - dedup[-1].start) < 0.05 and w.text == dedup[-1].text:
                 continue
             dedup.append(w)
-        return dedup
+        kept, dropped = filter_phrases(dedup, self.cfg)
+        for p, why in dropped:
+            log.info("    відкинуто фразу «%s» — %s", p.text[:60], why)
+        return kept
 
 
 # ====================================================================== нарізка за реченнями

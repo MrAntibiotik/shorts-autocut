@@ -111,6 +111,7 @@ def main() -> int:
         print(f"    {fmt_time(b - start, 0)} / {fmt_time(end_t - start, 0)}")
         a = b
     t_asr = time.time() - t0
+    words, dropped = speech_ai.filter_phrases(words, cfg)
     phrases = speech_ai.phrases_of(words, float(cfg.get("phrase_gap_s", 0.7)))
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -134,6 +135,10 @@ def main() -> int:
     ]
     for p in phrases:
         lines.append(f"  {fmt_time(p.start, 1):>9} – {fmt_time(p.end, 1):<9} {p.text}")
+    lines += ["", f"ВІДКИНУТО ({len(dropped)}) — голос гри, вигадки моделі, невпевнене (у субтитри не підуть):"]
+    lines += [f"  {fmt_time(p.start, 1):>9}  {p.text}   — {why}" for p, why in dropped]
+    lines += ["  (Відкинуто вашу фразу або пропущено фразу гри — напишіть, підкрутимо speech_ai.game_phrases"
+              " / min_phrase_prob у settings.json.)"]
     lines += ["", "Слова з низькою впевненістю (< 0.5), можливі помилки:"]
     lines += [f"  {fmt_time(w.start, 1)}  {w.text}  ({w.prob:.2f})" for w in words if w.prob < 0.5][:100]
     txt = base.with_suffix(".txt")
