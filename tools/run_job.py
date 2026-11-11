@@ -145,24 +145,42 @@ def gui(settings, log_file: Path):
     bcol = tk.Frame(lst_frame)
     bcol.pack(side="left", padx=6)
 
+    recs_prof: list[tuple[str, str]] = []     # (запис, профіль гри) — у тому ж порядку, що й у списку
+
+    def add_paths(paths):
+        """Для кожного запису: вибір гри + обов'язкова перевірка рамок (майстер)."""
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from video_wizard import VideoWizard
+        for f in paths:
+            wiz = VideoWizard(root, settings, f, profiles, names, state,
+                              others_same=lambda pid: sum(1 for _, p in recs_prof if p == pid))
+            if wiz.result:
+                recs_prof.append((f, wiz.result))
+                files.insert("end", f"[{names.get(wiz.result, wiz.result)}]  {Path(f).name}    —  {Path(f).parent}")
+                save_state(settings, state)
+
     preselected = request_from_resolve(settings)
-    for f in preselected:
-        files.insert("end", f)
+    if preselected:
+        root.after(300, lambda: add_paths(preselected))
 
     def add_files():
         sel = filedialog.askopenfilenames(title="Оберіть запис(и) стріму", filetypes=VIDEO_TYPES,
                                           initialdir=state.get("last_dir") or str(Path.home()))
-        for f in sel:
-            files.insert("end", f)
         if sel:
             state["last_dir"] = str(Path(sel[0]).parent)
+            add_paths(list(sel))
 
     tk.Button(bcol, text="Додати…", width=12, command=add_files).pack(pady=2)
-    tk.Button(bcol, text="Прибрати", width=12, command=lambda: [files.delete(i) for i in reversed(files.curselection())]).pack(pady=2)
+    def remove_sel():
+        for i in reversed(files.curselection()):
+            files.delete(i)
+            del recs_prof[i]
+
+    tk.Button(bcol, text="Прибрати", width=12, command=remove_sel).pack(pady=2)
 
     row = tk.Frame(setup)
     row.pack(fill="x", **pad)
-    tk.Label(row, text="Профіль гри:", font=("Segoe UI", 10, "bold")).pack(side="left")
+    tk.Label(row, text="Налаштування гри:", font=("Segoe UI", 10, "bold")).pack(side="left")
     prof_var = tk.StringVar()
     combo = ttk.Combobox(row, state="readonly", width=30, values=[f"{names[p]}  ({p})" for p in profiles],
                          textvariable=prof_var)
@@ -315,7 +333,7 @@ def gui(settings, log_file: Path):
         tk.Button(pbtns, text="Закрити", command=root.destroy).pack(side="right", padx=10)
 
     def start():
-        recs = list(files.get(0, "end"))
+        recs = [r for r, _ in recs_prof]
         if not recs:
             messagebox.showwarning("Немає запису", "Додайте хоча б один файл запису.")
             return
@@ -323,9 +341,12 @@ def gui(settings, log_file: Path):
         if missing:
             messagebox.showerror("Файл не знайдено", "\n".join(missing))
             return
-        prof = profiles[combo.current()] if combo.current() >= 0 else "wot"
-        if not ensure_zones(prof, recs[0]):
+        used = sorted({p for _, p in recs_prof})
+        if len(used) > 1:
+            messagebox.showerror("Різні ігри", "В одному запуску — записи однієї гри. Зараз у списку: "
+                                 + ", ".join(names.get(p, p) for p in used) + ". Приберіть зайві.")
             return
+        prof = used[0]
         try:
             a = parse_time(e_from.get())
             b = parse_time(e_to.get())
@@ -347,33 +368,6 @@ def gui(settings, log_file: Path):
         t_start[0] = time.time()
         threading.Thread(target=run_job_thread, args=(settings, opts, q, cancel), daemon=True).start()
 
-    def ensure_zones(prof: str, first_rec: str) -> bool:
-        """Перший запуск для гри: якщо рамки ще не обведені — пропонуємо зробити це зараз."""
-        try:
-            raw = strip_comments(load_profile_raw(prof))
-        except UserError as e:
-            messagebox.showerror("Профіль", str(e))
-            return False
-        if raw.get("zones_confirmed"):
-            return True
-        if not messagebox.askyesno(
-                "Рамки ще не обведені",
-                f"Для «{names.get(prof, prof)}» ще не обведені рамки (вебкамера"
-                f"{', лічильники, лог, міцність' if (raw.get('signals') or {}).get('vision') else ''}).\n\n"
-                "Відкрити вибір рамок на кадрі з цього запису зараз? (1–2 хвилини, один раз для гри)"):
-            return messagebox.askyesno("Продовжити?", "Продовжити з приблизними рамками за замовчуванням?")
-        import subprocess
-        root.withdraw()
-        try:
-            subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "pick_zones.py"), first_rec,
-                            "--profile", prof, "--time", "60"])
-        finally:
-            root.deiconify()
-        raw = strip_comments(load_profile_raw(prof))
-        if raw.get("zones_confirmed"):
-            return True
-        return messagebox.askyesno("Рамки не збережено", "Рамки не збережено. Продовжити з приблизними рамками?")
-
     def stop():
         if messagebox.askyesno("Зупинити", "Зупинити обробку? Уже оброблені частини збережуться, "
                                            "наступний запуск продовжить з них."):
@@ -387,7 +381,7 @@ def gui(settings, log_file: Path):
     # ---------------------------------------------------------------- режим розробника («antibiotik»)
     def selected_recording():
         sel = files.curselection()
-        items = files.get(0, "end")
+        items = [r for r, _ in recs_prof]
         return items[sel[0]] if sel else (items[0] if items else None)
 
     dev_btn = tk.Button(btns, text="🛠 Розробник", width=14)
