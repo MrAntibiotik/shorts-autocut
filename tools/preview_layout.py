@@ -18,7 +18,8 @@ from shorts.errors import UserError  # noqa: E402
 from shorts.layout import compute_layout  # noqa: E402
 from shorts.logs import setup_logging  # noqa: E402
 from shorts.media import find_tool, probe, run  # noqa: E402
-from shorts.pipeline import build_overlays, find_webcam_file  # noqa: E402
+from shorts.pipeline import build_overlays  # noqa: E402
+from shorts.recording import find_webcam_file, resolve_recording, webcam_offset  # noqa: E402
 from shorts.render import render_short  # noqa: E402
 from shorts.subtitles import Cue  # noqa: E402
 from shorts.util import parse_time  # noqa: E402
@@ -34,12 +35,14 @@ def main() -> int:
     ans = input("Секунда кадру (напр. 95 або 1:35) [Enter = 60]: ").strip()
     t = parse_time(ans) if ans else min(60.0, info.duration / 2)
 
+    settings = resolve_recording(settings, info)
     webcam = None
-    if settings["recording"]["mode"] == "separate":
-        w = find_webcam_file(settings, src)
-        if w:
-            wi = probe(settings, w)
-            webcam = {"path": str(w), "width": wi.width, "height": wi.height, "fps": wi.fps, "offset": 0.0}
+    w = find_webcam_file(settings, src)
+    if w:
+        wi = probe(settings, w)
+        off, how = webcam_offset(settings, info, wi)
+        print(f"Окремий файл вебкамери: {w.name}, зсув {off:+.3f} с — {how}")
+        webcam = {"path": str(w), "width": wi.width, "height": wi.height, "fps": wi.fps, "offset": off}
     layout = compute_layout(prof, info.width, info.height, webcam)
     for w in layout.warnings:
         print(f"[УВАГА] {w}")

@@ -32,6 +32,7 @@ from .render import Overlay, render_short
 from .report import write_reports
 from .resolve_export import markers_for, write_lua, write_marker_edl, write_status
 from .selection import Short, SpeechMap, describe, select_shorts
+from .recording import find_webcam_file, resolve_recording, webcam_offset  # noqa: F401
 from .speech_ai import words_for_short
 from .subtitles import Cue, add_emoji, build_cues, transcribe_shorts, write_srt
 from .textimg import render_text
@@ -94,17 +95,6 @@ def ascii_name(s: str, maxlen: int = 40) -> str:
     t = s.lower().translate(TRANSLIT)
     t = re.sub(r"[^a-z0-9]+", "_", t).strip("_")
     return (t or "rec")[:maxlen]
-
-
-def find_webcam_file(settings: dict, rec: Path) -> Path | None:
-    sep = settings["recording"]["separate"]
-    dirs = [rec.parent] + [Path(d) for d in sep.get("webcam_search_dirs") or []]
-    for d in dirs:
-        for ext in (".mkv", ".mp4", ".mov", ".flv"):
-            p = d / f"{rec.stem}{sep['webcam_file_suffix']}{ext}"
-            if p.exists():
-                return p
-    return None
 
 
 class Job:
@@ -210,23 +200,25 @@ class Job:
 
         stage("Аналіз запису", 0.0, 0.01)
         info = probe(st, path)
-        log.info("Запис: %s | %d×%d, %.0f fps, %s", path.name, info.width, info.height, info.fps,
-                 fmt_time(info.duration, 0))
+        log.info("Запис: %s | %d×%d, %.0f fps, %s, доріжок звуку: %d", path.name, info.width, info.height,
+                 info.fps, fmt_time(info.duration, 0), info.audio_streams)
+        st = resolve_recording(st, info)
         start = max(0.0, opts.start or 0.0)
         end = min(info.duration, opts.end) if opts.end else info.duration
         tag = ascii_name(path.stem)
 
         webcam = None
-        if st["recording"]["mode"] == "separate":
-            wpath = find_webcam_file(st, path)
-            if wpath:
-                winfo = probe(st, wpath)
-                webcam = {"path": str(wpath), "width": winfo.width, "height": winfo.height, "fps": winfo.fps,
-                          "offset": 0.0}
-                log.info("Окремий файл вебкамери: %s", wpath.name)
-            else:
-                log.warning("[УВАГА] Режим separate, але файл вебкамери «%s%s.*» не знайдено — беру зону з кадру.",
-                            path.stem, st["recording"]["separate"]["webcam_file_suffix"])
+        wpath = find_webcam_file(st, path)
+        if wpath:
+            winfo = probe(st, wpath)
+            off, how = webcam_offset(st, info, winfo)
+            webcam = {"path": str(wpath), "width": winfo.width, "height": winfo.height, "fps": winfo.fps,
+                      "offset": off}
+            log.info("Окремий файл вебкамери: %s (%d×%d), зсув %+.3f с — %s", wpath.name, winfo.width,
+                     winfo.height, off, how)
+        elif st["recording"]["mode"] == "separate":
+            log.info("Окремого файлу вебкамери («%s%s.mkv») немає — камера з кадру запису.",
+                     path.stem, st["recording"]["separate"]["webcam_file_suffix"])
 
         # ---- зоровий детектор
         vision_events, battles = [], []

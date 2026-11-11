@@ -80,6 +80,8 @@ def main() -> int:
     cfg = speech_ai.cfg_of(settings)
     src = Path(args.source or input("Перетягніть сюди файл запису і натисніть Enter: ").strip().strip('"'))
     info = probe(settings, src)
+    from shorts.recording import resolve_recording
+    settings = resolve_recording(settings, info)
     start, end = parse_time(args.start) or 0.0, parse_time(args.end)
     if args.ask or args.start is None:
         print(f"\nЗапис: {info.path.name}, тривалість {fmt_time(info.duration, 0)}.")

@@ -14,6 +14,13 @@
     "mixed": {
       "audio_track": 0
     },
+    "auto": {
+      "_опис": "Запис з OBS з 3+ доріжками (1 — усе, 2 — мікрофон, 3 — гра): інструмент сам бере мікрофон і гру з окремих доріжок (номери тут — з нуля: 1 = доріжка 2 в OBS). Старі записи з однією доріжкою — як раніше.",
+      "enabled": true,
+      "min_tracks": 3,
+      "mic_audio_track": 1,
+      "game_audio_track": 2
+    },
     "separate": {
       "game_audio_track": 0,
       "mic_audio_track": 1,

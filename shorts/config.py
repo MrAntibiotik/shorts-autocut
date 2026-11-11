@@ -34,6 +34,7 @@ DEFAULT_SETTINGS: dict = {
     "recording": {
         "mode": "mixed",
         "mixed": {"audio_track": 0},
+        "auto": {"enabled": True, "min_tracks": 3, "mic_audio_track": 1, "game_audio_track": 2},
         "separate": {
             "game_audio_track": 0,
             "mic_audio_track": 1,

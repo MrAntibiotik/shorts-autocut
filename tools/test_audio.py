@@ -103,6 +103,8 @@ def main() -> int:
     log_file = setup_logging("test_audio", work_dir(settings) / "logs", args.verbose)
     src = Path(args.source or input("Перетягніть сюди файл запису і натисніть Enter: ").strip().strip('"'))
     info = probe(settings, src)
+    from shorts.recording import resolve_recording
+    settings = resolve_recording(settings, info)
     print(f"\nЗапис: {info.path.name}  |  тривалість {fmt_time(info.duration, 0)}, аудіодоріжок: {info.audio_streams}, "
           f"режим запису: {settings['recording']['mode']}")
     profile_id = args.profile or (ask_profile("wot") if args.ask else "wot")

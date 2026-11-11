@@ -75,6 +75,8 @@ def main() -> int:
     src = Path((sys.argv[1] if len(sys.argv) > 1 else
                 input("Перетягніть сюди файл запису і натисніть Enter: ")).strip().strip('"'))
     info = probe(settings, src)
+    from shorts.recording import resolve_recording
+    settings = resolve_recording(settings, info)
     profile_id = ask_profile("wot")
     profile = load_profile(profile_id)
     rec = settings["recording"]
