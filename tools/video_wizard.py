@@ -12,7 +12,6 @@ import subprocess
 import sys
 import tkinter as tk
 from pathlib import Path
-from tkinter import messagebox
 
 TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOOLS.parent))
@@ -46,6 +45,7 @@ class VideoWizard:
         self.others_same = others_same          # (pid) -> скільки інших записів у списку з цим профілем
         self.result: str | None = None
         self.mode: str | None = None            # режим гри (WoT: damage / assist)
+        self.zones: dict = {}                   # підтверджені рамки цього запису
         self.remaining = remaining              # скільки ще записів вибрано разом з цим
         self.apply_rest = tk.BooleanVar(value=False)
         self.t = float(state.get("zones_preview_t", 60.0))
@@ -179,11 +179,8 @@ class VideoWizard:
             self.img_lbl.config(image="", text=f"Не вдалося показати кадр: {e}", width=100, height=6)
 
     def redraw(self):
-        n = self.others_same(self.pid)
-        if n and not messagebox.askyesno(
-                "Нові рамки", f"Рамки зберігаються для гри «{self.names.get(self.pid, self.pid)}» і "
-                f"застосуються також до {n} інших записів цієї гри у списку. Продовжити?", parent=self.w):
-            return
+        # нові рамки — лише для ЦЬОГО запису (і стануть стандартними для наступних);
+        # уже додані записи зберігають свої підтверджені рамки
         self.w.grab_release()
         self.w.withdraw()
         self.root.withdraw()
@@ -202,5 +199,7 @@ class VideoWizard:
         self.mode = self.mode_var.get() or None
         if self.mode:
             self.state[f"mode_{self.pid}"] = self.mode
+        import copy
+        self.zones = copy.deepcopy(_raw(self.pid).get("zones") or {})   # рамки саме цього запису
         self.result = self.pid
         self.w.destroy()

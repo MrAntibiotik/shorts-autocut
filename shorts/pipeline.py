@@ -58,6 +58,7 @@ class JobOptions:
     subtitles: bool = False
     speech_ai: bool = False            # експериментально: Silero VAD + faster-whisper
     modes: dict = field(default_factory=dict)   # {шлях запису: "damage" | "assist"} — режим гри (WoT)
+    zones: dict = field(default_factory=dict)   # {шлях запису: рамки} — підтверджені рамки саме цього запису
     separation: bool = True
 
 
@@ -193,6 +194,11 @@ class Job:
     # ------------------------------------------------------------------ один запис
     def _process_recording(self, path: Path, idx: int, n: int) -> dict:
         st, prof, opts = self.settings, self.profile, self.opts
+        rz = opts.zones.get(str(path))
+        if rz:
+            prof = copy.deepcopy(prof)
+            prof["zones"] = copy.deepcopy(rz)
+            log.info("Рамки: підтверджені для цього запису")
         mode = opts.modes.get(str(path)) or prof.get("default_mode")
         if mode:
             prof = copy.deepcopy(prof)

@@ -149,6 +149,7 @@ def gui(settings, log_file: Path):
     bcol.pack(side="left", padx=6)
 
     recs_prof: list[tuple[str, str, str | None]] = []   # (запис, профіль гри, режим) — як у списку
+    rec_zones: dict[str, dict] = {}                      # запис -> його підтверджені рамки
 
     def add_paths(paths):
         """Для кожного запису: вибір гри + обов'язкова перевірка рамок (майстер)."""
@@ -169,10 +170,12 @@ def gui(settings, log_file: Path):
             if not wiz.result:
                 continue
             add(f, wiz.result, wiz.mode)
+            rec_zones[str(Path(f))] = wiz.zones
             save_state(settings, state)
             if wiz.apply_rest.get():
                 for g in paths[i + 1:]:
                     add(g, wiz.result, wiz.mode)
+                    rec_zones[str(Path(g))] = wiz.zones
                 break
 
     preselected = request_from_resolve(settings)
@@ -190,6 +193,7 @@ def gui(settings, log_file: Path):
     def remove_sel():
         for i in reversed(files.curselection()):
             files.delete(i)
+            rec_zones.pop(str(Path(recs_prof[i][0])), None)
             del recs_prof[i]
 
     tk.Button(bcol, text="Прибрати", width=12, command=remove_sel).pack(pady=2)
@@ -410,7 +414,9 @@ def gui(settings, log_file: Path):
         opts = JobOptions(recordings=[Path(r) for r in recs], profile_id=prof, cta_text=text, start=a, end=b,
                           render=v_render.get(), subtitles=v_subs.get(), separation=v_sep.get(),
                           speech_ai=v_sai.get(),
-                          modes={str(Path(r)): m for r, _, m in recs_prof if m})
+                          modes={str(Path(r)): m for r, _, m in recs_prof if m},
+                          zones={str(Path(r)): rec_zones[str(Path(r))] for r, _, _m in recs_prof
+                                 if rec_zones.get(str(Path(r)))})
         setup.pack_forget()
         prog.pack(fill="both", expand=True)
         h = QueueHandler(q)
