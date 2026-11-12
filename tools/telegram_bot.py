@@ -243,14 +243,30 @@ class Bot:
         return self.api.call("sendMessage", chat_id=self.owner, text=text, reply_markup=markup,
                              disable_web_page_preview=True)
 
-    def short_markup(self, key: str, published: bool) -> dict:
+    def short_markup(self, key: str, published: bool, video: bool = True) -> dict:
+        """Кнопки під шортсом. video=True — повідомлення вже є відео (кнопка 480p не потрібна)."""
         second = ([{"text": "↩ Повернути", "callback_data": f"u|{key}"}] if published else
                   [{"text": "✅ Підходить → до публікації", "callback_data": f"k|{key}"}])
-        return {"inline_keyboard": [
-            [{"text": "▶ Переглянути 480p", "callback_data": f"v|{key}"},
-             {"text": "📱 Оригінал", "callback_data": f"f|{key}"}],
-            second + [{"text": "🗑 Видалити", "callback_data": f"d|{key}"}],
-        ]}
+        first = [{"text": "📱 Оригінал (повна якість)", "callback_data": f"f|{key}"}]
+        if not video:
+            first.insert(0, {"text": "▶ Переглянути 480p", "callback_data": f"v|{key}"})
+        return {"inline_keyboard": [first, second + [{"text": "🗑 Видалити", "callback_data": f"d|{key}"}]]}
+
+    def send_short(self, key: str, s: dict, cur: Path, pub: bool):
+        """Шортс — одразу відеоповідомленням 480p (дивитись прямо в чаті), кнопки під відео.
+        Не вийшло (немає ffmpeg, задовгий файл) — текстом з кнопкою «▶ Переглянути 480p»."""
+        try:
+            self.api.call("sendChatAction", chat_id=self.owner, action="upload_video")
+            prev = make_preview(self.settings, cur)
+            if prev.stat().st_size > MAX_UPLOAD:
+                raise RuntimeError("завеликий")
+            self.api.send_file("sendVideo", "video", prev, chat_id=self.owner,
+                               caption=self.short_text(s, cur, pub), supports_streaming="true",
+                               width=480, height=854, duration=int(s["duration"]),
+                               reply_markup=self.short_markup(key, pub, video=True))
+        except Exception as e:
+            log.warning("Відео %s не надіслано: %s", s["name"], e)
+            self.send(self.short_text(s, cur, pub), self.short_markup(key, pub, video=False))
 
     def locate(self, job_dir: Path, s: dict, marks: Marks) -> tuple[Path | None, bool]:
         """Де зараз MP4 шортсу: (шлях або None, чи в папці публікації)."""
@@ -274,10 +290,9 @@ class Bot:
             items.append((s, cur, pub))
         if not items:
             return 0
-        self.send(f"📁 {job_dir.name} — шортсів: {len(items)}")
+        self.send(f"📁 {job_dir.name} — шортсів: {len(items)}. Надсилаю відео…")
         for s, cur, pub in items:
-            key = short_key(job_dir, s["i"])
-            self.send(self.short_text(s, cur, pub), self.short_markup(key, pub))
+            self.send_short(short_key(job_dir, s["i"]), s, cur, pub)
         return len(items)
 
     # -------------------------------------------------------------- команди
@@ -423,16 +438,22 @@ class Bot:
             return
         msg = cq.get("message") or {}
 
+        is_video = bool(msg.get("video") or msg.get("caption") is not None and msg.get("text") is None)
+
         def redraw(text: str | None = None, markup: dict | None = None):
             if not msg:
                 return
             if text is not None and msg.get("text") is not None:
                 self.api.call("editMessageText", chat_id=self.owner, message_id=msg["message_id"],
                               text=text, reply_markup=markup)
+            elif text is not None and is_video:
+                self.api.call("editMessageCaption", chat_id=self.owner, message_id=msg["message_id"],
+                              caption=text, reply_markup=markup)
             else:
                 self.api.call("editMessageReplyMarkup", chat_id=self.owner, message_id=msg["message_id"],
                               reply_markup=markup)
 
+        vid = msg.get("text") is None          # кнопки під відео (не під текстом)
         if act in ("v", "f"):
             self.api.call("sendChatAction", chat_id=self.owner, action="upload_video")
             path = make_preview(self.settings, cur) if act == "v" else cur
@@ -441,13 +462,13 @@ class Bot:
                           "Дивіться ▶ 480p.")
                 return
             w, h = (480, 854) if act == "v" else (1080, 1920)
-            self.api.send_file("sendVideo", "video", path, chat_id=self.owner, caption=s["name"],
+            self.api.send_file("sendVideo", "video", path, chat_id=self.owner, caption=self.short_text(s, cur, pub),
                                supports_streaming="true", width=w, height=h, duration=int(s["duration"]),
-                               reply_markup=self.short_markup(key, pub))
+                               reply_markup=self.short_markup(key, pub, video=True))
         elif act == "k" and not pub:
             new = move_with_srt(cur, publish_dir(self.settings, self.cfg))
             marks.set(key, new)
-            redraw(self.short_text(s, new, True), self.short_markup(key, True))
+            redraw(self.short_text(s, new, True), self.short_markup(key, True, vid))
         elif act == "u" and pub:
             back = move_with_srt(cur, s["mp4"].parent)
             if back != s["mp4"]:
@@ -455,7 +476,7 @@ class Bot:
                 if back.with_suffix(".srt").exists():
                     shutil.move(str(back.with_suffix(".srt")), str(s["mp4"].with_suffix(".srt")))
             marks.set(key, None)
-            redraw(self.short_text(s, s["mp4"], False), self.short_markup(key, False))
+            redraw(self.short_text(s, s["mp4"], False), self.short_markup(key, False, vid))
         elif act == "d":
             redraw(None, {"inline_keyboard": [[
                 {"text": "🗑 Так, видалити", "callback_data": f"D|{key}"},
@@ -464,13 +485,13 @@ class Bot:
             dst = delete_short(self.settings, job_dir, s, cur)
             marks.set(key, None)
             text = f"🗑 Видалено: {s['name']}\n(перенесено в output\\{DELETED_DIR}\\{job_dir.name})"
-            if msg.get("text") is not None:
+            if msg:
                 redraw(text, None)
             else:
                 self.send(text)
             log.info("Видалено %s -> %s", s["name"], dst)
         elif act == "c":
-            redraw(None, self.short_markup(key, pub))
+            redraw(None, self.short_markup(key, pub, vid))
 
     # -------------------------------------------------------------- цикл
     def handle(self, upd: dict):
