@@ -131,13 +131,22 @@ def gui(settings, log_file: Path):
 
     root = tk.Tk()
     root.title("Автонарізка шортсів")
-    root.geometry("760x620")
+    root.geometry("780x660")
     root.minsize(640, 520)
     pad = {"padx": 10, "pady": 4}
 
     # ---------------------------------------------------------------- екран налаштувань
-    setup = tk.Frame(root)
-    setup.pack(fill="both", expand=True)
+    # вкладки: «Автонарізка» і «Telegram-бот»
+    nb = ttk.Notebook(root)
+    nb.pack(fill="both", expand=True)
+    setup = tk.Frame(nb)
+    nb.add(setup, text="  Автонарізка шортсів  ")
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from bot_panel import build_bot_tab
+        nb.add(build_bot_tab(nb, settings), text="  Telegram-бот  ")
+    except Exception as e:  # вкладка бота не повинна ламати основне вікно
+        logging.getLogger("run_job").warning("Вкладка Telegram-бота недоступна: %s", e)
     tk.Label(setup, text="Автонарізка шортсів", font=("Segoe UI", 15, "bold")).pack(anchor="w", **pad)
 
     tk.Label(setup, text="Запис(и) стріму:", font=("Segoe UI", 10, "bold")).pack(anchor="w", **pad)
@@ -420,7 +429,7 @@ def gui(settings, log_file: Path):
                           modes={str(Path(r)): m for r, _, m in recs_prof if m},
                           zones={str(Path(r)): rec_zones[str(Path(r))] for r, _, _m in recs_prof
                                  if rec_zones.get(str(Path(r)))})
-        setup.pack_forget()
+        nb.pack_forget()
         prog.pack(fill="both", expand=True)
         h = QueueHandler(q)
         logging.getLogger().addHandler(h)
