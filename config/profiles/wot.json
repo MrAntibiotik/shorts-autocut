@@ -1,5 +1,5 @@
 {
-  "profile_version": 18,
+  "profile_version": 19,
   "name": "World of Tanks",
   "ready": true,
   "modes": {
@@ -348,6 +348,14 @@
     "webcam_width": 480,
     "webcam_corner": "top_left",
     "margin": 24,
-    "counters_height": 150
+    "counters_height": 150,
+    "opener": {
+      "_опис": "Opener на початку хайлайту: moments (3–6) найяскравіших моментів бою в шаблоні templates/opener_16x10 (HOOK → … → ПІК → заставка MR_ANTIBIOTIK, 10–17,5 с). pre_s — скільки секунд до моменту брати; min_gap_s — мінімальна відстань між моментами. enabled=false — без opener'а.",
+      "enabled": true,
+      "template_dir": "templates/opener_16x10",
+      "moments": 5,
+      "pre_s": 0.5,
+      "min_gap_s": 4.0
+    }
   }
 }

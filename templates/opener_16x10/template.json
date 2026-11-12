@@ -1,0 +1,50 @@
+{
+  "name": "mr_antibiotik_opener_universal",
+  "version": 2,
+  "canvas": {
+    "width": 2560,
+    "height": 1600,
+    "fps": 60,
+    "aspect": "16:10"
+  },
+  "moments": {
+    "min": 3,
+    "max": 6,
+    "hook": 2.0,
+    "moment": 2.5,
+    "peak": 2.5,
+    "peak_freeze": 0.5,
+    "zoom_hook_peak": 0.15,
+    "zoom_moment": 0.1
+  },
+  "outro": {
+    "file": "outro_16x10.mp4",
+    "duration": 3.0
+  },
+  "layers": {
+    "hud": "hud_16x10.webm",
+    "hit": "hit_16x10.webm",
+    "hit_pre_frames": 3,
+    "peak": "peak_16x10.webm",
+    "music": "music_{n}.wav"
+  },
+  "audio": {
+    "music_volume": 0.9,
+    "clip_volume": 1.0,
+    "duck": true,
+    "loudness_lufs": -14
+  },
+  "caption": {
+    "enabled": false,
+    "x": 120,
+    "y": 1290,
+    "w": 1150,
+    "h": 130,
+    "size": 66,
+    "color": "white",
+    "max_chars": 22,
+    "appear_after": 0.2,
+    "hide_before_end": 0.2,
+    "font": "fonts/InterDisplay-Black.otf"
+  }
+}

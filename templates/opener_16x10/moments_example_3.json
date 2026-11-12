@@ -1,0 +1,21 @@
+{
+  "output": "opener_preview_3.mp4",
+  "captions": false,
+  "moments": [
+    {
+      "src": "preview_src/slot0.mp4",
+      "start": 1.0,
+      "caption": ""
+    },
+    {
+      "src": "preview_src/slot1.mp4",
+      "start": 1.0,
+      "caption": ""
+    },
+    {
+      "src": "preview_src/slot4.mp4",
+      "start": 1.0,
+      "caption": ""
+    }
+  ]
+}

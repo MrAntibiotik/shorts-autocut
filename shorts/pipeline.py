@@ -149,6 +149,29 @@ class Job:
         cleanup_work(self.settings, keep=[self.work])
         return self.result
 
+    # ------------------------------------------------------------------ opener хайлайту
+    def _add_opener(self, hcfg: dict, b: dict, segs, mp4: Path, layout, tag: str, disk: str) -> bool:
+        """3–6 найяскравіших моментів у шаблоні MR_ANTIBIOTIK — на початок хайлайту. Помилка — хайлайт без opener'а."""
+        from .highlights import _points
+        from .opener import cfg_of, join, make_opener, pick_moments
+        ocfg = cfg_of(hcfg)
+        if not ocfg.get("enabled"):
+            return False
+        starts = pick_moments(_points(b), segs, ocfg)
+        if not starts:
+            log.info("    opener: яскравих моментів менше 3 — хайлайт без opener'а")
+            return False
+        try:
+            op = make_opener(self.settings, ocfg, mp4, starts, self.work / tag / f"{disk}_opener.mp4")
+            joined = mp4.with_name(mp4.stem + "_with_opener.mp4")
+            join(self.settings, op, mp4, joined, layout.width, layout.height, layout.fps)
+            joined.replace(mp4)
+            log.info("    opener: %d моментів додано на початок", len(starts))
+            return True
+        except Exception as e:
+            log.warning("[УВАГА] Opener не зроблено (%s) — хайлайт без нього", str(e)[-300:])
+            return False
+
     # ------------------------------------------------------------------ експериментально: розумна мова
     def _silero_speech(self, chunks, cfg: dict, fallback: SpeechMap) -> SpeechMap:
         if not cfg.get("use_silero_vad", True):
@@ -389,7 +412,9 @@ class Job:
                              fmt_time(dur, 0), len(segs))
                     try:
                         render_short(st, info, hl_layout, segs, [], mp4, webcam)
+                        opened = self._add_opener(hcfg, b, segs, mp4, hl_layout, tag, disk)
                         highlights_out.append({"battle": b["index"], "mp4": str(mp4), "duration": round(dur, 1),
+                                               "opener": opened,
                                                "segments": [{"s": s, "e": e} for s, e in segs]})
                     except UserError as e:
                         log.error("[ПОМИЛКА] Хайлайт бою %d: %s", b["index"], e)
