@@ -239,9 +239,67 @@ class Bot:
         self.last_update_check = 0.0
 
     # -------------------------------------------------------------- відправка
+    # постійне меню внизу чату
+    MENU = {"keyboard": [[{"text": "📋 Шортси"}, {"text": "⏳ Статус"}],
+                         [{"text": "📤 До публікації"}, {"text": "📁 Усі результати"}],
+                         [{"text": "🔄 Оновлення"}, {"text": "🧹 Очистити чат"}]],
+            "resize_keyboard": True, "is_persistent": True}
+    MENU_CMDS = {"📋 Шортси": "/shorts", "⏳ Статус": "/status", "📤 До публікації": "/kept",
+                 "📁 Усі результати": "/all", "🔄 Оновлення": "/update", "🧹 Очистити чат": "/clear"}
+
+    # -------------------------------------------------------------- журнал повідомлень (для «Очистити чат»)
+    def _msg_file(self) -> Path:
+        return work_dir(self.settings) / "tg_messages.json"
+
+    def track(self, res) -> None:
+        """Запам'ятовує номер повідомлення (своє чи ваше) — бот може видалити лише відомі й за 48 год."""
+        mid = res.get("message_id") if isinstance(res, dict) else res
+        if not mid:
+            return
+        f = self._msg_file()
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except Exception:
+            data = []
+        now = time.time()
+        data = [d for d in data if now - d[1] < 48 * 3600] + [[int(mid), now]]
+        f.write_text(json.dumps(data), encoding="utf-8")
+
     def send(self, text: str, markup: dict | None = None):
-        return self.api.call("sendMessage", chat_id=self.owner, text=text, reply_markup=markup,
-                             disable_web_page_preview=True)
+        res = self.api.call("sendMessage", chat_id=self.owner, text=text, reply_markup=markup,
+                            disable_web_page_preview=True)
+        self.track(res)
+        return res
+
+    def cmd_clear(self):
+        self.send("🧹 Видалити всі повідомлення в цьому чаті (за останні 48 год)? Файли на ПК не чіпаються.",
+                  {"inline_keyboard": [[{"text": "🧹 Так, очистити", "callback_data": "X|go"},
+                                        {"text": "Скасувати", "callback_data": "X|no"}]]})
+
+    def do_clear(self) -> int:
+        f = self._msg_file()
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except Exception:
+            data = []
+        now = time.time()
+        ids = sorted({d[0] for d in data if now - d[1] < 47.5 * 3600})
+        done = 0
+        for i in range(0, len(ids), 100):
+            part = ids[i:i + 100]
+            try:
+                self.api.call("deleteMessages", chat_id=self.owner, message_ids=part)
+                done += len(part)
+            except Exception:
+                for mid in part:            # старіші версії API — по одному
+                    try:
+                        self.api.call("deleteMessage", chat_id=self.owner, message_id=mid)
+                        done += 1
+                    except Exception:
+                        pass
+        f.write_text("[]", encoding="utf-8")
+        self.send("🧹 Чат очищено. Меню — внизу.", self.MENU)
+        return done
 
     def short_markup(self, key: str, published: bool, video: bool = True) -> dict:
         """Кнопки під шортсом. video=True — повідомлення вже є відео (кнопка 480p не потрібна)."""
@@ -263,10 +321,11 @@ class Bot:
             prev = make_preview(self.settings, cur)
             if prev.stat().st_size > MAX_UPLOAD:
                 raise RuntimeError("завеликий")
-            self.api.send_file("sendVideo", "video", prev, chat_id=self.owner,
+            res = self.api.send_file("sendVideo", "video", prev, chat_id=self.owner,
                                caption=self.short_text(s, cur, pub), supports_streaming="true",
                                width=480, height=854, duration=int(s["duration"]),
                                reply_markup=self.short_markup(key, pub, video=True))
+            self.track(res)
         except Exception as e:
             log.warning("Відео %s не надіслано: %s", s["name"], e)
             self.send(self.short_text(s, cur, pub), self.short_markup(key, pub, video=False))
@@ -415,13 +474,14 @@ class Bot:
             self.send(f"🆕 Вийшло оновлення: {rv['message']}", self.UPDATE_BTN)
 
     HELP = ("Команди:\n/status — що зараз обробляється\n/shorts — шортси останнього результату\n"
-            "/all — усі результати\n/kept — шортси в папці публікації\n/update — оновлення з GitHub\n\n"
+            "/all — усі результати\n/kept — шортси в папці публікації\n/update — оновлення з GitHub\n"
+            "/clear — очистити чат (за 48 год)\n\n"
             "Під шортсом: ▶ 480p — легкий перегляд, 📱 оригінал (якщо до 50 МБ), "
             "✅ Підходить — перенести MP4 (і субтитри) в папку публікації, ↩ Повернути — назад, "
             "🗑 Видалити — у output\\_видалені.")
 
     # -------------------------------------------------------------- кнопки
-    TOASTS = {"k": "✅ Підходить — перенесено в папку публікації", "u": "↩ Повернуто з папки публікації",
+    TOASTS = {"X": "🧹 Готово", "k": "✅ Підходить — перенесено в папку публікації", "u": "↩ Повернуто з папки публікації",
               "D": "🗑 Видалено", "n": "✅ Цей шортс уже в папці публікації", "c": "Скасовано",
               "v": "Готую відео…", "f": "Надсилаю оригінал…"}
 
@@ -449,6 +509,13 @@ class Bot:
         data = cq.get("data", "")
         act, _, key = data.partition("|")
         if act == "n":
+            return
+        if act == "X":
+            msg = cq.get("message") or {}
+            if key == "go":
+                self.do_clear()
+            elif msg:
+                self.api.call("deleteMessage", chat_id=self.owner, message_id=msg["message_id"])
             return
         if act == "j":
             self.show_job(output_dir(self.settings) / f"job_{key}")
@@ -492,9 +559,10 @@ class Bot:
                           "Дивіться ▶ 480p.")
                 return
             w, h = (480, 854) if act == "v" else (1080, 1920)
-            self.api.send_file("sendVideo", "video", path, chat_id=self.owner, caption=self.short_text(s, cur, pub),
+            res = self.api.send_file("sendVideo", "video", path, chat_id=self.owner, caption=self.short_text(s, cur, pub),
                                supports_streaming="true", width=w, height=h, duration=int(s["duration"]),
                                reply_markup=self.short_markup(key, pub, video=True))
+            self.track(res)
         elif act == "k" and not pub:
             new = move_with_srt(cur, publish_dir(self.settings, self.cfg))
             marks.set(key, new)
@@ -541,9 +609,13 @@ class Bot:
             save_cfg(self.cfg)
         if uid != self.owner:
             return                        # чужим — нічого
+        self.track(m)
+        text = self.MENU_CMDS.get(text, text)        # кнопки меню внизу чату
         cmd = text.split()[0].split("@")[0].lower() if text else ""
         if cmd == "/start":
-            self.send("Привіт! Я бот автонарізки шортсів.\n\n" + self.HELP)
+            self.send("Привіт! Я бот автонарізки шортсів.\n\n" + self.HELP, self.MENU)
+        elif cmd == "/clear":
+            self.cmd_clear()
         elif cmd == "/status":
             self.cmd_status()
         elif cmd == "/shorts":
@@ -555,7 +627,7 @@ class Bot:
         elif cmd == "/update":
             self.cmd_update()
         else:
-            self.send(self.HELP)
+            self.send(self.HELP, self.MENU)
 
     def watch_status(self):
         """Повідомлення: почалась обробка / готово / помилка."""
@@ -584,7 +656,8 @@ class Bot:
                 {"command": "shorts", "description": "Шортси останнього результату"},
                 {"command": "all", "description": "Усі результати"},
                 {"command": "kept", "description": "Шортси в папці публікації"},
-                {"command": "update", "description": "Оновлення з GitHub"}])
+                {"command": "update", "description": "Оновлення з GitHub"},
+                {"command": "clear", "description": "Очистити чат"}])
         except Exception as e:
             log.warning("setMyCommands: %s", e)
         log.info("Бот запущено, власник: %s", self.owner)
