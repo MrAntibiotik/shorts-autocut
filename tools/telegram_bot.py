@@ -250,7 +250,10 @@ class Bot:
         first = [{"text": "📱 Оригінал (повна якість)", "callback_data": f"f|{key}"}]
         if not video:
             first.insert(0, {"text": "▶ Переглянути 480p", "callback_data": f"v|{key}"})
-        return {"inline_keyboard": [first, second + [{"text": "🗑 Видалити", "callback_data": f"d|{key}"}]]}
+        rows = [first, second + [{"text": "🗑 Видалити", "callback_data": f"d|{key}"}]]
+        if published:   # помітна плашка статусу над кнопками
+            rows.insert(0, [{"text": "✅ ДО ПУБЛІКАЦІЇ ✅", "callback_data": f"n|{key}"}])
+        return {"inline_keyboard": rows}
 
     def send_short(self, key: str, s: dict, cur: Path, pub: bool):
         """Шортс — одразу відеоповідомленням 480p (дивитись прямо в чаті), кнопки під відео.
@@ -277,8 +280,10 @@ class Bot:
 
     def short_text(self, s: dict, cur: Path, published: bool) -> str:
         mb = cur.stat().st_size / 1024 / 1024 if cur.exists() else 0
-        return (f"🎬 {s['name']}\n⏱ {s['duration']:.0f} с · {mb:.1f} МБ"
-                + (f"\n📤 До публікації: {cur.name}" if published else ""))
+        head = ("✅✅✅ ПІДХОДИТЬ — у папці публікації ✅✅✅\n━━━━━━━━━━━━━━━━\n" if published
+                else "⬜ Ще не вирішено: підходить чи видалити?\n")
+        return (head + f"🎬 {s['name']}\n⏱ {s['duration']:.0f} с · {mb:.1f} МБ"
+                + (f"\n📤 Файл: {cur.name}" if published else ""))
 
     def show_job(self, job_dir: Path, only_published: bool = False):
         marks = Marks(self.settings)
@@ -416,10 +421,35 @@ class Bot:
             "🗑 Видалити — у output\\_видалені.")
 
     # -------------------------------------------------------------- кнопки
+    TOASTS = {"k": "✅ Підходить — перенесено в папку публікації", "u": "↩ Повернуто з папки публікації",
+              "D": "🗑 Видалено", "n": "✅ Цей шортс уже в папці публікації", "c": "Скасовано",
+              "v": "Готую відео…", "f": "Надсилаю оригінал…"}
+
+    def _answer(self, cq: dict, text: str | None):
+        try:
+            self.api.call("answerCallbackQuery", callback_query_id=cq["id"], text=text, show_alert=False)
+        except Exception:
+            pass
+
     def on_callback(self, cq: dict):
+        """Спливаюче повідомлення-підтвердження на кожну кнопку; довгі дії (відео, оновлення) — одразу."""
+        act = cq.get("data", "").partition("|")[0]
+        if act in ("v", "f", "U", "j"):
+            self._answer(cq, self.TOASTS.get(act))
+            self._on_callback(cq)
+            return
+        try:
+            self._on_callback(cq)
+        except Exception as e:
+            self._answer(cq, f"Помилка: {e}"[:190])
+            raise
+        self._answer(cq, self.TOASTS.get(act))
+
+    def _on_callback(self, cq: dict):
         data = cq.get("data", "")
         act, _, key = data.partition("|")
-        self.api.call("answerCallbackQuery", callback_query_id=cq["id"])
+        if act == "n":
+            return
         if act == "j":
             self.show_job(output_dir(self.settings) / f"job_{key}")
             return
@@ -484,7 +514,8 @@ class Bot:
         elif act == "D":
             dst = delete_short(self.settings, job_dir, s, cur)
             marks.set(key, None)
-            text = f"🗑 Видалено: {s['name']}\n(перенесено в output\\{DELETED_DIR}\\{job_dir.name})"
+            text = (f"🗑🗑🗑 ВИДАЛЕНО 🗑🗑🗑\n━━━━━━━━━━━━━━━━\n{s['name']}\n"
+                    f"(перенесено в output\\{DELETED_DIR}\\{job_dir.name} — можна повернути вручну)")
             if msg:
                 redraw(text, None)
             else:
