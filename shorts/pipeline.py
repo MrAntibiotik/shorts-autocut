@@ -162,7 +162,8 @@ class Job:
             log.info("    opener: яскравих моментів менше 3 — хайлайт без opener'а")
             return False
         try:
-            op = make_opener(self.settings, ocfg, mp4, starts, self.work / tag / f"{disk}_opener.mp4")
+            op = make_opener(self.settings, ocfg, mp4, starts, self.work / tag / f"{disk}_opener.mp4",
+                             (layout.width, layout.height))
             joined = mp4.with_name(mp4.stem + "_with_opener.mp4")
             join(self.settings, op, mp4, joined, layout.width, layout.height, layout.fps)
             joined.replace(mp4)

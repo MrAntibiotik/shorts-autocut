@@ -66,14 +66,16 @@ def pick_moments(points: list[tuple[float, float]], segs: list[tuple[float, floa
     return [hook[2]] + [m[2] for m in middle] + [peak[2]]
 
 
-def make_opener(settings: dict, cfg: dict, highlight_mp4: Path, starts: list[float], out: Path) -> Path:
+def make_opener(settings: dict, cfg: dict, highlight_mp4: Path, starts: list[float], out: Path,
+                size: tuple[int, int] | None = None) -> Path:
     tdir = (ROOT / cfg["template_dir"]).resolve()
     script = tdir / "fill_template.py"
     if not script.exists():
         raise FileNotFoundError(f"Немає шаблону opener'а: {script}")
     out.parent.mkdir(parents=True, exist_ok=True)
     job = out.with_suffix(".moments.json")
-    job.write_text(json.dumps({"output": str(out), "captions": False,
+    canvas = {"width": size[0], "height": size[1]} if size else None
+    job.write_text(json.dumps({"output": str(out), "captions": False, "canvas": canvas,
                                "moments": [{"src": str(highlight_mp4), "start": round(s, 3)} for s in starts]},
                               ensure_ascii=False, indent=1), encoding="utf-8")
     env = dict(os.environ)
@@ -88,7 +90,7 @@ def make_opener(settings: dict, cfg: dict, highlight_mp4: Path, starts: list[flo
 
 
 def join(settings: dict, opener: Path, main: Path, out: Path, width: int, height: int, fps: int) -> Path:
-    """opener (2560×1600) + хайлайт → один MP4 у розмірі хайлайту."""
+    """opener + хайлайт → один MP4 (opener уже зібраний у розмірі хайлайту; scale — про всяк випадок)."""
     ff = find_tool(settings, "ffmpeg")
     r = settings["render"]
     g = (f"[0:v]scale={width}:{height}:flags=lanczos,fps={fps},setsar=1,format=yuv420p[v0];"

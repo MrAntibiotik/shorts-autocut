@@ -46,7 +46,14 @@ def main():
     mpath = os.path.abspath(sys.argv[1]); mdir = os.path.dirname(mpath)
     os.chdir(HERE)
     tpl = json.load(open("template.json", encoding="utf-8")); job = json.load(open(mpath, encoding="utf-8"))
+    # розмір кадру можна задати в moments.json ("canvas": {"width": 2304, "height": 1440}) — під запис гри;
+    # HUD, переходи, пік, заставка і підписи масштабуються від базових 2560×1600
+    BASE_W = tpl["canvas"]["width"]
+    if job.get("canvas"):
+        tpl["canvas"].update({k: int(v) for k, v in job["canvas"].items() if k in ("width", "height", "fps")})
     W, H, FPS = (tpl["canvas"][k] for k in ("width", "height", "fps"))
+    KS = W / BASE_W
+    SC = f"scale={W}:{H}"
     M, Lr, A = tpl["moments"], tpl["layers"], tpl["audio"]
     moms = job["moments"]; n = len(moms)
     if not M["min"] <= n <= M["max"]: die(f"моментів має бути від {M['min']} до {M['max']}, а передано {n}")
@@ -81,7 +88,8 @@ def main():
              "-map", "[v]", "-map", "[a]", "-r", str(FPS)] + fast + ["-c:a", "pcm_s16le", seg], f"момент {k + 1}")
         segs.append(seg)
     seg = os.path.join(tmp, "seg_outro.mkv")
-    run(["-i", tpl["outro"]["file"], "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-map", "0:v", "-map", "1:a",
+    run(["-i", tpl["outro"]["file"], "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-vf", SC,
+         "-map", "0:v", "-map", "1:a",
          "-t", str(tpl["outro"]["duration"]), "-r", str(FPS), "-pix_fmt", "yuv420p"] + fast + ["-c:a", "pcm_s16le", seg], "заставка")
     segs.append(seg)
     lst = os.path.join(tmp, "list.txt")
@@ -93,8 +101,8 @@ def main():
     vp9 = ["-c:v", "libvpx-vp9"]
     inputs = ["-f", "concat", "-safe", "0", "-i", lst, *vp9, "-i", Lr["hud"], *vp9, "-i", Lr["hit"],
               *vp9, "-i", Lr["peak"], "-i", Lr["music"].format(n=n)]
-    g = [f"[1:v]setpts=PTS-STARTPTS[hud]",
-         f"[2:v]split={len(cuts) + 1}" + "".join(f"[h{i}]" for i in range(len(cuts) + 1)),
+    g = [f"[1:v]{SC},setpts=PTS-STARTPTS[hud]",
+         f"[2:v]{SC},split={len(cuts) + 1}" + "".join(f"[h{i}]" for i in range(len(cuts) + 1)),
          f"[0:v][hud]overlay=format=auto:eof_action=pass:enable='lt(t\\,{o})'[x0]",
          f"[h0]trim=start_frame={Lr['hit_pre_frames']},setpts=PTS-STARTPTS[hs]",
          "[x0][hs]overlay=format=auto:eof_action=pass[x1]"]
@@ -102,11 +110,13 @@ def main():
     for i, c in enumerate(cuts):
         g.append(f"[h{i + 1}]setpts=PTS-STARTPTS+{c - pre}/TB[hh{i}]")
         g.append(f"[{last}][hh{i}]overlay=format=auto:eof_action=pass[y{i}]"); last = f"y{i}"
-    g.append(f"[3:v]setpts=PTS-STARTPTS+{tl[-1][1]}/TB[pk]")
+    g.append(f"[3:v]{SC},setpts=PTS-STARTPTS+{tl[-1][1]}/TB[pk]")
     g.append(f"[{last}][pk]overlay=format=auto:eof_action=pass[z]"); last = "z"
 
     # підписи (вимкнені за замовчуванням; "captions": true у moments.json)
-    c = tpl["caption"]; dt = []
+    c = dict(tpl["caption"]); dt = []
+    for key in ("x", "y", "w", "h", "size"):
+        c[key] = int(round(c[key] * KS))
     if job.get("captions", c["enabled"]):
         for k, ((kind, a, b), m) in enumerate(zip(tl, moms)):
             txt = m.get("caption", "").strip()[: c["max_chars"]]

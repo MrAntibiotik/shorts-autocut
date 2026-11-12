@@ -6,7 +6,8 @@
 Запас підбирається автоматично, щоб тривалість була в межах target_min_s…target_max_s.
 Бій, коротший за target_max_s, іде цілим. Початок і кінець бою — завжди.
 
-Кадр 1920×1200 (16:10): центр гри на весь кадр, вебкамера — у кутку, блок лічильників — під нею.
+Кадр 16:10 у рідній роздільності запису (3440×1440 → 2304×1440, без розтягування гри): центр гри
+на весь кадр, вебкамера — у кутку, блок лічильників — під нею. Opener підлаштовується під цей розмір.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ DEFAULTS = {
     "merge_gap_s": 20.0,
     "include_start_s": 20.0,
     "include_end_s": 10.0,
-    "output": {"width": 1920, "height": 1200},
+    "output": "auto",          # «auto» — рідна роздільність запису: висота запису × 16:10 (3440×1440 → 2304×1440)
     "webcam_width": 480,
     "webcam_corner": "top_left",
     "margin": 24,
@@ -118,7 +119,18 @@ def select_highlight(b: dict, cfg: dict, rec_start: float, rec_end: float) -> li
 
 def compute_highlight_layout(profile: dict, rec_w: int, rec_h: int, webcam_file: dict | None = None) -> Layout:
     cfg = cfg_of(profile)
-    W, H = int(cfg["output"]["width"]), int(cfg["output"]["height"])
+    out = cfg.get("output")
+    if isinstance(out, dict) and out.get("width") and out.get("height"):
+        W, H = int(out["width"]), int(out["height"])
+    else:                                   # рідна роздільність гри — без масштабування (лише обрізання)
+        H = int(rec_h) // 2 * 2
+        W = int(round(H * 16 / 10)) // 2 * 2
+        if W > rec_w:                       # запис вужчий за 16:10 (напр. 4:3) — по ширині
+            W = int(rec_w) // 2 * 2
+            H = int(round(W * 10 / 16)) // 2 * 2
+    k = H / 1200.0                          # розміри вебки/лічильників/відступів задані для 1200 px
+    cfg = dict(cfg, margin=float(cfg["margin"]) * k, webcam_width=float(cfg["webcam_width"]) * k,
+               counters_height=float(cfg["counters_height"]) * k)
     fps = int(profile["layout"]["output"].get("fps", 60))
     zones = profile.get("zones") or {}
     m = float(cfg["margin"])
