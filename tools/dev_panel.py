@@ -42,6 +42,7 @@ TOOLS = [
     ("Перевстановити кнопку DaVinci", "install_resolve.bat", False, "скрипти в Workspace → Scripts"),
     ("Скинути профіль гри", "reset_profile.bat", False, "до стандартних налаштувань"),
     ("Очистити кеш", "clear_cache.bat", False, "кеш, логи, звіти"),
+    ("Telegram-бот", "setup_telegram.bat", False, "налаштувати / перезапустити бота"),
     ("Вікно запуску з консоллю", "run_job.bat", False, "видно всі повідомлення"),
 ]
 

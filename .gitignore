@@ -8,3 +8,5 @@ __pycache__/
 *.pyc
 config/profiles/*.bak
 defaults/
+config/telegram.json
+output/_telegram.json
