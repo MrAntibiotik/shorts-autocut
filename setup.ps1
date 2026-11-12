@@ -164,6 +164,7 @@ Run $vpy @("-m", "pip", "install", "--upgrade", "pip", "--quiet") "Не вдал
 Run $vpy @("-m", "pip", "install", "torch", "torchvision", "torchaudio", "--index-url", "https://download.pytorch.org/whl/cu128") "Не вдалося встановити PyTorch (перевірте інтернет)"
 Run $vpy @("-m", "pip", "install", "-r", (Join-Path $Target "requirements.txt")) "Не вдалося встановити бібліотеки"
 Ok "Бібліотеки встановлено"
+& $vpy (Join-Path $Target "tools\update.py") --mark-current 2>$null | Out-Null
 
 # ---------------------------------------------------------------- 6. whisper
 Step 6 "Субтитри (експериментально — за замовчуванням вимкнені)"

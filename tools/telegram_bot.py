@@ -27,6 +27,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tools"))
 
 from shorts.config import CONFIG_DIR, load_settings, output_dir, work_dir  # noqa: E402
 from shorts.logs import setup_logging  # noqa: E402
@@ -233,6 +234,9 @@ class Bot:
         self.owner = cfg.get("owner_id")
         self.offset = None
         self.last_status: tuple | None = None
+        self.lock = None                       # сокет «один бот на ПК» (для перезапуску після оновлення)
+        self.notified_sha = cfg.get("notified_sha")
+        self.last_update_check = 0.0
 
     # -------------------------------------------------------------- відправка
     def send(self, text: str, markup: dict | None = None):
@@ -320,8 +324,78 @@ class Bot:
         else:
             self.send("У папці публікації поки нічого немає (кнопка «✅ Підходить» під шортсом).")
 
+    # -------------------------------------------------------------- оновлення
+    UPDATE_BTN = {"inline_keyboard": [[{"text": "🔄 Оновити зараз", "callback_data": "U|go"}]]}
+
+    def cmd_update(self):
+        import update
+        try:
+            lv, rv = update.local_version(), update.remote_version()
+        except Exception as e:
+            self.send(f"Не вдалося зв'язатися з GitHub: {e}")
+            return
+        if lv.get("sha") == rv["sha"]:
+            self.send(f"✅ У вас остання версія ({rv['sha'][:7]}: {rv['message']}).")
+            return
+        news = update.changes_since(lv.get("sha"))
+        text = "🔄 Є оновлення" + (f" — змін: {len(news)}:\n" + "\n".join(f"• {c}" for c in news) if news
+                                   else f": {rv['message']}")
+        self.send(text, self.UPDATE_BTN)
+
+    def do_update(self):
+        st = read_status(self.settings) or {}
+        if st.get("status") == "running" and time.time() - float(st.get("heartbeat") or 0) < 120:
+            self.send("⏳ Зараз іде обробка — оновлю, коли закінчиться (натисніть «Оновити» ще раз пізніше).")
+            return
+        import update
+        self.send("🔄 Оновлюю з GitHub…")
+        try:
+            res = update.apply_update(log=lambda m: None)
+        except Exception as e:
+            self.send(f"❌ Оновлення не вдалося: {e}\nМожна запустити SETUP.bat на ПК.")
+            return
+        if res["up_to_date"]:
+            self.send(f"✅ Уже остання версія ({res['sha'][:7]}).")
+            return
+        news = res.get("changes") or [res["message"]]
+        self.send(f"✅ Оновлено до {res['sha'][:7]} (файлів: {res['files']}"
+                  + (", бібліотеки доставлено" if res.get("requirements") else "") + "):\n"
+                  + "\n".join(f"• {c}" for c in news)
+                  + "\n\nБот перезапускається… Якщо відкрито вікно інструмента — закрийте й відкрийте його знову; "
+                    "DaVinci — перезапустіть, щоб оновилась кнопка.")
+        self.restart()
+
+    def restart(self):
+        """Новий процес бота з оновленим кодом; цей — завершується."""
+        try:
+            if self.lock is not None:
+                self.lock.close()
+        except Exception:
+            pass
+        exe = Path(sys.executable)
+        pyw = exe.with_name("pythonw.exe") if exe.with_name("pythonw.exe").exists() else exe
+        subprocess.Popen([str(pyw), str(ROOT / "tools" / "telegram_bot.py"), "--delay", "3"], cwd=str(ROOT),
+                         creationflags=_NO_WINDOW)
+        os._exit(0)
+
+    def check_updates(self):
+        """Раз на 6 годин: якщо на GitHub нова версія — повідомити (один раз на версію)."""
+        if time.time() - self.last_update_check < 6 * 3600 or self.owner is None:
+            return
+        self.last_update_check = time.time()
+        import update
+        try:
+            lv, rv = update.local_version(), update.remote_version()
+        except Exception:
+            return
+        if lv.get("sha") and lv["sha"] != rv["sha"] and self.notified_sha != rv["sha"]:
+            self.notified_sha = rv["sha"]
+            self.cfg["notified_sha"] = rv["sha"]
+            save_cfg(self.cfg)
+            self.send(f"🆕 Вийшло оновлення: {rv['message']}", self.UPDATE_BTN)
+
     HELP = ("Команди:\n/status — що зараз обробляється\n/shorts — шортси останнього результату\n"
-            "/all — усі результати\n/kept — шортси в папці публікації\n\n"
+            "/all — усі результати\n/kept — шортси в папці публікації\n/update — оновлення з GitHub\n\n"
             "Під шортсом: ▶ 480p — легкий перегляд, 📱 оригінал (якщо до 50 МБ), "
             "✅ Підходить — перенести MP4 (і субтитри) в папку публікації, ↩ Повернути — назад, "
             "🗑 Видалити — у output\\_видалені.")
@@ -333,6 +407,9 @@ class Bot:
         self.api.call("answerCallbackQuery", callback_query_id=cq["id"])
         if act == "j":
             self.show_job(output_dir(self.settings) / f"job_{key}")
+            return
+        if act == "U":
+            self.do_update()
             return
         found = find_short(self.settings, key)
         if not found:
@@ -423,6 +500,8 @@ class Bot:
             self.cmd_all()
         elif cmd == "/kept":
             self.cmd_kept()
+        elif cmd == "/update":
+            self.cmd_update()
         else:
             self.send(self.HELP)
 
@@ -452,7 +531,8 @@ class Bot:
                 {"command": "status", "description": "Що зараз обробляється"},
                 {"command": "shorts", "description": "Шортси останнього результату"},
                 {"command": "all", "description": "Усі результати"},
-                {"command": "kept", "description": "Шортси в папці публікації"}])
+                {"command": "kept", "description": "Шортси в папці публікації"},
+                {"command": "update", "description": "Оновлення з GitHub"}])
         except Exception as e:
             log.warning("setMyCommands: %s", e)
         log.info("Бот запущено, власник: %s", self.owner)
@@ -464,6 +544,10 @@ class Bot:
                     self.watch_status()
                 except Exception as e:
                     log.warning("Статус: %s", e)
+                try:
+                    self.check_updates()
+                except Exception as e:
+                    log.warning("Перевірка оновлень: %s", e)
                 stop.wait(10)
 
         threading.Thread(target=watcher, daemon=True).start()
@@ -503,6 +587,8 @@ def main() -> int:
     if not cfg.get("token"):
         print("Бот не налаштований. Запустіть extra\\setup_telegram.bat.")
         return 1
+    if "--delay" in sys.argv:                 # перезапуск після оновлення: дати старому процесу завершитись
+        time.sleep(float(sys.argv[sys.argv.index("--delay") + 1]))
     lock = single_instance()
     if lock is None:
         log.info("Бот уже запущено — другий не потрібен.")
@@ -521,7 +607,9 @@ def main() -> int:
                 time.sleep(1)
 
     threading.Thread(target=control, daemon=True).start()
-    Bot(settings, cfg).run()
+    bot = Bot(settings, cfg)
+    bot.lock = lock
+    bot.run()
     return 0
 
 
