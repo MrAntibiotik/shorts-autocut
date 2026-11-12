@@ -142,25 +142,53 @@ def find_short(settings: dict, key: str) -> tuple[Path, dict] | None:
 
 
 class Marks:
-    """Позначки «залишити» — output\\_telegram.json."""
+    """Шортси «до публікації»: ключ шортсу -> шлях MP4 у папці публікації (output\\_telegram.json)."""
 
     def __init__(self, settings: dict):
         self.path = output_dir(settings) / "_telegram.json"
         try:
             self.data = json.loads(self.path.read_text(encoding="utf-8"))
         except Exception:
-            self.data = {"kept": []}
+            self.data = {}
+        if not isinstance(self.data.get("published"), dict):
+            self.data["published"] = {}
 
-    def is_kept(self, key: str) -> bool:
-        return key in self.data.setdefault("kept", [])
+    def published(self, key: str) -> Path | None:
+        p = self.data["published"].get(key)
+        return Path(p) if p and Path(p).exists() else None
 
-    def set_kept(self, key: str, on: bool):
-        kept = self.data.setdefault("kept", [])
-        if on and key not in kept:
-            kept.append(key)
-        if not on and key in kept:
-            kept.remove(key)
+    def set(self, key: str, path: Path | None):
+        if path is None:
+            self.data["published"].pop(key, None)
+        else:
+            self.data["published"][key] = str(path)
         self.path.write_text(json.dumps(self.data, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def publish_dir(settings: dict, cfg: dict) -> Path:
+    d = Path(cfg["publish_dir"]) if cfg.get("publish_dir") else output_dir(settings) / "_до_публікації"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _unique(dst: Path) -> Path:
+    n = 2
+    out = dst
+    while out.exists():
+        out = dst.with_name(f"{dst.stem}_{n}{dst.suffix}")
+        n += 1
+    return out
+
+
+def move_with_srt(mp4: Path, dst_dir: Path) -> Path:
+    """Переносить MP4 і його субтитри (той самий початок назви, .srt) у dst_dir. Повертає новий шлях MP4."""
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    new = _unique(dst_dir / mp4.name)
+    shutil.move(str(mp4), str(new))
+    srt = mp4.with_suffix(".srt")
+    if srt.exists():
+        shutil.move(str(srt), str(new.with_suffix(".srt")))
+    return new
 
 
 def make_preview(settings: dict, mp4: Path) -> Path:
@@ -183,17 +211,16 @@ def make_preview(settings: dict, mp4: Path) -> Path:
     return out
 
 
-def delete_short(settings: dict, job_dir: Path, s: dict) -> Path:
-    """Переносить папку бою (або файли шортсу) в output\\_видалені\\<результат>\\."""
+def delete_short(settings: dict, job_dir: Path, s: dict, cur: Path) -> Path:
+    """Переносить шортс у output\\_видалені\\<результат>\\: усю папку бою (якщо шортс на місці)
+    або лише MP4 + SRT (якщо він уже в папці публікації)."""
     dst_root = output_dir(settings) / DELETED_DIR / job_dir.name
     dst_root.mkdir(parents=True, exist_ok=True)
-    if s["dir"] and s["dir"].is_dir() and s["dir"] != job_dir:
-        dst = dst_root / s["dir"].name
+    if cur == s["mp4"] and s["dir"] and s["dir"].is_dir() and s["dir"] != job_dir:
+        dst = _unique(dst_root / s["dir"].name)
         shutil.move(str(s["dir"]), str(dst))
         return dst
-    for f in s["mp4"].parent.glob(s["mp4"].stem + ".*"):
-        shutil.move(str(f), str(dst_root / f.name))
-    return dst_root
+    return move_with_srt(cur, dst_root).parent
 
 
 # ====================================================================== бот
@@ -212,28 +239,42 @@ class Bot:
         return self.api.call("sendMessage", chat_id=self.owner, text=text, reply_markup=markup,
                              disable_web_page_preview=True)
 
-    def short_markup(self, key: str, kept: bool) -> dict:
+    def short_markup(self, key: str, published: bool) -> dict:
+        second = ([{"text": "↩ Повернути", "callback_data": f"u|{key}"}] if published else
+                  [{"text": "✅ Підходить → до публікації", "callback_data": f"k|{key}"}])
         return {"inline_keyboard": [
             [{"text": "▶ Переглянути 480p", "callback_data": f"v|{key}"},
              {"text": "📱 Оригінал", "callback_data": f"f|{key}"}],
-            [{"text": "✅ Залишено" if kept else "✅ Залишити", "callback_data": f"k|{key}"},
-             {"text": "🗑 Видалити", "callback_data": f"d|{key}"}],
+            second + [{"text": "🗑 Видалити", "callback_data": f"d|{key}"}],
         ]}
 
-    def show_job(self, job_dir: Path, only_kept: bool = False):
-        shorts = [s for s in job_shorts(job_dir) if not s["deleted"]]
+    def locate(self, job_dir: Path, s: dict, marks: Marks) -> tuple[Path | None, bool]:
+        """Де зараз MP4 шортсу: (шлях або None, чи в папці публікації)."""
+        pub = marks.published(short_key(job_dir, s["i"]))
+        if pub:
+            return pub, True
+        return (s["mp4"], False) if s["mp4"].exists() else (None, False)
+
+    def short_text(self, s: dict, cur: Path, published: bool) -> str:
+        mb = cur.stat().st_size / 1024 / 1024 if cur.exists() else 0
+        return (f"🎬 {s['name']}\n⏱ {s['duration']:.0f} с · {mb:.1f} МБ"
+                + (f"\n📤 До публікації: {cur.name}" if published else ""))
+
+    def show_job(self, job_dir: Path, only_published: bool = False):
         marks = Marks(self.settings)
-        if only_kept:
-            shorts = [s for s in shorts if marks.is_kept(short_key(job_dir, s["i"]))]
-        if not shorts:
+        items = []
+        for s in job_shorts(job_dir):
+            cur, pub = self.locate(job_dir, s, marks)
+            if cur is None or (only_published and not pub):
+                continue
+            items.append((s, cur, pub))
+        if not items:
             return 0
-        self.send(f"📁 {job_dir.name} — шортсів: {len(shorts)}")
-        for s in shorts:
+        self.send(f"📁 {job_dir.name} — шортсів: {len(items)}")
+        for s, cur, pub in items:
             key = short_key(job_dir, s["i"])
-            mb = s["mp4"].stat().st_size / 1024 / 1024 if s["mp4"].exists() else 0
-            self.send(f"🎬 {s['name']}\n⏱ {s['duration']:.0f} с · {mb:.1f} МБ",
-                      self.short_markup(key, marks.is_kept(key)))
-        return len(shorts)
+            self.send(self.short_text(s, cur, pub), self.short_markup(key, pub))
+        return len(items)
 
     # -------------------------------------------------------------- команди
     def cmd_status(self):
@@ -273,14 +314,17 @@ class Bot:
         self.send("Результати (новіші — зверху):", {"inline_keyboard": rows})
 
     def cmd_kept(self):
-        total = sum(self.show_job(j, only_kept=True) for j in reversed(list_jobs(self.settings)))
-        if not total:
-            self.send("Залишених шортсів ще немає (кнопка ✅ під шортсом).")
+        total = sum(self.show_job(j, only_published=True) for j in reversed(list_jobs(self.settings)))
+        if total:
+            self.send(f"📤 Папка публікації: {publish_dir(self.settings, self.cfg)}")
+        else:
+            self.send("У папці публікації поки нічого немає (кнопка «✅ Підходить» під шортсом).")
 
     HELP = ("Команди:\n/status — що зараз обробляється\n/shorts — шортси останнього результату\n"
-            "/all — усі результати\n/kept — залишені шортси\n\n"
-            "Під шортсом: ▶ 480p — легкий перегляд, 📱 оригінал (якщо до 50 МБ), ✅ залишити, "
-            "🗑 видалити (переноситься в output\\_видалені).")
+            "/all — усі результати\n/kept — шортси в папці публікації\n\n"
+            "Під шортсом: ▶ 480p — легкий перегляд, 📱 оригінал (якщо до 50 МБ), "
+            "✅ Підходить — перенести MP4 (і субтитри) в папку публікації, ↩ Повернути — назад, "
+            "🗑 Видалити — у output\\_видалені.")
 
     # -------------------------------------------------------------- кнопки
     def on_callback(self, cq: dict):
@@ -295,15 +339,26 @@ class Bot:
             self.send("Цього шортсу вже немає.")
             return
         job_dir, s = found
-        if s["deleted"]:
-            self.send(f"«{s['name']}» уже видалено.")
+        marks = Marks(self.settings)
+        cur, pub = self.locate(job_dir, s, marks)
+        if cur is None:
+            self.send(f"«{s['name']}» уже видалено або перенесено вручну.")
             return
         msg = cq.get("message") or {}
+
+        def redraw(text: str | None = None, markup: dict | None = None):
+            if not msg:
+                return
+            if text is not None and msg.get("text") is not None:
+                self.api.call("editMessageText", chat_id=self.owner, message_id=msg["message_id"],
+                              text=text, reply_markup=markup)
+            else:
+                self.api.call("editMessageReplyMarkup", chat_id=self.owner, message_id=msg["message_id"],
+                              reply_markup=markup)
+
         if act in ("v", "f"):
             self.api.call("sendChatAction", chat_id=self.owner, action="upload_video")
-            path = s["mp4"]
-            if act == "v":
-                path = make_preview(self.settings, s["mp4"])
+            path = make_preview(self.settings, cur) if act == "v" else cur
             if path.stat().st_size > MAX_UPLOAD:
                 self.send("Оригінал більший за 50 МБ — Telegram не дозволяє ботам таке надсилати. "
                           "Дивіться ▶ 480p.")
@@ -311,31 +366,34 @@ class Bot:
             w, h = (480, 854) if act == "v" else (1080, 1920)
             self.api.send_file("sendVideo", "video", path, chat_id=self.owner, caption=s["name"],
                                supports_streaming="true", width=w, height=h, duration=int(s["duration"]),
-                               reply_markup=self.short_markup(key, Marks(self.settings).is_kept(key)))
-        elif act == "k":
-            marks = Marks(self.settings)
-            on = not marks.is_kept(key)
-            marks.set_kept(key, on)
-            if msg:
-                self.api.call("editMessageReplyMarkup", chat_id=self.owner, message_id=msg["message_id"],
-                              reply_markup=self.short_markup(key, on))
+                               reply_markup=self.short_markup(key, pub))
+        elif act == "k" and not pub:
+            new = move_with_srt(cur, publish_dir(self.settings, self.cfg))
+            marks.set(key, new)
+            redraw(self.short_text(s, new, True), self.short_markup(key, True))
+        elif act == "u" and pub:
+            back = move_with_srt(cur, s["mp4"].parent)
+            if back != s["mp4"]:
+                shutil.move(str(back), str(s["mp4"]))
+                if back.with_suffix(".srt").exists():
+                    shutil.move(str(back.with_suffix(".srt")), str(s["mp4"].with_suffix(".srt")))
+            marks.set(key, None)
+            redraw(self.short_text(s, s["mp4"], False), self.short_markup(key, False))
         elif act == "d":
-            if msg:
-                self.api.call("editMessageReplyMarkup", chat_id=self.owner, message_id=msg["message_id"],
-                              reply_markup={"inline_keyboard": [[
-                                  {"text": "🗑 Так, видалити", "callback_data": f"D|{key}"},
-                                  {"text": "Скасувати", "callback_data": f"c|{key}"}]]})
+            redraw(None, {"inline_keyboard": [[
+                {"text": "🗑 Так, видалити", "callback_data": f"D|{key}"},
+                {"text": "Скасувати", "callback_data": f"c|{key}"}]]})
         elif act == "D":
-            dst = delete_short(self.settings, job_dir, s)
-            Marks(self.settings).set_kept(key, False)
-            if msg and msg.get("text"):
-                self.api.call("editMessageText", chat_id=self.owner, message_id=msg["message_id"],
-                              text=f"🗑 Видалено: {s['name']}\n(перенесено в {dst.parent.parent.name}\\{dst.parent.name})")
+            dst = delete_short(self.settings, job_dir, s, cur)
+            marks.set(key, None)
+            text = f"🗑 Видалено: {s['name']}\n(перенесено в output\\{DELETED_DIR}\\{job_dir.name})"
+            if msg.get("text") is not None:
+                redraw(text, None)
             else:
-                self.send(f"🗑 Видалено: {s['name']}")
-        elif act == "c" and msg:
-            self.api.call("editMessageReplyMarkup", chat_id=self.owner, message_id=msg["message_id"],
-                          reply_markup=self.short_markup(key, Marks(self.settings).is_kept(key)))
+                self.send(text)
+            log.info("Видалено %s -> %s", s["name"], dst)
+        elif act == "c":
+            redraw(None, self.short_markup(key, pub))
 
     # -------------------------------------------------------------- цикл
     def handle(self, upd: dict):
@@ -394,7 +452,7 @@ class Bot:
                 {"command": "status", "description": "Що зараз обробляється"},
                 {"command": "shorts", "description": "Шортси останнього результату"},
                 {"command": "all", "description": "Усі результати"},
-                {"command": "kept", "description": "Залишені шортси"}])
+                {"command": "kept", "description": "Шортси в папці публікації"}])
         except Exception as e:
             log.warning("setMyCommands: %s", e)
         log.info("Бот запущено, власник: %s", self.owner)

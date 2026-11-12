@@ -45,6 +45,17 @@ def make_startup(on: bool) -> None:
     print(f"  Автозапуск увімкнено: {STARTUP_LNK.name}")
 
 
+def ask_publish_dir(cfg: dict) -> None:
+    from shorts.config import load_settings, output_dir
+    default = cfg.get("publish_dir") or str(output_dir(load_settings()) / "_до_публікації")
+    print("\nПапка для шортсів, що підходять для публікації (кнопка «✅ Підходить» у боті переносить туди MP4).")
+    a = input(f"Шлях (Enter = {default}): ").strip().strip('"')
+    path = Path(a or default)
+    path.mkdir(parents=True, exist_ok=True)
+    cfg["publish_dir"] = str(path)
+    print(f"  Папка публікації: {path}")
+
+
 def bot_running() -> bool:
     import socket
     s = socket.socket()
@@ -94,6 +105,10 @@ def main() -> int:
     if cfg.get("token"):
         print(f"Бот уже налаштований (власник: {cfg.get('owner_id')}).")
         if not yes("Налаштувати заново (новий токен)?", False):
+            cur = cfg.get("publish_dir") or "output\\_до_публікації"
+            if yes(f"Змінити папку публікації ({cur})?", False):
+                ask_publish_dir(cfg)
+                save_cfg(cfg)
             make_startup(yes("Автозапуск разом з Windows?", True))
             start_bot()
             return 0
@@ -127,7 +142,9 @@ def main() -> int:
         return 1
     if offset is not None:
         api.call("getUpdates", _timeout=20, offset=offset, timeout=0)   # «прочитати» /start
-    save_cfg({"token": token, "owner_id": owner})
+    new_cfg = {"token": token, "owner_id": owner, "publish_dir": cfg.get("publish_dir")}
+    ask_publish_dir(new_cfg)
+    save_cfg(new_cfg)
     print(f"  Збережено: {CFG_FILE}")
     try:
         api.call("sendMessage", chat_id=owner, text="✅ Бот підключено! /status — що обробляється, "
