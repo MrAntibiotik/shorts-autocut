@@ -59,6 +59,7 @@ class JobOptions:
     speech_ai: bool = False            # експериментально: Silero VAD + faster-whisper
     modes: dict = field(default_factory=dict)   # {шлях запису: "damage" | "assist"} — режим гри (WoT)
     zones: dict = field(default_factory=dict)   # {шлях запису: рамки} — підтверджені рамки саме цього запису
+    highlights: bool = False                    # хайлайти 16:10 для сильних боїв (WoT: 7000+)
     separation: bool = True
 
 
@@ -369,6 +370,32 @@ class Job:
             for so in shorts_out:
                 so["mp4"] = None
 
+        # ---- хайлайти 16:10 для сильних боїв
+        highlights_out = []
+        if opts.highlights and opts.render and st["render"]["enabled"]:
+            from .highlights import cfg_of, compute_highlight_layout, select_highlight, wanted, battle_value
+            hcfg = cfg_of(prof)
+            strong = [b for b in battles if wanted(b, hcfg)]
+            if strong:
+                stage(f"Хайлайти 16:10 ({len(strong)})", 0.995, 0.999)
+                hl_layout = compute_highlight_layout(prof, info.width, info.height, webcam)
+                hdir = self.out / "highlights"
+                for b in strong:
+                    segs = select_highlight(b, hcfg, start, end)
+                    dur = sum(e - s for s, e in segs)
+                    disk = labels.get(b["index"], (f"battle_{b['index']:02d}", ""))[0]
+                    mp4 = hdir / f"{tag}_{disk}_highlight.mp4"
+                    log.info("  Хайлайт бою %d (%d): %s, шматків %d", b["index"], battle_value(b),
+                             fmt_time(dur, 0), len(segs))
+                    try:
+                        render_short(st, info, hl_layout, segs, [], mp4, webcam)
+                        highlights_out.append({"battle": b["index"], "mp4": str(mp4), "duration": round(dur, 1),
+                                               "segments": [{"s": s, "e": e} for s, e in segs]})
+                    except UserError as e:
+                        log.error("[ПОМИЛКА] Хайлайт бою %d: %s", b["index"], e)
+            else:
+                log.info("  Хайлайти: боїв зі шкодою або засвітом від %d немає", int(hcfg["min_value"]))
+
         # ---- маркери, звіт
         stage("Звіт і маркери", 0.99, 1.0)
         markers = markers_for([e for e in all_events if e.type in st["resolve"]["marker_colors"]
@@ -394,7 +421,7 @@ class Job:
             "duration": info.duration, "webcam": webcam,
             "master_name": f"{path.stem} — моменти",
             "markers": markers, "edl": str(edl), "report_csv": str(csv_p), "report_json": str(json_p),
-            "layout": layout.to_dict(), "shorts": shorts_out,
+            "layout": layout.to_dict(), "shorts": shorts_out, "highlights": highlights_out,
             "range": [start, end],
         }
 

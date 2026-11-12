@@ -280,6 +280,9 @@ def gui(settings, log_file: Path):
     v_sai = tk.BooleanVar(value=state.get("speech_ai_on", bool(settings.get("speech_ai", {}).get("enabled", False))))
     tk.Checkbutton(opts_frame, text="Повні фрази + субтитри (експериментально; спершу extra\\setup_speech_ai.bat)", variable=v_sai).pack(anchor="w")
     tk.Checkbutton(opts_frame, text="Відділяти голос від гри (нейромережа)", variable=v_sep).pack(anchor="w")
+    v_hl = tk.BooleanVar(value=state.get("highlights_on", True))
+    tk.Checkbutton(opts_frame, text="Хайлайти 16:10 (7–8 хв) для боїв зі шкодою або засвітом 7000+",
+                   variable=v_hl).pack(anchor="w")
 
     st = read_status(settings)
     if st and st.get("status") == "done" and not (work_dir(settings) / "jobs" / f"{st.get('job_id')}.imported").exists():
@@ -409,11 +412,11 @@ def gui(settings, log_file: Path):
             return
         text = cta.get("1.0", "end").strip()
         state.update(profile=prof, cta=text, render=v_render.get(), subtitles_on=v_subs.get(),
-                     speech_ai_on=v_sai.get(), separation=v_sep.get(), last_dir=state.get("last_dir") or str(Path(recs[0]).parent))
+                     speech_ai_on=v_sai.get(), highlights_on=v_hl.get(), separation=v_sep.get(), last_dir=state.get("last_dir") or str(Path(recs[0]).parent))
         save_state(settings, state)
         opts = JobOptions(recordings=[Path(r) for r in recs], profile_id=prof, cta_text=text, start=a, end=b,
                           render=v_render.get(), subtitles=v_subs.get(), separation=v_sep.get(),
-                          speech_ai=v_sai.get(),
+                          speech_ai=v_sai.get(), highlights=v_hl.get(),
                           modes={str(Path(r)): m for r, _, m in recs_prof if m},
                           zones={str(Path(r)): rec_zones[str(Path(r))] for r, _, _m in recs_prof
                                  if rec_zones.get(str(Path(r)))})

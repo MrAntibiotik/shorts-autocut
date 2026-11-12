@@ -1,5 +1,5 @@
 {
-  "profile_version": 17,
+  "profile_version": 18,
   "name": "World of Tanks",
   "ready": true,
   "modes": {
@@ -329,5 +329,25 @@
     "subtitles_y": 1620,
     "avoid_webcam_in_game": true,
     "cta_y": 1780
+  },
+  "highlights": {
+    "_опис": "Хайлайти 16:10 (галочка у вікні запуску): для боїв зі шкодою або засвітом від min_value — окреме горизонтальне відео target_min_s…target_max_s секунд (7–8 хв) з ключовими моментами, у папці highlights результату. Короткий бій — цілим. Кадр output (1920×1200), вебкамера в куті (webcam_corner: top_left / top_right / bottom_left / bottom_right, ширина webcam_width), лічильники під нею.",
+    "enabled": true,
+    "min_value": 7000,
+    "target_min_s": 420,
+    "target_max_s": 480,
+    "base_pre_s": 8.0,
+    "base_post_s": 6.0,
+    "merge_gap_s": 20.0,
+    "include_start_s": 20.0,
+    "include_end_s": 10.0,
+    "output": {
+      "width": 1920,
+      "height": 1200
+    },
+    "webcam_width": 480,
+    "webcam_corner": "top_left",
+    "margin": 24,
+    "counters_height": 150
   }
 }
