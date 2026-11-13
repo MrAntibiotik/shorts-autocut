@@ -154,6 +154,16 @@ class Marks:
         if not isinstance(self.data.get("published"), dict):
             self.data["published"] = {}
 
+    def deleted(self) -> dict:
+        return self.data.setdefault("deleted", {})
+
+    def set_deleted(self, key: str, entry: dict | None):
+        if entry is None:
+            self.deleted().pop(key, None)
+        else:
+            self.deleted()[key] = entry
+        self.path.write_text(json.dumps(self.data, ensure_ascii=False, indent=1), encoding="utf-8")
+
     def published(self, key: str) -> Path | None:
         p = self.data["published"].get(key)
         return Path(p) if p and Path(p).exists() else None
@@ -212,16 +222,35 @@ def make_preview(settings: dict, mp4: Path) -> Path:
     return out
 
 
-def delete_short(settings: dict, job_dir: Path, s: dict, cur: Path) -> Path:
+def delete_short(settings: dict, job_dir: Path, s: dict, cur: Path) -> dict:
     """Переносить шортс у output\\_видалені\\<результат>\\: усю папку бою (якщо шортс на місці)
-    або лише MP4 + SRT (якщо він уже в папці публікації)."""
+    або лише MP4 + SRT (якщо він уже в папці публікації). Повертає запис для відновлення."""
     dst_root = output_dir(settings) / DELETED_DIR / job_dir.name
     dst_root.mkdir(parents=True, exist_ok=True)
     if cur == s["mp4"] and s["dir"] and s["dir"].is_dir() and s["dir"] != job_dir:
         dst = _unique(dst_root / s["dir"].name)
         shutil.move(str(s["dir"]), str(dst))
-        return dst
-    return move_with_srt(cur, dst_root).parent
+        return {"kind": "dir", "moved": str(dst), "mp4": str(dst / s["mp4"].name), "t": time.time()}
+    new = move_with_srt(cur, dst_root)
+    return {"kind": "file", "moved": str(new), "mp4": str(new), "t": time.time()}
+
+
+def restore_short(entry: dict, s: dict) -> Path:
+    """Повертає видалений шортс на його місце в результаті. Повертає шлях MP4."""
+    if entry["kind"] == "dir":
+        target = s["dir"]
+        if target.exists():
+            raise RuntimeError(f"на місці вже є папка {target.name}")
+        shutil.move(entry["moved"], str(target))
+        return s["mp4"]
+    src = Path(entry["moved"])
+    back = move_with_srt(src, s["mp4"].parent)
+    if back != s["mp4"] and not s["mp4"].exists():
+        shutil.move(str(back), str(s["mp4"]))
+        if back.with_suffix(".srt").exists():
+            shutil.move(str(back.with_suffix(".srt")), str(s["mp4"].with_suffix(".srt")))
+        back = s["mp4"]
+    return back
 
 
 # ====================================================================== бот
@@ -241,11 +270,49 @@ class Bot:
     # -------------------------------------------------------------- відправка
     # постійне меню внизу чату
     MENU = {"keyboard": [[{"text": "📋 Шортси"}, {"text": "⏳ Статус"}],
-                         [{"text": "📤 До публікації"}, {"text": "📁 Усі результати"}],
-                         [{"text": "🔄 Оновлення"}, {"text": "🧹 Очистити чат"}]],
+                         [{"text": "📤 До публікації"}, {"text": "🗑 Видалені"}],
+                         [{"text": "📁 Усі результати"}, {"text": "🔄 Оновлення"}],
+                         [{"text": "🧹 Очистити чат"}]],
             "resize_keyboard": True, "is_persistent": True}
     MENU_CMDS = {"📋 Шортси": "/shorts", "⏳ Статус": "/status", "📤 До публікації": "/kept",
-                 "📁 Усі результати": "/all", "🔄 Оновлення": "/update", "🧹 Очистити чат": "/clear"}
+                 "📁 Усі результати": "/all", "🔄 Оновлення": "/update", "🧹 Очистити чат": "/clear",
+                 "🗑 Видалені": "/deleted"}
+
+    def delete_msg(self, mid) -> None:
+        if not mid:
+            return
+        try:
+            self.api.call("deleteMessage", chat_id=self.owner, message_id=mid)
+        except Exception:
+            pass
+
+    def delete_later(self, mid, delay: float = 6.0) -> None:
+        threading.Timer(delay, self.delete_msg, args=(mid,)).start()
+
+    def cmd_deleted(self, limit: int = 5):
+        marks = Marks(self.settings)
+        items = []
+        for key, e in marks.deleted().items():
+            if Path(e.get("mp4", "")).exists():
+                items.append((e.get("t", 0), key, e))
+        items.sort(reverse=True)
+        if not items:
+            res = self.send("🗑 Видалених шортсів немає.")
+            self.delete_later(res.get("message_id") if isinstance(res, dict) else None)
+            return
+        self.send(f"🗑 Останні видалені ({min(limit, len(items))} з {len(items)}) — «♻ Відновити» поверне шортс:")
+        for _t, key, e in items[:limit]:
+            found = find_short(self.settings, key)
+            name = found[1]["name"] if found else Path(e["mp4"]).stem
+            markup = {"inline_keyboard": [[{"text": "♻ Відновити", "callback_data": f"R|{key}"}]]}
+            try:
+                prev = make_preview(self.settings, Path(e["mp4"]))
+                res = self.api.send_file("sendVideo", "video", prev, chat_id=self.owner,
+                                         caption=f"🗑 Видалено: {name}", supports_streaming="true",
+                                         width=480, height=854, reply_markup=markup)
+                self.track(res)
+            except Exception:
+                self.send(f"🗑 Видалено: {name}", markup)
 
     # -------------------------------------------------------------- журнал повідомлень (для «Очистити чат»)
     def _msg_file(self) -> Path:
@@ -298,7 +365,8 @@ class Bot:
                     except Exception:
                         pass
         f.write_text("[]", encoding="utf-8")
-        self.send("🧹 Чат очищено. Меню — внизу.", self.MENU)
+        res = self.send("🧹 Чат очищено. Меню — внизу.", self.MENU)
+        self.delete_later(res.get("message_id") if isinstance(res, dict) else None, 6.0)
         return done
 
     def short_markup(self, key: str, published: bool, video: bool = True) -> dict:
@@ -427,7 +495,8 @@ class Bot:
             self.send("⏳ Зараз іде обробка — оновлю, коли закінчиться (натисніть «Оновити» ще раз пізніше).")
             return
         import update
-        self.send("🔄 Оновлюю з GitHub…")
+        wait = self.send("🔄 Оновлюю з GitHub…")
+        self.delete_later(wait.get("message_id") if isinstance(wait, dict) else None, 1.0)
         try:
             res = update.apply_update(log=lambda m: None)
         except Exception as e:
@@ -475,14 +544,14 @@ class Bot:
 
     HELP = ("Команди:\n/status — що зараз обробляється\n/shorts — шортси останнього результату\n"
             "/all — усі результати\n/kept — шортси в папці публікації\n/update — оновлення з GitHub\n"
-            "/clear — очистити чат (за 48 год)\n\n"
+            "/clear — очистити чат (за 48 год)\n/deleted — останні видалені (відновити)\n\n"
             "Під шортсом: ▶ 480p — легкий перегляд, 📱 оригінал (якщо до 50 МБ), "
             "✅ Підходить — перенести MP4 (і субтитри) в папку публікації, ↩ Повернути — назад, "
             "🗑 Видалити — у output\\_видалені.")
 
     # -------------------------------------------------------------- кнопки
-    TOASTS = {"X": "🧹 Готово", "k": "✅ Підходить — перенесено в папку публікації", "u": "↩ Повернуто з папки публікації",
-              "D": "🗑 Видалено", "n": "✅ Цей шортс уже в папці публікації", "c": "Скасовано",
+    TOASTS = {"X": "🧹 Готово", "R": "♻ Відновлено", "k": "✅ Підходить — перенесено в папку публікації", "u": "↩ Повернуто з папки публікації",
+              "D": "🗑 Видалено. Повернути — кнопка «🗑 Видалені» в меню", "n": "✅ Цей шортс уже в папці публікації", "c": "Скасовано",
               "v": "Готую відео…", "f": "Надсилаю оригінал…"}
 
     def _answer(self, cq: dict, text: str | None):
@@ -529,6 +598,17 @@ class Bot:
             return
         job_dir, s = found
         marks = Marks(self.settings)
+        msg = cq.get("message") or {}
+        if act == "R":
+            entry = marks.deleted().get(key)
+            if not entry or not Path(entry["moved"]).exists():
+                self.delete_msg(msg.get("message_id"))
+                return
+            mp4 = restore_short(entry, s)
+            marks.set_deleted(key, None)
+            self.delete_msg(msg.get("message_id"))
+            self.send_short(key, s, mp4, False)
+            return
         cur, pub = self.locate(job_dir, s, marks)
         if cur is None:
             self.send(f"«{s['name']}» уже видалено або перенесено вручну.")
@@ -580,15 +660,11 @@ class Bot:
                 {"text": "🗑 Так, видалити", "callback_data": f"D|{key}"},
                 {"text": "Скасувати", "callback_data": f"c|{key}"}]]})
         elif act == "D":
-            dst = delete_short(self.settings, job_dir, s, cur)
+            entry = delete_short(self.settings, job_dir, s, cur)
             marks.set(key, None)
-            text = (f"🗑🗑🗑 ВИДАЛЕНО 🗑🗑🗑\n━━━━━━━━━━━━━━━━\n{s['name']}\n"
-                    f"(перенесено в output\\{DELETED_DIR}\\{job_dir.name} — можна повернути вручну)")
-            if msg:
-                redraw(text, None)
-            else:
-                self.send(text)
-            log.info("Видалено %s -> %s", s["name"], dst)
+            marks.set_deleted(key, entry)
+            self.delete_msg(msg.get("message_id"))      # пост зникає; відновити — «🗑 Видалені»
+            log.info("Видалено %s -> %s", s["name"], entry["moved"])
         elif act == "c":
             redraw(None, self.short_markup(key, pub, vid))
 
@@ -616,6 +692,8 @@ class Bot:
             self.send("Привіт! Я бот автонарізки шортсів.\n\n" + self.HELP, self.MENU)
         elif cmd == "/clear":
             self.cmd_clear()
+        elif cmd == "/deleted":
+            self.cmd_deleted()
         elif cmd == "/status":
             self.cmd_status()
         elif cmd == "/shorts":
@@ -628,6 +706,8 @@ class Bot:
             self.cmd_update()
         else:
             self.send(self.HELP, self.MENU)
+        if cmd != "/start":
+            self.delete_msg(m.get("message_id"))      # ваше натискання кнопки меню — прибираємо
 
     def watch_status(self):
         """Повідомлення: почалась обробка / готово / помилка."""
@@ -657,6 +737,7 @@ class Bot:
                 {"command": "all", "description": "Усі результати"},
                 {"command": "kept", "description": "Шортси в папці публікації"},
                 {"command": "update", "description": "Оновлення з GitHub"},
+                {"command": "deleted", "description": "Видалені шортси (відновити)"},
                 {"command": "clear", "description": "Очистити чат"}])
         except Exception as e:
             log.warning("setMyCommands: %s", e)
@@ -686,6 +767,8 @@ class Bot:
                         self.handle(u)
                     except Exception as e:
                         log.exception("Помилка обробки повідомлення")
+                        if "query is too old" in str(e) or "message is not modified" in str(e):
+                            continue                       # технічне, у чат не пишемо
                         try:
                             self.send(f"Помилка: {e}")
                         except Exception:
