@@ -277,7 +277,8 @@ def gui(settings, log_file: Path):
              font=("Segoe UI", 10, "bold")).pack(anchor="w", **pad)
     cta = tk.Text(setup, height=2, font=("Segoe UI", 11), wrap="word")
     cta.pack(fill="x", **pad)
-    cta.insert("1.0", state.get("cta", "Підписуйся, далі буде ще більше! 🔥"))
+    OLD_CTA, NEW_CTA = "Підписуйся, далі буде ще більше! 🔥", "Підпишись — підтримай ветерана 🛡️"
+    cta.insert("1.0", NEW_CTA if state.get("cta", OLD_CTA) == OLD_CTA else state["cta"])
 
     # номер дня для {день} у заклику (сам росте щодня) і висота заклику в кадрі
     from datetime import date
