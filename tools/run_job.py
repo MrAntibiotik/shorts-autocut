@@ -279,6 +279,35 @@ def gui(settings, log_file: Path):
     cta.pack(fill="x", **pad)
     cta.insert("1.0", state.get("cta", "Підписуйся, далі буде ще більше! 🔥"))
 
+    # номер дня для {день} у заклику (сам росте щодня) і висота заклику в кадрі
+    from datetime import date
+    crow = tk.Frame(setup)
+    crow.pack(fill="x", **pad)
+    try:
+        passed = (date.today() - date.fromisoformat(state.get("day_date", ""))).days
+    except ValueError:
+        passed = 0
+    v_day = tk.IntVar(value=max(1, int(state.get("day_n", 1)) + max(0, passed)))
+    tk.Label(crow, text="{день} =").pack(side="left")
+    tk.Spinbox(crow, from_=1, to=9999, width=5, textvariable=v_day).pack(side="left", padx=(2, 4))
+    tk.Label(crow, text="(напр. «День {день} шляху до 10 000 😎»)", fg="#666").pack(side="left")
+    v_cta_y = tk.IntVar(value=int(state.get("cta_y_pct", 93)))
+    yrow = tk.Frame(setup)
+    yrow.pack(fill="x", **pad)
+    tk.Label(yrow, text="Висота заклику в кадрі:").pack(side="left")
+    lbl_y = tk.Label(yrow, width=16, anchor="w")
+
+    def show_y(_=None):
+        p_ = v_cta_y.get()
+        lbl_y.config(text=("вгорі" if p_ < 34 else "посередині" if p_ < 67 else "внизу") + f" {p_} %")
+
+    tk.Label(yrow, text="верх").pack(side="left", padx=(8, 2))
+    tk.Scale(yrow, from_=5, to=95, orient="horizontal", variable=v_cta_y, showvalue=False, length=260,
+             command=show_y).pack(side="left")
+    tk.Label(yrow, text="низ").pack(side="left", padx=(2, 8))
+    lbl_y.pack(side="left")
+    show_y()
+
     opts_frame = tk.Frame(setup)
     opts_frame.pack(fill="x", **pad)
     v_render = tk.BooleanVar(value=state.get("render", True))
@@ -419,13 +448,20 @@ def gui(settings, log_file: Path):
         except ValueError as e:
             messagebox.showerror("Відрізок", str(e))
             return
-        text = cta.get("1.0", "end").strip()
-        state.update(profile=prof, cta=text, render=v_render.get(), subtitles_on=v_subs.get(),
+        text_tpl = cta.get("1.0", "end").strip()
+        try:
+            day_n = int(v_day.get())
+        except (tk.TclError, ValueError):
+            day_n = 1
+        text = text_tpl.replace("{день}", str(day_n)).replace("{day}", str(day_n))
+        state.update(day_n=day_n, day_date=date.today().isoformat(), cta_y_pct=int(v_cta_y.get()))
+        state.update(profile=prof, cta=text_tpl, render=v_render.get(), subtitles_on=v_subs.get(),
                      speech_ai_on=v_sai.get(), highlights_on=v_hl.get(), separation=v_sep.get(), last_dir=state.get("last_dir") or str(Path(recs[0]).parent))
         save_state(settings, state)
         opts = JobOptions(recordings=[Path(r) for r in recs], profile_id=prof, cta_text=text, start=a, end=b,
                           render=v_render.get(), subtitles=v_subs.get(), separation=v_sep.get(),
                           speech_ai=v_sai.get(), highlights=v_hl.get(),
+                          cta_y=int(v_cta_y.get()) / 100,
                           modes={str(Path(r)): m for r, _, m in recs_prof if m},
                           zones={str(Path(r)): rec_zones[str(Path(r))] for r, _, _m in recs_prof
                                  if rec_zones.get(str(Path(r)))})

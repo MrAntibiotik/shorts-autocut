@@ -60,6 +60,7 @@ class JobOptions:
     modes: dict = field(default_factory=dict)   # {шлях запису: "damage" | "assist"} — режим гри (WoT)
     zones: dict = field(default_factory=dict)   # {шлях запису: рамки} — підтверджені рамки саме цього запису
     highlights: bool = False                    # хайлайти 16:10 для сильних боїв (WoT: 7000+)
+    cta_y: float | None = None                  # висота центру заклику: частка висоти кадру (0 — верх, 1 — низ)
     separation: bool = True
 
 
@@ -135,7 +136,9 @@ class Job:
                          "fps": self.profile["layout"]["output"]["fps"]},
             "resolve": self.settings["resolve"],
             "cta_style": {"font_size": self.settings["cta"]["font_size"],
-                          "y": self.profile["layout"].get("cta_y") or self.settings["cta"]["y"],
+                          "y": (int(round(self.profile["layout"]["output"]["height"] * self.opts.cta_y))
+                                if self.opts.cta_y else
+                                self.profile["layout"].get("cta_y") or self.settings["cta"]["y"]),
                           "duration": self.settings["cta"]["duration_s"]},
             "recordings": recs,
             "elapsed_s": round(time.time() - t0, 1),
@@ -298,6 +301,8 @@ class Job:
             log.info("  %s", describe(sh))
 
         layout = compute_layout(prof, info.width, info.height, webcam)
+        if opts.cta_y:
+            layout.cta_y = int(round(layout.height * float(opts.cta_y)))
         for w in layout.warnings:
             log.warning("[УВАГА] %s", w)
 
