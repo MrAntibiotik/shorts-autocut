@@ -54,7 +54,10 @@ def save(settings: dict, data: dict) -> None:
 
 def effective(settings: dict) -> dict:
     """Налаштування з типовими значеннями; номер дня росте сам."""
-    st = {**DEFAULTS, **load(settings)}
+    raw = load(settings)
+    if raw.get("version") and int(raw.get("version_v") or 0) < 2:
+        raw["version"] = ""      # старі вкладки самі записували сюди версію гри — тепер за замовчуванням найновіша
+    st = {**DEFAULTS, **raw}
     st.setdefault("replays_dir", str(work_dir(settings) / "replays"))
     if not st.get("replays_dir"):
         st["replays_dir"] = str(work_dir(settings) / "replays")

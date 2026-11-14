@@ -90,7 +90,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
         "do_record": tk.BooleanVar(value=bool(st.get("do_record", True))),
         "do_cut": tk.BooleanVar(value=bool(st.get("do_cut", True))),
         "sort": tk.StringVar(value=st.get("sort", "date")),
-        "version": tk.StringVar(value=st.get("version", "")),
+        "version": tk.StringVar(value=st.get("version", "") if int(st.get("version_v") or 0) >= 2 else ""),
         "tank_search": tk.StringVar(value=""),
         "open_on_start": tk.BooleanVar(value=bool(st.get("open_on_start", True))),
         "idle_min": tk.IntVar(value=int(st.get("idle_min", 3))),
@@ -109,6 +109,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
             except tk.TclError:
                 pass
         data["day_n"] = data.pop("day", 1)
+        data["version_v"] = 2            # версію в полі вибрано вручну (порожньо — найновіша з сайту)
         data["day_date"] = date.today().isoformat()
         data.pop("tank_search", None)
         data["wr_sel"] = selection()
@@ -384,9 +385,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
 
     def auto_version() -> tuple[str, tuple, str]:
         from shorts.replay_filter import effective_version
-        from shorts.replay_record import client_version
-        return effective_version(v["version"].get(), client_version(Path(v["game_dir"].get())), FL or None,
-                                 v["replays_dir"].get())
+        return effective_version(v["version"].get(), (), FL or None, v["replays_dir"].get())   # завжди найновіша
 
     def refresh_version():
         from shorts.replay_record import client_version
@@ -417,13 +416,13 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
         try:
             from shorts.replay_download import DownloadOptions, fetch
             from shorts.replay_job import ReplayJobOptions, run
-            from shorts.replay_record import RecordOptions, client_version
+            from shorts.replay_record import RecordOptions
             from shorts.replay_download import Blocked, ImportOptions, import_folder
             from shorts.replay_job import pending_replays
             from shorts.replay_filter import effective_version
             game_dir = Path(params["game_dir"])
             replays_dir = Path(params["replays_dir"])
-            ver = effective_version(params["version"], client_version(game_dir), replays_dir=replays_dir)[1]
+            ver = effective_version(params["version"], (), replays_dir=replays_dir)[1]   # найновіша / вибрана
             if params["do_download"] and params["url"].strip():
                 try:
                     res = fetch(DownloadOptions(url=params["url"].strip(), dest=replays_dir,
