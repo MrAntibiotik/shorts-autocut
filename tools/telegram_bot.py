@@ -301,17 +301,23 @@ class Bot:
         self.hl_busy = False
         self.rec_choices: dict[str, tuple] = {}   # id кнопки -> (результат, шортс, файл запису)
         self.last_update_check = 0.0
+        try:
+            from replays_bot import ReplaysBot
+            self.replays = ReplaysBot(self)       # «🎮 Реплеї»: фільтр wot-record, файли реплеїв, запис
+        except Exception as e:  # реплеї не повинні ламати бота
+            log.warning("Реплеї в боті недоступні: %s", e)
+            self.replays = None
 
     # -------------------------------------------------------------- відправка
     # постійне меню внизу чату
     MENU = {"keyboard": [[{"text": "📋 Шортси"}, {"text": "⏳ Статус"}],
                          [{"text": "📤 До публікації"}, {"text": "🗑 Видалені"}],
                          [{"text": "📁 Усі результати"}, {"text": "🔄 Оновлення"}],
-                         [{"text": "🧹 Очистити чат"}]],
+                         [{"text": "🎮 Реплеї"}, {"text": "🧹 Очистити чат"}]],
             "resize_keyboard": True, "is_persistent": True}
     MENU_CMDS = {"📋 Шортси": "/shorts", "⏳ Статус": "/status", "📤 До публікації": "/kept",
                  "📁 Усі результати": "/all", "🔄 Оновлення": "/update", "🧹 Очистити чат": "/clear",
-                 "🗑 Видалені": "/deleted"}
+                 "🗑 Видалені": "/deleted", "🎮 Реплеї": "/replays"}
 
     def delete_msg(self, mid) -> None:
         if not mid:
@@ -663,7 +669,8 @@ class Bot:
 
     HELP = ("Команди:\n/status — що зараз обробляється\n/shorts — шортси останнього результату\n"
             "/all — усі результати\n/kept — шортси в папці публікації\n/update — оновлення з GitHub\n"
-            "/clear — очистити чат (за 48 год)\n/deleted — останні видалені (відновити)\n\n"
+            "/clear — очистити чат (за 48 год)\n/deleted — останні видалені (відновити)\n"
+            "/replays — 🎮 реплеї для EN-каналу: фільтр, підбірка, запис (файл .wotreplay можна просто надіслати сюди)\n\n"
             "Під шортсом: ▶ 480p — легкий перегляд, 📱 оригінал (якщо до 50 МБ), "
             "✅ Підходить — перенести MP4 (і субтитри) в папку публікації, ↩ Повернути — назад, "
             "🗑 Видалити — у output\\_видалені.")
@@ -682,6 +689,14 @@ class Bot:
     def on_callback(self, cq: dict):
         """Спливаюче повідомлення-підтвердження на кожну кнопку; довгі дії (відео, оновлення) — одразу."""
         act = cq.get("data", "").partition("|")[0]
+        if act == "F" and self.replays is not None:     # фільтр і запис реплеїв
+            try:
+                toast = self.replays.on_callback(cq, cq.get("data", "").partition("|")[2])
+            except Exception as e:
+                self._answer(cq, f"Помилка: {e}"[:190])
+                raise
+            self._answer(cq, toast)
+            return
         if act in ("v", "f", "U", "j", "H", "P"):
             self._answer(cq, self.TOASTS.get(act))
             self._on_callback(cq)
@@ -818,6 +833,9 @@ class Bot:
         if uid != self.owner:
             return                        # чужим — нічого
         self.track(m)
+        if m.get("document") and self.replays is not None:   # надісланий файл реплею
+            self.replays.on_document(m)
+            return
         text = self.MENU_CMDS.get(text, text)        # кнопки меню внизу чату
         cmd = text.split()[0].split("@")[0].lower() if text else ""
         if cmd == "/start":
@@ -836,6 +854,8 @@ class Bot:
             self.cmd_kept()
         elif cmd == "/update":
             self.cmd_update()
+        elif cmd == "/replays" and self.replays is not None:
+            self.replays.show()
         else:
             self.send(self.HELP, self.MENU)
         if cmd != "/start":
@@ -870,6 +890,7 @@ class Bot:
                 {"command": "kept", "description": "Шортси в папці публікації"},
                 {"command": "update", "description": "Оновлення з GitHub"},
                 {"command": "deleted", "description": "Видалені шортси (відновити)"},
+                {"command": "replays", "description": "Реплеї: фільтр, підбірка, запис"},
                 {"command": "clear", "description": "Очистити чат"}])
         except Exception as e:
             log.warning("setMyCommands: %s", e)
@@ -886,6 +907,11 @@ class Bot:
                     self.check_updates()
                 except Exception as e:
                     log.warning("Перевірка оновлень: %s", e)
+                try:
+                    if self.replays is not None:
+                        self.replays.tick()
+                except Exception as e:
+                    log.warning("Реплеї: %s", e)
                 stop.wait(10)
 
         threading.Thread(target=watcher, daemon=True).start()
