@@ -70,6 +70,8 @@ class ReplaysBot:
         self.last_received = 0.0
         self.awaiting: str | None = None     # «min_damage» / «min_assist» — чекаємо число від вас
         self.cancel = threading.Event()      # «⏹ Зупинити запис»
+        self.hold_until = 0.0                # після помилки — пауза автозапуску черги (щоб не засипати помилками)
+        self.user_stopped = False            # натиснули «⏹» — автозапуск лише після «🎬» або нового реплею
         self.listing: dict = {}              # останній список боїв: {"page", "items", "url", "hidden"}
         self.got: set[str] = set()           # номери реплеїв, уже скачаних зі списку
         from replay_cards import Cards
@@ -322,10 +324,15 @@ class ReplaysBot:
         info.path = str(target)
         target.with_suffix(".json").write_text(json.dumps(info.to_dict(), ensure_ascii=False, indent=1),
                                                encoding="utf-8")
-        running = (self.thread and self.thread.is_alive()) or busy(replays_dir)
+        mine = bool(self.thread and self.thread.is_alive())
+        foreign = not mine and busy(replays_dir, own_running=False)    # залишки обірваного запису знімаються
+        running = mine or foreign
         ahead = self.pending(st) - 1
-        queue = (f"у черзі на запис, перед ним: {ahead}" if running and ahead > 0 else
+        queue = ("чекає: запис іде з вкладки «🎮 Реплеї» на ПК — почнеться, щойно та закінчить "
+                 "(або «⏹ Зупинити запис»)" if foreign else
+                 f"у черзі на запис, перед ним: {ahead}" if running and ahead > 0 else
                  "чекає, доки закінчиться запис іншого бою" if running else "")
+        self.user_stopped = False            # новий реплей — знову можна автоматично
         self.cards.create(stem, info, version=info.version, queue=queue)   # жива картка етапів
         if st.get("instant", True):        # одразу: OBS → запис → нарізка → Poster
             if not running:
@@ -434,10 +441,16 @@ class ReplaysBot:
 
     # -------------------------------------------------------------- запис і нарізка
     def tick(self) -> None:
-        """Автозапуск: реплеї прийшли через бота і нових не було idle_min хвилин."""
+        """Раз на ~10 с: (1) у черзі є реплеї, запис вільний — починаємо (режим «одразу»);
+        (2) режим очікування: реплеї прийшли через бота і нових не було idle_min хвилин."""
+        st = self.state()
+        if (st.get("instant", True) and not self.user_stopped and time.time() >= self.hold_until
+                and not (self.thread and self.thread.is_alive()) and self.pending(st)
+                and not busy(Path(st["replays_dir"]), own_running=False)):
+            self.start(manual=False)
+            return
         if not self.last_received:
             return
-        st = self.state()
         idle = int(st.get("idle_min") or 0)
         if idle and time.time() - self.last_received >= idle * 60:
             self.last_received = 0.0
@@ -447,6 +460,9 @@ class ReplaysBot:
         st = self.state()
         replays_dir = Path(st["replays_dir"])
         mine = bool(self.thread and self.thread.is_alive())
+        if manual:
+            self.user_stopped = False
+            self.hold_until = 0.0
         if mine or busy(replays_dir, own_running=False):     # обірвані залишки busy() знімає сам
             if manual:
                 self.bot.send("⏺ Запис уже йде" + ("" if mine else " (з вкладки на ПК)") + ". Зупинити?",
@@ -469,6 +485,7 @@ class ReplaysBot:
         from shorts.replay_state import clear_lock
         st = self.state()
         self.cancel.set()
+        self.user_stopped = True             # сам не перезапускаю — чекаю «🎬 Записати зібрані»
         running = bool(self.thread and self.thread.is_alive())
         if not running:                      # запис ішов не з бота або обірвався — прибираємо самі
             kill_game()
@@ -508,9 +525,14 @@ class ReplaysBot:
                 self.bot.send(f"⏺ Не починаю: {e}.")
                 return
             except RecordError as e:
-                self.bot.send(f"❌ Запис не почався: {e}")
+                self.hold_until = time.time() + 600        # автоповтор черги — не раніше ніж за 10 хв
+                self.cards.stage(None, "obs", "err", str(e)[:200])
+                self.bot.send(f"❌ Запис не почався: {e}\n\nВиправте й натисніть «🎬 Записати зібрані» "
+                              "(сам спробую ще раз за 10 хв).")
                 return
             except Exception as e:  # noqa: BLE001
+                if type(e).__name__ != "Cancelled" and not self.cancel.is_set():
+                    self.hold_until = time.time() + 600
                 if type(e).__name__ == "Cancelled" or self.cancel.is_set():
                     self.cards.stage(None, "rec", "skip", "зупинено вами — реплей лишився в черзі")
                     self.bot.send("⏹ Запис зупинено. Реплей лишився в черзі — «🎬 Записати зібрані», щоб почати знову.")

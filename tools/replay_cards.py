@@ -64,7 +64,8 @@ class Cards:
         c = {"head": self.head(info), "st": {"dl": "done", "check": "done"},
              "det": {"check": f"версія {version}" if version else ""}, "queue": queue,
              "msg": None, "edited": 0.0, "info": info}
-        res = self.bot.send(self.text(c))
+        stop = {"inline_keyboard": [[{"text": "⏹ Зупинити запис", "callback_data": "F|stop"}]]}
+        res = self.bot.send(self.text(c), stop if "вкладк" in queue else None)
         c["msg"] = res.get("message_id") if isinstance(res, dict) else None
         with self.lock:
             self.cards[key] = c
@@ -79,7 +80,7 @@ class Cards:
         if not force and now - c["edited"] < EDIT_EVERY_S:
             return
         c["edited"] = now
-        active = c["st"].get("rec") == "run" or c["st"].get("obs") == "run"
+        active = c["st"].get("rec") == "run" or c["st"].get("obs") == "run" or "вкладк" in (c.get("queue") or "")
         markup = {"inline_keyboard": [[{"text": "⏹ Зупинити запис", "callback_data": "F|stop"}]]} if active \
             else {"inline_keyboard": []}
         try:

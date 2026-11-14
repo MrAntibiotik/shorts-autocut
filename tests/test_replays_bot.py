@@ -292,11 +292,34 @@ class ReplaysBotTest(unittest.TestCase):
         self._doc(good)
         self.assertEqual(started, [False])                            # одразу, без очікування
         self.assertIn("✅ Перевірено — версія 1.26.0.1", self.bot.sent[-1][0])
-        # запис уже йде — другий реплей стає в чергу, нового запуску немає
-        with replay_state.running(self.d / "replays", "бот"):
-            self._doc(make_replay(self.d / "h.bin", first=dict(FIRST, playerName="Other")).read_bytes(), "two.wotreplay")
+        # запис іде з вкладки на ПК (інший живий процес) — реплей чекає, картка пояснює, є «Зупинити»
+        import os
+        replay_state.lock_path(self.d / "replays").write_text(f"вкладка, PID {os.getppid()}", encoding="utf-8")
+        self._doc(make_replay(self.d / "h.bin", first=dict(FIRST, playerName="Other")).read_bytes(), "two.wotreplay")
         self.assertEqual(started, [False])
-        self.assertIn("🕓 у черзі на запис, перед ним: 1", self.bot.sent[-1][0])
+        self.assertIn("чекає: запис іде з вкладки", self.bot.sent[-1][0])
+        self.assertIn("F|stop", str(self.bot.sent[-1][1]))
+
+    def test_queue_starts_itself_when_free(self):
+        import os
+        (self.d / "replays").mkdir(exist_ok=True)
+        make_replay(self.d / "replays" / "a.wotreplay")
+        started = []
+        self.rb.start = lambda manual: started.append(manual) or "ok"
+        lock = replay_state.lock_path(self.d / "replays")
+        lock.write_text(f"вкладка, PID {os.getppid()}", encoding="utf-8")
+        self.rb.tick()
+        self.assertEqual(started, [])                                   # вкладка ще пише — чекаємо
+        lock.unlink()
+        self.rb.tick()
+        self.assertEqual(started, [False])                              # звільнилось — почали самі
+        self.rb.hold_until = __import__("time").time() + 600            # після помилки — пауза
+        self.rb.tick()
+        self.assertEqual(started, [False])
+        self.rb.hold_until = 0
+        self.rb.user_stopped = True                                     # натиснули «⏹» — чекаємо «🎬»
+        self.rb.tick()
+        self.assertEqual(started, [False])
 
     def test_work_loops_until_queue_empty(self):
         (self.d / "replays").mkdir()
