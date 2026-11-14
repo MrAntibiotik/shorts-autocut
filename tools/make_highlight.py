@@ -4,7 +4,7 @@
   extra\\make_highlight.bat                    — останній результат, вибір бою зі списку
   python tools/make_highlight.py <output\\job_…> <номер бою> [--json] [--rec <файл запису>]
 --rec — взяти саме цей файл запису (якщо оригінал перенесли/перейменували).
-Telegram-бот викликає його кнопкою «🎬 Хайлайт цього бою». Результат — у <результат>\\highlights\\.
+Telegram-бот викликає його кнопкою «🎬 Хайлайт цього бою». Результат — у папці хайлайтів (за замовчуванням Робочий стіл\\Хайлайти).
 """
 
 from __future__ import annotations
@@ -124,7 +124,8 @@ def make(job_dir: Path, battle_idx: int, settings: dict | None = None, rec_overr
     if rec.get("mode"):
         prof["mode"] = rec["mode"]
     b = load_battle(it["dir"])
-    mp4 = job_dir / "highlights" / f"{rec.get('tag', 'rec')}_{it['dir'].name}_highlight.mp4"
+    from shorts.config import highlight_path
+    mp4 = highlight_path(settings, job_dir.name, rec.get("tag", "rec"), it["dir"].name)
     start, end = (rec.get("range") or [0.0, info.duration])
     res = make_highlight(st, info, prof, b, rec.get("webcam"), mp4, work_dir(settings) / "jobs" / job_dir.name,
                          float(start), float(end))

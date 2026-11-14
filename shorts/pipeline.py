@@ -401,7 +401,8 @@ class Job:
                 stage(f"Хайлайти 16:10 ({len(strong)})", 0.995, 0.999)
                 for b in sorted(strong, key=lambda b: b["index"]):
                     disk = labels.get(b["index"], (f"battle_{b['index']:02d}", ""))[0]
-                    mp4 = self.out / "highlights" / f"{tag}_{disk}_highlight.mp4"
+                    from .config import highlight_path
+                    mp4 = highlight_path(self.settings, self.out.name, tag, disk)
                     try:
                         highlights_out.append(make_highlight(st, info, prof, b, webcam, mp4, self.work / tag,
                                                              start, end))

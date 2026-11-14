@@ -377,7 +377,7 @@ class Bot:
                 res = json.loads(line[7:])
                 mp4 = Path(res["mp4"])
                 cap = (f"🎬 Хайлайт: {s['name']}\n⏱ {res['duration'] / 60:.1f} хв"
-                       + (" + opener" if res.get("opener") else "") + f"\n📁 {mp4.parent.parent.name}\\highlights")
+                       + (" + opener" if res.get("opener") else "") + "\n📁 " + str(mp4.parent))
                 if not res.get("opener"):
                     why = res.get("opener_note") or "причина в логах (work\\logs)"
                     cap += ("\n⚠ Без opener'а: " + why)[:700]

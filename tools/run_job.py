@@ -178,6 +178,34 @@ def gui(settings, log_file: Path):
     tk.Button(rd_row, text="Відкрити", command=lambda: open_folder(rd_var.get())).pack(side="right")
     tk.Button(rd_row, text="Огляд…", command=pick_rec_dir).pack(side="right", padx=4)
 
+    # папка для готових хайлайтів (за замовчуванням Робочий стіл\Хайлайти)
+    from shorts.config import highlights_dir
+    hd_row = tk.Frame(setup)
+    hd_row.pack(fill="x", **pad)
+    tk.Label(hd_row, text="Папка хайлайтів:", font=("Segoe UI", 10, "bold")).pack(side="left")
+    try:
+        hd_val = str(highlights_dir(settings))
+    except OSError:
+        hd_val = settings["paths"].get("highlights_dir") or ""
+    hd_var = tk.StringVar(value=hd_val)
+    tk.Entry(hd_row, textvariable=hd_var, state="readonly", font=("Segoe UI", 9)).pack(
+        side="left", fill="x", expand=True, padx=6)
+
+    def pick_hl_dir():
+        d = filedialog.askdirectory(title="Куди класти готові хайлайти", initialdir=hd_var.get())
+        if not d:
+            return
+        d = str(Path(d))
+        settings["paths"]["highlights_dir"] = d
+        hd_var.set(d)
+        try:
+            save_setting(("paths", "highlights_dir"), d)
+        except Exception as e:
+            messagebox.showerror("Помилка", f"Не вдалося зберегти в settings.json: {e}")
+
+    tk.Button(hd_row, text="Відкрити", command=lambda: open_folder(hd_var.get())).pack(side="right")
+    tk.Button(hd_row, text="Огляд…", command=pick_hl_dir).pack(side="right", padx=4)
+
     tk.Label(setup, text="Запис(и) стріму:", font=("Segoe UI", 10, "bold")).pack(anchor="w", **pad)
     lst_frame = tk.Frame(setup)
     lst_frame.pack(fill="x", **pad)
