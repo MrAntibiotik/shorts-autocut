@@ -57,16 +57,11 @@ def main():
     if job.get("canvas"):
         tpl["canvas"].update({k: int(v) for k, v in job["canvas"].items() if k in ("width", "height", "fps")})
     W, H, FPS = (tpl["canvas"][k] for k in ("width", "height", "fps"))
-    BASE_H = json.load(open("template.json", encoding="utf-8"))["canvas"]["height"]
-    KS = min(W / BASE_W, H / BASE_H)
-    CX = int(round((W - BASE_W * KS) / 2))          # зсув підписів, якщо кадр ширший за 16:10
-    if abs(W / H - BASE_W / BASE_H) < 0.02:
-        SC = f"scale={W}:{H}"
-        OUTRO_VF = SC
-    else:   # кадр іншої пропорції (напр. 21:9) — шари шаблону вписуються по висоті, по центру, без розтягування
-        SC = f"scale=-2:{H},format=yuva420p,pad={W}:{H}:(ow-iw)/2:0:color=black@0"
-        OUTRO_VF = (f"split[ob][of];[ob]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
-                    f"boxblur=40:2,eq=brightness=-0.15[obb];[of]scale=-2:{H}[off];[obb][off]overlay=(W-w)/2:0")
+    KS = W / BASE_W
+    CX = 0
+    # кадр будь-якої пропорції (напр. 21:9 стріму) — шари шаблону (HUD, переходи, заставка) розтягуються на весь кадр
+    SC = f"scale={W}:{H}"
+    OUTRO_VF = SC
     M, Lr, A = tpl["moments"], tpl["layers"], tpl["audio"]
     moms = job["moments"]; n = len(moms)
     if not M["min"] <= n <= M["max"]: die(f"моментів має бути від {M['min']} до {M['max']}, а передано {n}")
