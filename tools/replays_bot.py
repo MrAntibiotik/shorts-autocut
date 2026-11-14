@@ -81,11 +81,13 @@ class ReplaysBot:
         from shorts.replay_record import client_version
         return client_version(Path(st["game_dir"]))
 
+    def version_info(self, st: dict) -> tuple[str, tuple, str]:
+        """(«2.4», кортеж для перевірки, звідки): вибрана → ваша гра → найновіша."""
+        from shorts.replay_filter import effective_version
+        return effective_version(st.get("version") or "", self.client_version(st), replays_dir=st["replays_dir"])
+
     def version(self, st: dict) -> str:
-        if str(st.get("version") or "").strip():
-            return str(st["version"]).strip()
-        ver = self.client_version(st)
-        return f"{ver[0]}.{ver[1]}" if len(ver) >= 2 else ""
+        return self.version_info(st)[0]
 
     def selection(self, st: dict) -> dict:
         sel = {k: list(v) for k, v in (st.get("wr_sel") or {}).items()}
@@ -124,12 +126,14 @@ class ReplaysBot:
         md, ma = int(st.get("min_damage") or 0), int(st.get("min_assist") or 0)
         limits = " або ".join(x for x in ((f"шкода від {fmt_n(md)}" if md else ""),
                                            (f"засвіт від {fmt_n(ma)}" if ma else "")) if x) or "будь-які"
-        no_game = "" if ver else (
-            "⚠️ Папку гри не знайдено — у вкладці «🎮 Реплеї» на ПК вкажіть папку гри й натисніть «▶ Почати» "
-            "(інакше реплеї іншої версії не відсіються).\n")
+        src = self.version_info(st)[2]
+        no_game = "" if src != "найновіша" else (
+            "ℹ️ Папку гри не знайдено — беру найновішу версію. Якщо ваша гра ще не оновилась, вкажіть папку гри "
+            "у вкладці «🎮 Реплеї» на ПК.\n")
         return ("🎮 Реплеї для EN-каналу\n\n"
                 f"Фільтр: {' · '.join(parts) or 'усі бої'}\n"
-                f"Сортування: {sorts.get(st.get('sort') or 'date', st.get('sort'))} · версія: {ver or 'будь-яка'}\n"
+                f"Сортування: {sorts.get(st.get('sort') or 'date', st.get('sort'))} · версія: "
+                f"{ver + ' (' + self.version_info(st)[2] + ')' if ver else 'будь-яка'}\n"
                 f"Беру бої: {limits}\n"
                 f"{no_game}"
                 f"{state}\n\n"
@@ -271,7 +275,7 @@ class ReplaysBot:
         tmp = replays_dir / f"{stem}.part"
         tmp.write_bytes(data)
         from shorts.replay_download import ImportOptions, check_replay
-        opts = ImportOptions(src=replays_dir, dest=replays_dir, client_version=self.client_version(st)[:3],
+        opts = ImportOptions(src=replays_dir, dest=replays_dir, client_version=self.version_info(st)[1],
                              min_damage=int(st.get("min_damage") or 0), min_kills=int(st.get("min_kills") or 0),
                              min_assist=int(st.get("min_assist") or 0))
         info, why = check_replay(tmp, opts)

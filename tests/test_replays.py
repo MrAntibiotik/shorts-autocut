@@ -79,6 +79,8 @@ class ReplayMetaTest(unittest.TestCase):
         self.assertTrue(same_version((1, 26, 0, 1), (1, 26, 0)))
         self.assertFalse(same_version((1, 25, 1, 0), (1, 26, 0)))
         self.assertFalse(same_version((), (1, 26, 0)))
+        self.assertTrue(same_version((2, 4), (2, 4, 1, 1)))          # версія з фільтра сайту
+        self.assertFalse(same_version((2, 3), (2, 4, 1, 1)))
 
     def test_english_numbers(self):
         self.assertEqual(first_number("3,516"), 3516)

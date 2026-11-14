@@ -119,6 +119,25 @@ class ReplaysBotTest(unittest.TestCase):
         self.assertEqual(replay_state.effective(self.settings)["min_damage"], 0)
         self.assertFalse(self.rb.on_text("123"))                            # питання вже знято
 
+    def test_newest_version_without_game(self):
+        replay_state.save(self.settings, {**replay_state.load(self.settings), "game_dir": str(self.d / "nogame")})
+        self.rb.show()
+        text, markup = self.bot.sent[-1]
+        newest = max((o["value"] for o in replays_bot.load_filters()["version"]),
+                     key=lambda v: tuple(map(int, v.split("."))))
+        self.assertIn(f"версія: {newest} (найновіша)", text)
+        url = next(b["url"] for b in buttons(markup) if "url" in b)
+        self.assertIn(f"version={newest}", url)
+        # реплей новішого патча, що вже потрапив у програму, піднімає «найновішу»
+        (self.d / "replays").mkdir(exist_ok=True)
+        (self.d / "replays" / "x.json").write_text('{"version": "9.1.0.0"}', encoding="utf-8")
+        self.rb.show()
+        self.assertIn("версія: 9.1 (найновіша)", self.bot.sent[-1][0])
+        # і старі реплеї відсіюються за нею
+        old = make_replay(self.d / "o.bin").read_bytes()          # 1.26
+        self._doc(old, "old.wotreplay")
+        self.assertIn("інша версія гри (1.26.0.1)", self.bot.sent[-1][0])
+
     def test_parse_number(self):
         P = replays_bot.parse_number
         self.assertEqual([P("5500"), P("5 500"), P("5.5k"), P("7к"), P("5.500"), P("0")],

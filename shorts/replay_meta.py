@@ -108,8 +108,10 @@ def parse_version(text: str) -> tuple[str, tuple]:
 
 
 def same_version(a: tuple, b: tuple, parts: int = 3) -> bool:
-    """Реплей відкривається лише на тій самій версії клієнта (порівнюємо перші 3 числа: 1.26.0)."""
-    return bool(a) and bool(b) and tuple(a[:parts]) == tuple(b[:parts])
+    """Реплей відкривається лише на тій самій версії клієнта (порівнюємо перші 3 числа: 1.26.0).
+    Коротша версія («2.4» з фільтра сайту) порівнюється лише своїми числами: (2, 4) ~ (2, 4, 1, 1)."""
+    n = min(len(a), len(b), parts)
+    return bool(a) and bool(b) and tuple(a[:n]) == tuple(b[:n])
 
 
 def _human(tag: str) -> str:
