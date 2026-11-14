@@ -95,6 +95,13 @@ def effective_version(explicit: str = "", client: tuple = (), filters: dict | No
     return v, tuple(int(x) for x in re_digits(v)), "найновіша"
 
 
+def site_knows(version: str, filters: dict | None = None) -> bool:
+    """Чи є така версія у фільтрі сайту (невідома версія в адресі → сайт падає з помилкою 500)."""
+    known = {o["value"] for o in (filters or load_filters()).get("version", [])}
+    d = re_digits(version)
+    return not known or (len(d) >= 2 and f"{d[0]}.{d[1]}" in known)
+
+
 def version_value(client: tuple, filters: dict | None = None) -> str:
     """Версія вашого клієнта у форматі фільтра сайту: (2, 4, 1, 1) → «2.4» (якщо така є у списку)."""
     if not client or len(client) < 2:
@@ -102,5 +109,6 @@ def version_value(client: tuple, filters: dict | None = None) -> str:
     return f"{client[0]}.{client[1]}"   # нова версія, якої ще немає у списку, на сайті теж спрацює
 
 
-__all__ = ["FILTERS_FILE", "KEYS", "build_url", "effective_version", "latest_version", "load_filters", "tanks_for",
+__all__ = ["FILTERS_FILE", "KEYS", "build_url", "effective_version", "latest_version", "load_filters", "site_knows",
+           "tanks_for",
            "version_key", "version_value"]
