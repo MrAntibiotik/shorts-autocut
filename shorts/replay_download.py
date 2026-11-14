@@ -153,6 +153,7 @@ class ImportOptions:
     min_damage: int = 0
     min_kills: int = 0
     min_age_s: float = 5.0             # файл, що ще докачується, не чіпаємо
+    seen: set | None = None            # (ім'я, час зміни) уже перевірених непідхожих — не перевіряти щоразу
 
 
 def import_folder(opts: ImportOptions) -> DownloadResult:
@@ -170,8 +171,13 @@ def import_folder(opts: ImportOptions) -> DownloadResult:
                 continue
         except OSError:
             continue
+        key = (p.name, int(p.stat().st_mtime))
+        if opts.seen is not None and key in opts.seen:
+            continue
         info, why = check_replay(p, opts)
         if why:
+            if opts.seen is not None:
+                opts.seen.add(key)
             res.skip(why)
             log.info("  %s лишаю в папці: %s", p.name, why)
             continue
