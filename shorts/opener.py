@@ -91,30 +91,65 @@ def make_opener(settings: dict, cfg: dict, highlight_mp4: Path, starts: list[flo
     return out
 
 
+def _params(settings: dict, path: Path) -> tuple:
+    """Параметри потоків, що мають збігатися для склеювання без перекодування."""
+    ffprobe = find_tool(settings, "ffprobe")
+    r = subprocess.run([ffprobe, "-v", "error", "-print_format", "json", "-show_streams", str(path)],
+                       capture_output=True, creationflags=_NO_WINDOW)
+    out = []
+    for st in json.loads(r.stdout.decode("utf-8", "replace") or "{}").get("streams", []):
+        keys = ("codec_name", "profile", "width", "height", "pix_fmt", "r_frame_rate", "time_base",
+                "sample_rate", "channels") if st.get("codec_type") == "audio" else (
+               "codec_name", "profile", "level", "width", "height", "pix_fmt", "r_frame_rate", "time_base")
+        out.append((st.get("codec_type"),) + tuple(st.get(k) for k in keys))
+    return tuple(out)
+
+
 def join(settings: dict, opener: Path, main: Path, out: Path, width: int, height: int, fps: int) -> Path:
-    """opener + хайлайт → один MP4 (opener уже зібраний у розмірі хайлайту; scale — про всяк випадок)."""
+    """opener + хайлайт → один MP4. Хайлайт НЕ перекодовується: opener кодується з тими самими
+    параметрами, далі склеювання копіюванням потоків. Не збіглися параметри — повне перекодування
+    з тими ж (високими) налаштуваннями."""
+    from .render import audio_args, video_args
     ff = find_tool(settings, "ffmpeg")
     r = settings["render"]
-    g = (f"[0:v]scale={width}:{height}:flags=lanczos,fps={fps},setsar=1,format=yuv420p[v0];"
-         f"[0:a]aresample=48000,aformat=channel_layouts=stereo[a0];"
-         f"[1:v]scale={width}:{height},fps={fps},setsar=1,format=yuv420p[v1];"
-         f"[1:a]aresample=48000,aformat=channel_layouts=stereo[a1];"
-         f"[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]")
+    pix = r.get("pix_fmt") or "yuv420p"
     tmp = out.with_name(out.stem + ".part.mp4")
     err = ""
-    # другий прохід (opener + хайлайт) — з запасом якості, щоб перекодування не «їло» картинку
-    cq, crf = max(12, int(r["cq"]) - 3), max(12, int(r["x264_crf"]) - 3)
-    maxrate = r["max_bitrate"]
-    try:
-        maxrate = f"{int(float(str(maxrate).rstrip('Mm')) * 1.5)}M"
-    except ValueError:
-        pass
     for enc in (r["encoder"], r["fallback_encoder"]):
-        vc = (["-c:v", "h264_nvenc", "-preset", "p6", "-tune", "hq", "-rc", "vbr", "-cq", str(cq), "-b:v", "0",
-               "-maxrate", maxrate, "-bufsize", "120M", "-profile:v", "high"] if enc == "h264_nvenc" else
-              ["-c:v", "libx264", "-preset", "medium", "-crf", str(crf), "-profile:v", "high"])
+        # 1) лише opener — у параметри хайлайту
+        op2 = out.with_name(out.stem + ".opener.mp4")
+        vf = f"scale={width}:{height}:flags=lanczos,fps={fps},setsar=1,format={pix}"
+        cmd = [ff, "-hide_banner", "-loglevel", "error", "-y", "-i", str(opener), "-vf", vf,
+               "-af", "aresample=48000,aformat=channel_layouts=stereo", "-r", str(fps),
+               *video_args(r, enc), *audio_args(r), "-video_track_timescale", str(_timescale(settings, main)),
+               str(op2)]
+        res = subprocess.run(cmd, capture_output=True, creationflags=_NO_WINDOW)
+        if res.returncode != 0 or not op2.exists():
+            err = res.stderr.decode("utf-8", "replace")[-500:]
+            continue
+        if _params(settings, op2) == _params(settings, main):
+            lst = out.with_name(out.stem + ".list.txt")
+            lst.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in (op2, main)), encoding="utf-8")
+            res = subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0",
+                                  "-i", str(lst), "-c", "copy", "-movflags", "+faststart", str(tmp)],
+                                 capture_output=True, creationflags=_NO_WINDOW)
+            lst.unlink(missing_ok=True)
+            op2.unlink(missing_ok=True)
+            if res.returncode == 0 and tmp.exists():
+                tmp.replace(out)
+                log.info("    opener приклеєно без перекодування хайлайту")
+                return out
+            err = res.stderr.decode("utf-8", "replace")[-500:]
+        op2.unlink(missing_ok=True)
+        # 2) запасний шлях — перекодувати все з тими самими налаштуваннями якості
+        log.info("    параметри opener'а й хайлайту не збіглися — склеюю з перекодуванням (%s)", enc)
+        g = (f"[0:v]scale={width}:{height}:flags=lanczos,fps={fps},setsar=1,format={pix}[v0];"
+             f"[0:a]aresample=48000,aformat=channel_layouts=stereo[a0];"
+             f"[1:v]scale={width}:{height},fps={fps},setsar=1,format={pix}[v1];"
+             f"[1:a]aresample=48000,aformat=channel_layouts=stereo[a1];"
+             f"[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]")
         cmd = [ff, "-hide_banner", "-loglevel", "error", "-y", "-i", str(opener), "-i", str(main),
-               "-filter_complex", g, "-map", "[v]", "-map", "[a]", *vc, "-c:a", "aac", "-b:a", r["audio_bitrate"],
+               "-filter_complex", g, "-map", "[v]", "-map", "[a]", *video_args(r, enc), *audio_args(r),
                "-movflags", "+faststart", str(tmp)]
         res = subprocess.run(cmd, capture_output=True, creationflags=_NO_WINDOW)
         if res.returncode == 0 and tmp.exists():
@@ -122,3 +157,13 @@ def join(settings: dict, opener: Path, main: Path, out: Path, width: int, height
             return out
         err = res.stderr.decode("utf-8", "replace")[-500:]
     raise RuntimeError(err)
+
+
+def _timescale(settings: dict, path: Path) -> int:
+    ffprobe = find_tool(settings, "ffprobe")
+    r = subprocess.run([ffprobe, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=time_base",
+                        "-of", "csv=p=0", str(path)], capture_output=True, creationflags=_NO_WINDOW)
+    try:
+        return int(r.stdout.decode().strip().split("/")[1])
+    except (IndexError, ValueError):
+        return 15360

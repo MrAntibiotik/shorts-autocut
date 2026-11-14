@@ -207,3 +207,18 @@ def _iter_frames_once(settings, info, start, duration, fps, crop, accel):
         drain.join(timeout=2)
     if n == 0 and proc.returncode not in (0, None):
         raise _DecodeFailed(drain.text()[-1500:] or f"код {proc.returncode}")
+
+
+def source_video_stats(settings: dict, path: str | Path) -> dict:
+    """Кодек, бітрейт (біт/с) і pix_fmt відео в записі — щоб хайлайт був не гіршим за оригінал."""
+    ffprobe = find_tool(settings, "ffprobe")
+    res = run([ffprobe, "-v", "error", "-print_format", "json", "-show_streams", "-show_format", str(path)])
+    data = json.loads(res.stdout.decode("utf-8", "replace"))
+    streams = data.get("streams", [])
+    v = next((s for s in streams if s.get("codec_type") == "video"), {})
+    br = int(v.get("bit_rate") or 0) or int((v.get("tags") or {}).get("BPS") or 0)
+    if not br:   # MKV від OBS часто без бітрейту потоку — загальний мінус звук
+        total = int((data.get("format") or {}).get("bit_rate") or 0)
+        audio = sum(int(s.get("bit_rate") or 0) or 192_000 for s in streams if s.get("codec_type") == "audio")
+        br = max(0, total - audio)
+    return {"codec": v.get("codec_name", "h264"), "bitrate": br, "pix_fmt": v.get("pix_fmt", "yuv420p")}

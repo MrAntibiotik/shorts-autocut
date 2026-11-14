@@ -34,8 +34,8 @@ DEFAULTS = {
     "include_start_s": 20.0,
     "include_end_s": 10.0,
     "frame": "stream",
-    "cq": 17,                  # якість хайлайту (менше = краще); шортси — render.cq
-    "max_bitrate": "60M",      # 3440×1440 60 к/с потребує більше, ніж 20M шортсів (YouTube радить 35–45M для 1440p60)         # stream — увесь кадр стріму як є; crop16x10 — центр 16:10 з накладками
+    "cq": 15,                  # якість хайлайту (менше = краще): кодек і бітрейт — як в оригінальному записі
+    "max_bitrate": "60M",      # мінімальна «стеля» бітрейту; реальна — 2× бітрейт оригіналу         # stream — увесь кадр стріму як є; crop16x10 — центр 16:10 з накладками
     "output": "auto",          # «auto» — рідна роздільність запису: висота запису × 16:10 (3440×1440 → 2304×1440)
     "webcam_width": 480,
     "webcam_corner": "top_left",
@@ -218,15 +218,36 @@ def cta_overlays(settings: dict, layout: Layout, dur: float, tmp) -> list:
 
 # ====================================================================== якість
 
-def hq_settings(settings: dict, hcfg: dict) -> dict:
-    """Налаштування рендеру для хайлайту: вищий бітрейт і якість (великий кадр, 60 к/с, YouTube)."""
+def hq_settings(settings: dict, hcfg: dict, info=None) -> dict:
+    """Рендер хайлайту «як оригінал»: той самий кодек, що в записі (H.264 / HEVC / AV1), бітрейт не нижчий
+    за оригінальний, дуже висока якість (cq 15) — на око без різниці зі стрімом. Напис-заклик лишається."""
     import copy
     st = copy.deepcopy(settings)
     r = st["render"]
-    r["cq"] = min(int(r.get("cq", 19)), int(hcfg.get("cq", 17)))
-    r["x264_crf"] = min(int(r.get("x264_crf", 18)), int(hcfg.get("cq", 17)))
-    r["max_bitrate"] = str(hcfg.get("max_bitrate") or "60M")
-    r["audio_bitrate"] = "256k"
+    src = {"codec": "h264", "bitrate": 0, "pix_fmt": "yuv420p"}
+    if info is not None:
+        try:
+            from .media import source_video_stats
+            src = source_video_stats(settings, info.path)
+        except Exception as e:  # noqa: BLE001
+            log.warning("    параметри оригіналу не прочитано (%s) — висока якість H.264", e)
+    codec = {"hevc": "hevc", "h265": "hevc", "av1": "av1"}.get(src["codec"], "h264")
+    r["encoder"] = f"{codec}_nvenc"
+    r["fallback_encoder"] = {"hevc": "libx265", "av1": "libsvtav1"}.get(codec, "libx264")
+    r["nvenc_preset"] = "p6"
+    r["nvenc_tune"] = "hq"
+    q = int(hcfg.get("cq", 15))
+    r["cq"] = q
+    r["x264_crf"] = q
+    mbps = max(src["bitrate"] / 1e6, 1.0)
+    floor = float(str(hcfg.get("max_bitrate") or "60M").rstrip("Mm"))
+    r["target_bitrate"] = f"{max(1, round(mbps))}M"                      # не нижче за оригінал
+    r["max_bitrate"] = f"{round(max(mbps * 2, floor))}M"                 # запас для динамічних сцен
+    ten_bit = "10" in str(src.get("pix_fmt") or "")
+    r["pix_fmt"] = "p010le" if ten_bit and codec != "h264" else "yuv420p"
+    r["audio_bitrate"] = "320k"
+    log.info("    якість хайлайту як оригінал: %s, ~%.0f Мбіт/с (оригінал %.0f Мбіт/с)", r["encoder"],
+             max(mbps, 1), mbps)
     return st
 
 
@@ -287,7 +308,7 @@ def make_highlight(settings: dict, info, profile: dict, b: dict, webcam: dict | 
     from .render import render_short
     from .util import fmt_time
     hcfg = cfg_of(profile)
-    settings = hq_settings(settings, hcfg)          # висока якість для великого кадру
+    settings = hq_settings(settings, hcfg, info)    # кодек і бітрейт — як в оригіналі
     layout = compute_highlight_layout(profile, info.width, info.height, webcam)
     segs = select_highlight(b, hcfg, rec_start, rec_end)
     dur = sum(e - s for s, e in segs)

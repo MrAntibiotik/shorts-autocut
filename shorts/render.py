@@ -99,17 +99,37 @@ def build_command(settings: dict, info: VideoInfo, layout: Layout, segments: lis
         f.append(f"[{cur}][{inp}:v]overlay={ov.x}:{ov.y}:enable='between(t,{ov.start:.3f},{ov.end:.3f})'"
                  f":eof_action=repeat[{nxt}]")
         cur = nxt
-    f.append(f"[{cur}]format=yuv420p[vout]")
-    cmd += ["-filter_complex", ";".join(f), "-map", "[vout]", "-map", "[ac]", "-r", str(fps)]
-
     r = settings["render"]
-    if encoder == "h264_nvenc":
-        cmd += ["-c:v", "h264_nvenc", "-preset", r["nvenc_preset"], "-rc", "vbr", "-cq", str(r["cq"]),
-                "-b:v", "0", "-maxrate", r["max_bitrate"], "-bufsize", _bufsize(r["max_bitrate"]), "-profile:v", "high"]
-    else:
-        cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", str(r["x264_crf"]), "-profile:v", "high"]
-    cmd += ["-c:a", "aac", "-b:a", r["audio_bitrate"], "-movflags", "+faststart", str(out_path)]
+    f.append(f"[{cur}]format={r.get('pix_fmt') or 'yuv420p'}[vout]")
+    cmd += ["-filter_complex", ";".join(f), "-map", "[vout]", "-map", "[ac]", "-r", str(fps)]
+    cmd += video_args(r, encoder) + audio_args(r) + ["-movflags", "+faststart", str(out_path)]
     return cmd
+
+
+def video_args(r: dict, encoder: str) -> list[str]:
+    """Параметри відеокодека. Звичайно — H.264 (cq, max_bitrate). Для хайлайту render може мати
+    target_bitrate (бітрейт оригіналу: не нижче) і кодек оригіналу (hevc_nvenc / av1_nvenc)."""
+    tb = r.get("target_bitrate")
+    if encoder.endswith("_nvenc"):
+        args = ["-c:v", encoder, "-preset", r["nvenc_preset"], "-rc", "vbr", "-cq", str(r["cq"]),
+                "-b:v", tb or "0", "-maxrate", r["max_bitrate"], "-bufsize", _bufsize(r["max_bitrate"])]
+        if r.get("nvenc_tune"):
+            args += ["-tune", r["nvenc_tune"]]
+        if encoder == "h264_nvenc":
+            args += ["-profile:v", "high"]
+        elif encoder == "hevc_nvenc":
+            args += ["-profile:v", "main10" if "10" in str(r.get("pix_fmt") or "") else "main", "-tag:v", "hvc1"]
+        return args
+    crf = str(r["x264_crf"])
+    if encoder == "libx265":
+        return ["-c:v", "libx265", "-preset", "medium", "-crf", crf, "-tag:v", "hvc1"]
+    if encoder == "libsvtav1":
+        return ["-c:v", "libsvtav1", "-preset", "6", "-crf", str(int(crf) + 10)]
+    return ["-c:v", "libx264", "-preset", "medium", "-crf", crf, "-profile:v", "high"]
+
+
+def audio_args(r: dict) -> list[str]:
+    return ["-c:a", "aac", "-b:a", r["audio_bitrate"], "-ar", "48000", "-ac", "2"]
 
 
 def _bufsize(maxrate: str) -> str:
@@ -142,9 +162,10 @@ def render_short(settings: dict, info: VideoInfo, layout: Layout, segments: list
             log.info("    MP4 готовий за %.0f с (%s): %s", time.time() - t0, enc, out_path.name)
             return out_path
         last_err = res.stderr.decode("utf-8", "replace")[-2000:]
-        if enc == "h264_nvenc":
+        if enc.endswith("_nvenc"):
             log.warning("    NVENC не спрацював, рендерю на процесорі. Причина: %s", last_err.strip()[-300:])
-            _nvenc_broken = True
+            if enc == "h264_nvenc":
+                _nvenc_broken = True
     if tmp.exists():
         tmp.unlink()
     raise UserError(f"Не вдалося відрендерити {out_path.name}:\n{last_err}",
