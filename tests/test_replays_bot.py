@@ -255,6 +255,38 @@ class ReplaysBotTest(unittest.TestCase):
         self.assertTrue(calls[0].endswith("obs64.exe"))
         self.assertIn("🏁 Готово: записано 2, шортсів 2, у Poster 2", self.bot.sent[-1][0])
 
+    def test_no_game_keeps_replay_in_queue_and_retry(self):
+        from shorts import replay_record
+        (self.d / "replays").mkdir(exist_ok=True)
+        rp = make_replay(self.d / "replays" / "a.wotreplay")
+        jopts = replay_job.ReplayJobOptions(replays_dir=self.d / "replays", publish_dir=None)
+        ropts = replay_record.RecordOptions(game_dir=self.d / "nogame")
+        with mock.patch.object(replay_record, "STEAM_ROOTS", []), \
+                mock.patch.object(replay_record, "KNOWN_DIRS", [str(self.d / "nogame")]), \
+                mock.patch.object(replay_record, "ensure_obs") as eo:
+            with self.assertRaises(replay_record.RecordError):
+                replay_job.run(self.settings, jopts, ropts)
+        eo.assert_not_called()                                         # OBS навіть не чіпали
+        self.assertFalse(rp.with_suffix(".failed").exists())          # реплей не «зіпсовано»
+        self.assertEqual(replay_job.pending_replays(self.d / "replays"), [rp])
+        # реплей, що раніше не вдався: «🎬 Записати зібрані» пробує знову
+        rp.with_suffix(".failed").write_text("x")
+        self.assertEqual(replay_job.pending_replays(self.d / "replays"), [])
+        started = []
+        with mock.patch.object(replays_bot.threading, "Thread") as th:
+            th.return_value.is_alive.return_value = False
+            self.assertTrue(self.rb.start(manual=True).startswith("🎬 Починаю запис: 1"))
+            th.return_value.start.assert_called_once()
+        self.assertFalse(rp.with_suffix(".failed").exists())
+        # і повторне скачування такого реплею теж ставить його в чергу
+        rp.with_suffix(".failed").write_text("x")
+        self.rb.thread = None
+        self.rb.start = lambda manual: started.append(manual) or "ok"
+        self.rb.accept("a.wotreplay", rp.read_bytes())
+        self.assertIn("раніше не записався — ставлю в чергу ще раз", self.bot.sent[-1][0])
+        self.assertFalse(rp.with_suffix(".failed").exists())
+        self.assertEqual(started, [False])
+
     def test_auto_start_after_idle(self):
         started = []
         self.rb.start = lambda manual: started.append(manual) or "ok"
