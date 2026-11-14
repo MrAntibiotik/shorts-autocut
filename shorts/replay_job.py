@@ -123,8 +123,17 @@ def run(settings: dict, opts: ReplayJobOptions, rec_opts=None, progress=None, ca
 
 
 def _run(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short):
-    from .replay_record import Obs, record_one
-    obs = Obs(rec_opts.obs_host, rec_opts.obs_port, rec_opts.obs_password) if opts.record else None
+    from .replay_record import ensure_obs
+    obs = ensure_obs(rec_opts) if opts.record else None     # OBS не відкритий — запуститься сам
+    try:
+        _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short, obs)
+    finally:
+        if obs is not None:
+            obs.restore()                                     # профіль / набір сцен — як були
+
+
+def _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short, obs):
+    from .replay_record import record_one
     for i, rp in enumerate(replays):
         alive()
         if cancel and cancel():

@@ -43,6 +43,10 @@ class RecordOptions:
     obs_host: str = "localhost"
     obs_port: int = 4455
     obs_password: str = ""
+    obs_exe: str = r"C:\Program Files\obs-studio\bin\64bit\obs64.exe"   # якщо OBS не відкритий — запустити
+    obs_profile: str = ""         # профіль OBS для реплеїв (порожньо — поточний)
+    obs_collection: str = ""      # набір сцен OBS для реплеїв (порожньо — поточний)
+    obs_start_wait_s: float = 60.0
     load_s: float = 60.0          # завантаження гри й реплею до початку відліку
     tail_s: float = 20.0          # після кінця бою
     default_battle_s: float = 900  # якщо тривалість у реплеї невідома (бій не дограно)
@@ -77,7 +81,10 @@ def record_seconds(info: ReplayInfo | None, opts: RecordOptions) -> float:
 class Obs:
     """Тонка обгортка над obs-websocket v5 (пакет obsws-python)."""
 
+    launched = False                  # OBS запустила програма (а не ви)
+
     def __init__(self, host: str, port: int, password: str = ""):
+        self.prev: tuple[str, str] = ("", "")
         try:
             import obsws_python as obs
         except ImportError as e:
@@ -100,6 +107,81 @@ class Obs:
     def stop(self) -> str:
         r = self.cl.stop_record()
         return str(getattr(r, "output_path", "") or "")
+
+    def switch(self, profile: str = "", collection: str = "") -> None:
+        """Профіль і набір сцен для реплеїв (запам'ятовує поточні, щоб повернути)."""
+        try:
+            cur_p = getattr(self.cl.get_profile_list(), "current_profile_name", "") or ""
+            cur_c = getattr(self.cl.get_scene_collection_list(), "current_scene_collection_name", "") or ""
+        except Exception as e:  # noqa: BLE001
+            log.warning("OBS: не вдалося прочитати профіль/набір сцен: %s", e)
+            return
+        self.prev = (cur_p, cur_c)
+        try:
+            if collection and collection != cur_c:
+                self.cl.set_current_scene_collection(collection)
+                log.info("OBS: набір сцен «%s»", collection)
+                time.sleep(2)
+            if profile and profile != cur_p:
+                self.cl.set_current_profile(profile)
+                log.info("OBS: профіль «%s»", profile)
+                time.sleep(2)
+        except Exception as e:  # noqa: BLE001
+            raise RecordError(f"OBS не перемкнувся на профіль «{profile}» / набір сцен «{collection}»: {e}. "
+                              "Перевірте назви (Профіль / Набір сцен у меню OBS).") from e
+
+    def restore(self) -> None:
+        """Повертає профіль і набір сцен, які були до запису реплеїв."""
+        p, c = self.prev
+        try:
+            cur_p = getattr(self.cl.get_profile_list(), "current_profile_name", "") or ""
+            cur_c = getattr(self.cl.get_scene_collection_list(), "current_scene_collection_name", "") or ""
+            if p and p != cur_p:
+                self.cl.set_current_profile(p)
+            if c and c != cur_c:
+                self.cl.set_current_scene_collection(c)
+        except Exception as e:  # noqa: BLE001
+            log.warning("OBS: не вдалося повернути профіль/набір сцен: %s", e)
+
+
+def launch_obs(opts: RecordOptions) -> bool:
+    """Запускає OBS (згорнутим у трей) з профілем і набором сцен для реплеїв. True — запущено."""
+    exe = Path(opts.obs_exe or "")
+    if not exe.is_file():
+        return False
+    args = [str(exe), "--minimize-to-tray", "--disable-shutdown-check"]
+    if opts.obs_profile:
+        args += ["--profile", opts.obs_profile]
+    if opts.obs_collection:
+        args += ["--collection", opts.obs_collection]
+    kw = {"creationflags": subprocess.DETACHED_PROCESS} if WIN else {"start_new_session": True}
+    subprocess.Popen(args, cwd=str(exe.parent), **kw)   # OBS шукає свої файли поруч із exe
+    log.info("Запускаю OBS: %s", exe)
+    return True
+
+
+def ensure_obs(opts: RecordOptions) -> "Obs":
+    """Зв'язок з OBS; якщо OBS не відкритий — запускає його й чекає, доки ввімкнеться WebSocket.
+    Перемикає профіль / набір сцен для реплеїв (після запису obs.restore() повертає попередні)."""
+    try:
+        obs = Obs(opts.obs_host, opts.obs_port, opts.obs_password)
+    except RecordError as first:
+        if not launch_obs(opts):
+            raise RecordError(f"{first} Шлях до OBS («{opts.obs_exe}») не знайдено — вкажіть obs64.exe у вкладці "
+                              "«🎮 Реплеї», і програма запускатиме OBS сама.") from None
+        deadline = time.time() + opts.obs_start_wait_s
+        while True:
+            time.sleep(3)
+            try:
+                obs = Obs(opts.obs_host, opts.obs_port, opts.obs_password)
+                break
+            except RecordError:
+                if time.time() > deadline:
+                    raise RecordError("OBS запустився, але WebSocket не відповідає — у OBS увімкніть "
+                                      "Інструменти → Налаштування WebSocket-сервера (порт і пароль — як у вкладці).") from None
+        obs.launched = True
+    obs.switch(opts.obs_profile, opts.obs_collection)
+    return obs
 
 
 def kill_game() -> None:
@@ -154,5 +236,6 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
     return path
 
 
-__all__ = ["Cancelled", "Obs", "RecordError", "RecordOptions", "client_version", "game_exe", "kill_game",
+__all__ = ["Cancelled", "Obs", "RecordError", "RecordOptions", "client_version", "ensure_obs", "game_exe", "kill_game",
+           "launch_obs",
            "record_one", "record_seconds"]

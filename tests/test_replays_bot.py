@@ -140,6 +140,7 @@ class ReplaysBotTest(unittest.TestCase):
 
     def test_site_list_and_download(self):
         from shorts import replay_site
+        self.rb.start = lambda manual: "ok"
         html = (ROOT / "tests" / "data" / "wot_record_list.html").read_text(encoding="utf-8")
         items = replay_site.parse_list(html)
         self.assertEqual([i["id"] for i in items], ["448004", "448003", "448002"])
@@ -182,13 +183,13 @@ class ReplaysBotTest(unittest.TestCase):
         return uo
 
     def test_document_accepted_and_rejected(self):
+        self.rb.start = lambda manual: "ok"          # запис тут не потрібен
         good = make_replay(self.d / "g.bin").read_bytes()
         uo = self._doc(good)
         self.assertEqual(uo.call_args[0][0], "https://api.telegram.org/file/botTOKEN/documents/file_1.wotreplay")
         self.assertTrue((self.d / "replays" / "good.wotreplay").exists())
         self.assertIn("Leopard1 · Prokhorovka · 7,412 шкоди", self.bot.sent[-1][0])
-        self.assertIn("У черзі на запис: 1", self.bot.sent[-1][0])
-        self.assertGreater(self.rb.last_received, 0)
+        self.assertIn("Запускаю: OBS → запис бою", self.bot.sent[-1][0])
         old = make_replay(self.d / "o.bin", first=dict(FIRST, clientVersionFromXml="1.25.0.0")).read_bytes()
         self._doc(old, "old.wotreplay")
         self.assertIn("не беру — інша версія гри", self.bot.sent[-1][0])
@@ -218,6 +219,41 @@ class ReplaysBotTest(unittest.TestCase):
                 with replay_state.running(self.d / "replays", "бот"):
                     pass
         self.assertFalse(replay_state.busy(self.d / "replays"))
+
+    def test_instant_record_after_download(self):
+        good = make_replay(self.d / "g.bin").read_bytes()
+        started = []
+        self.rb.start = lambda manual: started.append(manual) or "ok"
+        self._doc(good)
+        self.assertEqual(started, [False])                            # одразу, без очікування
+        self.assertIn("Запускаю: OBS → запис бою → нарізка → Poster", self.bot.sent[-1][0])
+        # запис уже йде — другий реплей стає в чергу, нового запуску немає
+        with replay_state.running(self.d / "replays", "бот"):
+            self._doc(make_replay(self.d / "h.bin", first=dict(FIRST, playerName="Other")).read_bytes(), "two.wotreplay")
+        self.assertEqual(started, [False])
+        self.assertIn("у черзі", self.bot.sent[-1][0])
+
+    def test_work_loops_until_queue_empty(self):
+        (self.d / "replays").mkdir()
+        a = make_replay(self.d / "replays" / "a.wotreplay")
+        calls = []
+
+        def fake_run(settings, jopts, ropts, who="", on_short=None, **kw):
+            calls.append(ropts.obs_exe)
+            done = sorted((self.d / "replays").glob("*.wotreplay"))
+            for p in done:
+                if not p.with_suffix(".recorded").exists():
+                    p.with_suffix(".recorded").write_text("x")
+                    if p == a:          # під час першого запису скачали ще один
+                        make_replay(self.d / "replays" / "b.wotreplay")
+                    break
+            return {"recorded": 1, "shorts": ["s"], "published": ["p"], "errors": []}
+        with mock.patch.object(replay_job, "run", fake_run):
+            self.rb.start(manual=False)
+            self.rb.thread.join(5)
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(calls[0].endswith("obs64.exe"))
+        self.assertIn("🏁 Готово: записано 2, шортсів 2, у Poster 2", self.bot.sent[-1][0])
 
     def test_auto_start_after_idle(self):
         started = []

@@ -252,6 +252,56 @@ class AssistFilterTest(unittest.TestCase):
             self.assertEqual(check(min_damage=0, min_assist=3000), "засвіт менший за 3000")
 
 
+class ObsLaunchTest(unittest.TestCase):
+    def test_launch_when_closed_and_switch_profile(self):
+        from unittest import mock
+        from shorts import replay_record as rr
+        with tempfile.TemporaryDirectory() as t:
+            exe = Path(t) / "obs64.exe"
+            exe.write_text("x")
+            opts = rr.RecordOptions(game_dir=Path(t), obs_exe=str(exe), obs_profile="WoT Replays",
+                                    obs_collection="WoT Replays", obs_start_wait_s=30)
+            cl = mock.Mock()
+            cl.get_profile_list.return_value = mock.Mock(current_profile_name="Stream")
+            cl.get_scene_collection_list.return_value = mock.Mock(current_scene_collection_name="Stream")
+            tries = {"n": 0}
+
+            def fake_init(self, host, port, password=""):
+                tries["n"] += 1
+                self.prev = ("", "")
+                if tries["n"] < 3:
+                    raise rr.RecordError("немає зв'язку")
+                self.cl = cl
+            with mock.patch.object(rr.Obs, "__init__", fake_init), \
+                    mock.patch.object(rr.subprocess, "Popen") as po, mock.patch.object(rr.time, "sleep"):
+                obs = rr.ensure_obs(opts)
+            args = po.call_args[0][0]
+            self.assertEqual(args[0], str(exe))
+            self.assertIn("--minimize-to-tray", args)
+            self.assertEqual(args[args.index("--profile") + 1], "WoT Replays")
+            self.assertEqual(po.call_args[1]["cwd"], str(exe.parent))
+            self.assertTrue(obs.launched)
+            cl.set_current_scene_collection.assert_called_once_with("WoT Replays")
+            cl.set_current_profile.assert_called_once_with("WoT Replays")
+            cl.get_profile_list.return_value = mock.Mock(current_profile_name="WoT Replays")
+            cl.get_scene_collection_list.return_value = mock.Mock(current_scene_collection_name="WoT Replays")
+            obs.restore()
+            cl.set_current_profile.assert_called_with("Stream")
+            cl.set_current_scene_collection.assert_called_with("Stream")
+
+    def test_no_obs_exe_gives_clear_error(self):
+        from unittest import mock
+        from shorts import replay_record as rr
+        opts = rr.RecordOptions(game_dir=Path("."), obs_exe="C:/nope/obs64.exe")
+
+        def fail(self, *a, **k):
+            raise rr.RecordError("Немає зв'язку з OBS.")
+        with mock.patch.object(rr.Obs, "__init__", fail):
+            with self.assertRaises(rr.RecordError) as cm:
+                rr.ensure_obs(opts)
+        self.assertIn("вкажіть obs64.exe", str(cm.exception))
+
+
 class ImportSeenTest(unittest.TestCase):
     def test_unsuitable_checked_once(self):
         with tempfile.TemporaryDirectory() as t:
