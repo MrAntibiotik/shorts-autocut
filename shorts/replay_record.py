@@ -50,7 +50,7 @@ class RecordOptions:
     load_s: float = 60.0          # завантаження гри й реплею до початку відліку
     # ОДИН клік лівою кнопкою в грі — камера від обличчя гравця (кожен наступний клік перемикає на вільну
     # камеру і назад, тому клік один). Секунди від запуску гри; «load+15» — через 15 с після завантаження.
-    click_at: tuple = ("load+15",)
+    click_at: tuple = ("load-5",)   # 55 с від запуску гри
     tail_s: float = 20.0          # після кінця бою
     default_battle_s: float = 900  # якщо тривалість у реплеї невідома (бій не дограно)
     max_s: float = 1500
@@ -165,10 +165,29 @@ class Obs:
     def recording(self) -> bool:
         return bool(getattr(self.cl.get_record_status(), "output_active", False))
 
-    def start(self) -> None:
+    def status(self) -> tuple[bool, str]:
+        """(чи йде запис, лічильник OBS «00:03:12»)."""
+        r = self.cl.get_record_status()
+        tc = str(getattr(r, "output_timecode", "") or "").split(".")[0]
+        return bool(getattr(r, "output_active", False)), tc
+
+    def start(self, wait_s: float = 10.0) -> None:
+        """Починає запис і ПЕРЕВІРЯЄ, що OBS справді пише (інакше — зрозуміла помилка)."""
         if self.recording():
             raise RecordError("OBS уже записує — зупиніть запис вручну і спробуйте ще раз")
-        self.cl.start_record()
+        try:
+            self.cl.start_record()
+        except Exception as e:  # noqa: BLE001
+            raise RecordError(f"OBS відмовився починати запис: {e}") from e
+        deadline = time.time() + wait_s
+        while time.time() < deadline:
+            if self.recording():
+                log.info("OBS: запис іде")
+                return
+            time.sleep(0.5)
+        raise RecordError("OBS не почав запис. В OBS перевірте: Налаштування → Вивід → Запис — «Шлях запису» "
+                          "(папка існує) і формат (mkv/mp4); спробуйте натиснути «Почати запис» в OBS вручну — "
+                          "OBS покаже, що не так. Якщо вказано профіль OBS у вкладці — перевірте саме його.")
 
     def stop(self) -> str:
         r = self.cl.stop_record()
@@ -347,17 +366,29 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
         obs.start()
         started = True
         t0 = time.time()
+        last_check, obs_tc = t0, ""
         while time.time() - t0 < total:
             if cancel and cancel():
                 raise Cancelled()
             if progress:
-                progress(f"Запис {replay.name}: {int(time.time() - t0)} / {int(total)} с", (time.time() - t0) / total)
+                progress(f"Запис {replay.name}: {int(time.time() - t0)} / {int(total)} с"
+                         + (f" · OBS ● REC {obs_tc}" if obs_tc else ""), (time.time() - t0) / total)
             if proc.poll() is not None and time.time() - t0 > opts.load_s:
                 log.info("Гру закрито раніше — зупиняю запис")
                 break
             while clicks and time.time() - launched >= clicks[0]:   # камера від обличчя гравця
                 clicks.pop(0)
                 click_player_view()
+            if time.time() - last_check >= 15:                       # OBS справді пише?
+                last_check = time.time()
+                try:
+                    active, tc = obs.status()
+                except Exception as e:  # noqa: BLE001
+                    active, tc = True, ""
+                    log.debug("OBS статус: %s", e)
+                if not active:
+                    raise RecordError("OBS зупинив запис посеред бою (закрили OBS, скінчилось місце на диску?)")
+                obs_tc = tc
             time.sleep(1)
     finally:
         out = ""

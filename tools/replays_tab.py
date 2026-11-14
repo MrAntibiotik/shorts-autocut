@@ -82,7 +82,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
         "obs_profile": tk.StringVar(value=st.get("obs_profile", "")),
         "obs_collection": tk.StringVar(value=st.get("obs_collection", "")),
         "load_s": tk.IntVar(value=int(st.get("load_s", 60))),
-        "click_s": tk.IntVar(value=int(st.get("click_s", 75))),
+        "click_s": tk.IntVar(value=int(st.get("click_s", 55))),
         "cta": tk.StringVar(value=st.get("cta", DEFAULT_CTA)),
         "day": tk.IntVar(value=max(1, int(st.get("day_n", 1)) + max(0, passed))),
         "credit": tk.BooleanVar(value=bool(st.get("credit", True))),
