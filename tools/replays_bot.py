@@ -298,11 +298,20 @@ class ReplaysBot:
         info.path = str(target)
         target.with_suffix(".json").write_text(json.dumps(info.to_dict(), ensure_ascii=False, indent=1),
                                                encoding="utf-8")
+        head = f"✓ {info.vehicle} · {info.map_name} · {info.damage:,} шкоди · фрагів {info.kills}\n"
+        if st.get("instant", True):        # одразу: запис → нарізка → Poster
+            running = (self.thread and self.thread.is_alive()) or busy(replays_dir)
+            if not running:
+                self.start(manual=False)
+                self.bot.send(head + "🎬 Запускаю: OBS → запис бою → нарізка → Poster EN-каналу.")
+            else:
+                self.bot.send(head + f"⏳ Іде запис іншого бою — цей у черзі (перед ним: {self.pending(st) - 1}). "
+                                     "Запишеться одразу після.")
+            return True
         self.last_received = time.time()
         idle = int(st.get("idle_min") or 0)
         n = self.pending(st)
-        self.bot.send(f"✓ {info.vehicle} · {info.map_name} · {info.damage:,} шкоди · фрагів {info.kills}\n"
-                      f"У черзі на запис: {n}."
+        self.bot.send(head + f"У черзі на запис: {n}."
                       + (f" Запис почнеться сам через {idle} хв без нових реплеїв." if idle else ""),
                       {"inline_keyboard": [[{"text": f"🎬 Записати зібрані ({n})", "callback_data": "F|go"}]]})
         return True
@@ -428,10 +437,13 @@ class ReplaysBot:
         from shorts.replay_meta import title_en
         from shorts.replay_record import RecordError, RecordOptions
         n = self.pending(st)
-        self.bot.send(f"🎬 Почав запис {n} реплеїв на ПК: гра відкриється на весь екран, OBS записує. "
-                      "Готові шортси підуть у Poster EN-каналу, сюди — коротко про кожен.")
+        if not st.get("instant", True) or n > 1:
+            self.bot.send(f"🎬 Почав запис {n} реплеїв на ПК: гра відкриється на весь екран, OBS записує. "
+                          "Готові шортси підуть у Poster EN-каналу, сюди — коротко про кожен.")
         ropts = RecordOptions(game_dir=Path(st["game_dir"]), obs_host=st["obs_host"], obs_port=int(st["obs_port"]),
-                              obs_password=st["obs_password"], load_s=float(st["load_s"]))
+                              obs_password=st["obs_password"], load_s=float(st["load_s"]),
+                              obs_exe=str(st.get("obs_exe") or ""), obs_profile=str(st.get("obs_profile") or ""),
+                              obs_collection=str(st.get("obs_collection") or ""))
         jopts = ReplayJobOptions(replays_dir=Path(st["replays_dir"]),
                                  publish_dir=Path(st["publish_dir"]) if str(st.get("publish_dir") or "").strip() else None,
                                  cta_text=cta_text(st), credit_author=bool(st.get("credit", True)),
@@ -440,21 +452,33 @@ class ReplaysBot:
         def on_short(path, info):
             self.bot.send(f"✅ Шортс: {title_en(info) if info else Path(path).stem}"
                           + ("\n→ у Poster EN-каналу" if jopts.publish_dir else "\n(папку EN-каналу не вказано — лише output)"))
-        try:
-            summary = run(self.settings, jopts, ropts, who="Telegram-бот", on_short=on_short)
-        except Busy as e:
-            self.bot.send(f"⏺ Не починаю: {e}.")
-            return
-        except RecordError as e:
-            self.bot.send(f"❌ Запис не почався: {e}")
-            return
-        except Exception as e:  # noqa: BLE001
-            log.exception("Реплеї з бота")
-            self.bot.send(f"❌ Помилка: {type(e).__name__}: {e}")
-            return
-        lines = [f"🏁 Готово: записано {summary['recorded']}, шортсів {len(summary['shorts'])}, "
-                 f"у Poster {len(summary['published'])}."]
-        lines += [f"❌ {e}" for e in summary["errors"][:5]]
+        total = {"recorded": 0, "shorts": 0, "published": 0, "errors": []}
+        for _ in range(100):               # реплеї, скачані під час запису, — одразу слідом
+            if not self.pending(st):
+                break
+            try:
+                summary = run(self.settings, jopts, ropts, who="Telegram-бот", on_short=on_short)
+            except Busy as e:
+                self.bot.send(f"⏺ Не починаю: {e}.")
+                return
+            except RecordError as e:
+                self.bot.send(f"❌ Запис не почався: {e}")
+                return
+            except Exception as e:  # noqa: BLE001
+                log.exception("Реплеї з бота")
+                self.bot.send(f"❌ Помилка: {type(e).__name__}: {e}")
+                return
+            total["recorded"] += summary["recorded"]
+            total["shorts"] += len(summary["shorts"])
+            total["published"] += len(summary["published"])
+            total["errors"] += summary["errors"]
+            if not summary["recorded"] and not summary["shorts"] and not summary["errors"]:
+                break
+        lines = [f"🏁 Готово: записано {total['recorded']}, шортсів {total['shorts']}, "
+                 f"у Poster {total['published']}."]
+        if total["published"]:
+            lines.append("Poster EN-каналу поставить їх у розклад і перед публікацією надішле в Telegram.")
+        lines += [f"❌ {e}" for e in total["errors"][:5]]
         self.bot.send("\n".join(lines))
 
 

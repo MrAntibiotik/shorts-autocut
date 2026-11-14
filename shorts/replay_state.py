@@ -19,6 +19,8 @@ DEFAULTS = {
     "game_dir": r"C:\Games\World_of_Tanks_EU",
     "publish_dir": "",
     "obs_host": "localhost", "obs_port": 4455, "obs_password": "",
+    "obs_exe": r"C:\Program Files\obs-studio\bin\64bit\obs64.exe", "obs_profile": "", "obs_collection": "",
+    "instant": True,             # запис одразу після скачування реплею (без очікування)
     "load_s": 60, "cta": DEFAULT_CTA, "day_n": 1, "credit": True,
     "do_record": True, "do_cut": True,
     "sort": "date", "version": "", "idle_min": 3,

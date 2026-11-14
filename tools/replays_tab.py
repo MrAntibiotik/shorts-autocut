@@ -78,6 +78,9 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
         "obs_host": tk.StringVar(value=st.get("obs_host", "localhost")),
         "obs_port": tk.IntVar(value=int(st.get("obs_port", 4455))),
         "obs_password": tk.StringVar(value=st.get("obs_password", "")),
+        "obs_exe": tk.StringVar(value=st.get("obs_exe", r"C:\Program Files\obs-studio\bin\64bit\obs64.exe")),
+        "obs_profile": tk.StringVar(value=st.get("obs_profile", "")),
+        "obs_collection": tk.StringVar(value=st.get("obs_collection", "")),
         "load_s": tk.IntVar(value=int(st.get("load_s", 60))),
         "cta": tk.StringVar(value=st.get("cta", DEFAULT_CTA)),
         "day": tk.IntVar(value=max(1, int(st.get("day_n", 1)) + max(0, passed))),
@@ -294,6 +297,23 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
     tk.Label(r, text="пароль").pack(side="left")
     tk.Entry(r, textvariable=v["obs_password"], width=16, show="•").pack(side="left", padx=2)
     tk.Button(r, text="Перевірити OBS", command=lambda: check_obs()).pack(side="left", padx=6)
+    def pick_file(var):
+        def go():
+            fpath = filedialog.askopenfilename(initialdir=str(Path(var.get()).parent) if var.get() else os.getcwd(),
+                                               filetypes=[("OBS", "obs64.exe"), ("Програми", "*.exe")])
+            if fpath:
+                var.set(fpath)
+        return go
+    row(b2, "OBS (obs64.exe)", v["obs_exe"], browse=pick_file(v["obs_exe"]))
+    r = tk.Frame(b2)
+    r.pack(fill="x", pady=2)
+    tk.Label(r, text="Профіль OBS").pack(side="left")
+    tk.Entry(r, textvariable=v["obs_profile"], width=16).pack(side="left", padx=(2, 10))
+    tk.Label(r, text="Набір сцен OBS").pack(side="left")
+    tk.Entry(r, textvariable=v["obs_collection"], width=16).pack(side="left", padx=2)
+    tk.Label(b2, text="Якщо OBS закритий — програма запустить його сама. Профіль і набір сцен (напр. «WoT Replays») "
+                      "вмикаються на час запису, потім повертаються ваші. Порожньо — як зараз в OBS.",
+             fg="#666", font=("Segoe UI", 8), wraplength=700, justify="left").pack(anchor="w")
     r = tk.Frame(b2)
     r.pack(fill="x", pady=2)
     tk.Label(r, text="Завантаження гри, с").pack(side="left")
@@ -329,6 +349,8 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
     btn_now = tk.Button(b4, text="🎬 Записати зібрані", state="disabled", command=lambda: go_now.set())
     btn_now.pack(side="right")
     tk.Button(b4, text="📂 Реплеї", command=lambda: open_dir(v["replays_dir"].get())).pack(side="right")
+    tk.Button(b4, text="💾 Зберегти", command=lambda: (persist(), lbl_stage.config(
+        text="Збережено — Telegram-бот («🎮 Реплеї») тепер бере ці папки й налаштування OBS"))).pack(side="right", padx=4)
 
     pbar = ttk.Progressbar(f, mode="determinate", maximum=1000)
     pbar.pack(fill="x", pady=(6, 2))
@@ -416,7 +438,9 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
             last_new = time.time()
             seen: set = set()                 # непідхожі файли в «Завантаженнях» — перевіряються один раз
             ropts = RecordOptions(game_dir=game_dir, obs_host=params["obs_host"], obs_port=int(params["obs_port"]),
-                                  obs_password=params["obs_password"], load_s=float(params["load_s"]))
+                                  obs_password=params["obs_password"], load_s=float(params["load_s"]),
+                                  obs_exe=params["obs_exe"], obs_profile=params["obs_profile"].strip(),
+                                  obs_collection=params["obs_collection"].strip())
             jopts = ReplayJobOptions(replays_dir=replays_dir,
                                      publish_dir=Path(params["publish_dir"]) if params["publish_dir"].strip() else None,
                                      cta_text=params["cta_text"], credit_author=bool(params["credit"]),
