@@ -65,7 +65,8 @@ class Cards:
              "det": {"check": f"версія {version}" if version else ""}, "queue": queue,
              "msg": None, "edited": 0.0, "info": info}
         stop = {"inline_keyboard": [[{"text": "⏹ Зупинити запис", "callback_data": "F|stop"}]]}
-        res = self.bot.send(self.text(c), stop if "вкладк" in queue else None)
+        # кнопки ПІД повідомленням з самого початку — інакше Telegram не дає потім редагувати картку з кнопкою
+        res = self.bot.send(self.text(c), stop if "вкладк" in queue else {"inline_keyboard": []})
         c["msg"] = res.get("message_id") if isinstance(res, dict) else None
         with self.lock:
             self.cards[key] = c
@@ -83,13 +84,18 @@ class Cards:
         active = c["st"].get("rec") == "run" or c["st"].get("obs") == "run" or "вкладк" in (c.get("queue") or "")
         markup = {"inline_keyboard": [[{"text": "⏹ Зупинити запис", "callback_data": "F|stop"}]]} if active \
             else {"inline_keyboard": []}
+        import logging
         try:
             self.bot.api.call("editMessageText", chat_id=self.bot.owner, message_id=c["msg"], text=self.text(c),
                               reply_markup=markup)
-        except Exception as e:  # noqa: BLE001 — «not modified» і подібне не важливі
-            if "not modified" not in str(e):
-                import logging
-                logging.getLogger("replays").debug("Картка: %s", e)
+        except Exception as e:  # noqa: BLE001 — «not modified» не важливе; інше — пробуємо без кнопки
+            if "not modified" in str(e):
+                return
+            try:
+                self.bot.api.call("editMessageText", chat_id=self.bot.owner, message_id=c["msg"], text=self.text(c))
+            except Exception as e2:  # noqa: BLE001
+                if "not modified" not in str(e2):
+                    logging.getLogger("replays").warning("Картка не оновилась: %s / %s", e, e2)
 
     def set_queue(self, keys: list[str]) -> None:
         """«У черзі: перед ним N» — для тих, хто ще чекає запису."""
@@ -116,7 +122,7 @@ class Cards:
                         info = None
                     self.cards[key] = {"head": self.head(info), "st": {"dl": "done", "check": "done"}, "det": {},
                                        "queue": "", "msg": None, "edited": 0.0, "info": info}
-                    res = self.bot.send(self.text(self.cards[key]))
+                    res = self.bot.send(self.text(self.cards[key]), {"inline_keyboard": []})
                     self.cards[key]["msg"] = res.get("message_id") if isinstance(res, dict) else None
                 targets = [self.cards[key]]
             for c in targets:

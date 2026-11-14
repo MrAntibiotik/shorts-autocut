@@ -383,6 +383,7 @@ class ReplaysBotTest(unittest.TestCase):
         cards.create("card", parse(rp), version="2.4.1.1")
         mid = 99
         text = self.bot.sent[-1][0]
+        self.assertEqual(self.bot.sent[-1][1], {"inline_keyboard": []})   # інакше Telegram не дасть редагувати
         self.assertIn("✅ Скачано", text)
         self.assertIn("⏸ OBS — чекає", text)
         cards.stage(None, "obs", "run", "перевіряю гру й OBS…")
