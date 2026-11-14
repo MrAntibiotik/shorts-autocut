@@ -82,6 +82,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
         "obs_profile": tk.StringVar(value=st.get("obs_profile", "")),
         "obs_collection": tk.StringVar(value=st.get("obs_collection", "")),
         "load_s": tk.IntVar(value=int(st.get("load_s", 60))),
+        "click_s": tk.IntVar(value=int(st.get("click_s", 75))),
         "cta": tk.StringVar(value=st.get("cta", DEFAULT_CTA)),
         "day": tk.IntVar(value=max(1, int(st.get("day_n", 1)) + max(0, passed))),
         "credit": tk.BooleanVar(value=bool(st.get("credit", True))),
@@ -318,6 +319,9 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
     r.pack(fill="x", pady=2)
     tk.Label(r, text="Завантаження гри, с").pack(side="left")
     tk.Spinbox(r, from_=20, to=300, width=5, textvariable=v["load_s"]).pack(side="left", padx=2)
+    tk.Label(r, text="Клік у грі через, с").pack(side="left", padx=(16, 2))
+    tk.Spinbox(r, from_=0, to=400, width=5, textvariable=v["click_s"]).pack(side="left", padx=2)
+    tk.Label(r, text="(1 клік = камера від гравця; 0 — не клікати)", fg="#666").pack(side="left", padx=4)
     tk.Label(b2, text="Гра — англійською, голос екіпажу стандартний, музика вимкнена. OBS: сцена з захопленням гри, "
                       "Інструменти → Налаштування WebSocket-сервера → увімкнути.",
              fg="#666", font=("Segoe UI", 8), wraplength=700, justify="left").pack(anchor="w")
@@ -441,6 +445,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
             seen: set = set()                 # непідхожі файли в «Завантаженнях» — перевіряються один раз
             ropts = RecordOptions(game_dir=game_dir, obs_host=params["obs_host"], obs_port=int(params["obs_port"]),
                                   obs_password=params["obs_password"], load_s=float(params["load_s"]),
+                                  click_at=(str(int(params["click_s"])),) if int(params["click_s"]) else (),
                                   obs_exe=params["obs_exe"], obs_profile=params["obs_profile"].strip(),
                                   obs_collection=params["obs_collection"].strip())
             jopts = ReplayJobOptions(replays_dir=replays_dir,
