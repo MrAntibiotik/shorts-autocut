@@ -48,6 +48,7 @@ class DownloadOptions:
     client_version: tuple = ()         # (1, 26, 0) — версія вашої гри; () — не перевіряти
     min_damage: int = 0
     min_kills: int = 0
+    min_assist: int = 0                # засвіт (асист); бій підходить, якщо шкода від min_damage АБО засвіт від min_assist
     pause_s: float = 3.0
     max_pages: int = 10
     timeout_s: float = 60.0
@@ -138,8 +139,12 @@ def check_replay(path: Path, opts) -> tuple[ReplayInfo | None, str | None]:
         return info, f"інша версія гри ({info.version or '?'})"
     if not info.complete:
         return info, "бій не дограно до кінця"
-    if info.damage < opts.min_damage:
-        return info, f"шкода менша за {opts.min_damage}"
+    md, ma = int(opts.min_damage or 0), int(getattr(opts, "min_assist", 0) or 0)
+    if ma > 0:      # або шкода, або засвіт (світляки)
+        if not (md > 0 and info.damage >= md) and info.assist < ma:
+            return info, (f"шкода менша за {md} і засвіт менший за {ma}" if md > 0 else f"засвіт менший за {ma}")
+    elif info.damage < md:
+        return info, f"шкода менша за {md}"
     if info.kills < opts.min_kills:
         return info, f"фрагів менше за {opts.min_kills}"
     return info, None
@@ -152,6 +157,7 @@ class ImportOptions:
     client_version: tuple = ()
     min_damage: int = 0
     min_kills: int = 0
+    min_assist: int = 0                # засвіт (асист); бій підходить, якщо шкода від min_damage АБО засвіт від min_assist
     min_age_s: float = 5.0             # файл, що ще докачується, не чіпаємо
     seen: set | None = None            # (ім'я, час зміни) уже перевірених непідхожих — не перевіряти щоразу
 

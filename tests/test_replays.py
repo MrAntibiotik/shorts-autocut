@@ -236,6 +236,20 @@ class FilterTest(unittest.TestCase):
         self.assertEqual(version_value((2, 4, 1, 1)), "2.4")
 
 
+class AssistFilterTest(unittest.TestCase):
+    def test_damage_or_assist(self):
+        with tempfile.TemporaryDirectory() as t:
+            r = make_replay(Path(t) / "a.wotreplay")          # 7412 шкоди, 1250 засвіту
+            O = rd.ImportOptions
+            check = lambda **kw: rd.check_replay(r, O(src=Path(t), dest=Path(t), **kw))[1]  # noqa: E731
+            self.assertIsNone(check(min_damage=7000))
+            self.assertEqual(check(min_damage=8000), "шкода менша за 8000")
+            self.assertIsNone(check(min_damage=8000, min_assist=1000))      # шкоди мало, але засвіту досить
+            self.assertEqual(check(min_damage=8000, min_assist=2000), "шкода менша за 8000 і засвіт менший за 2000")
+            self.assertIsNone(check(min_damage=0, min_assist=1200))
+            self.assertEqual(check(min_damage=0, min_assist=3000), "засвіт менший за 3000")
+
+
 class ImportSeenTest(unittest.TestCase):
     def test_unsuitable_checked_once(self):
         with tempfile.TemporaryDirectory() as t:

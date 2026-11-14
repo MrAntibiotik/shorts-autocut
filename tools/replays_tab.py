@@ -70,6 +70,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
         "count": tk.IntVar(value=int(st.get("count", 5))),
         "min_damage": tk.IntVar(value=int(st.get("min_damage", 4000))),
         "min_kills": tk.IntVar(value=int(st.get("min_kills", 0))),
+        "min_assist": tk.IntVar(value=int(st.get("min_assist", 0))),
         "pause": tk.DoubleVar(value=float(st.get("pause", 3))),
         "game_dir": tk.StringVar(value=st.get("game_dir", r"C:\Games\World_of_Tanks_EU")),
         "replays_dir": tk.StringVar(value=st.get("replays_dir", replays_default)),
@@ -262,7 +263,8 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
     row(b1b, "Папка «Завантаження»", v["downloads_dir"], browse=pick_dir(v["downloads_dir"]))
     r = tk.Frame(b1b)
     r.pack(fill="x", pady=2)
-    for label, key, lo, hi in (("Шкода від", "min_damage", 0, 20000), ("Фрагів від", "min_kills", 0, 15)):
+    for label, key, lo, hi in (("Шкода від", "min_damage", 0, 20000), ("або засвіт від", "min_assist", 0, 20000),
+                               ("Фрагів від", "min_kills", 0, 15)):
         tk.Label(r, text=label).pack(side="left")
         tk.Spinbox(r, from_=lo, to=hi, width=6, textvariable=v[key]).pack(side="left", padx=(2, 12))
     tk.Label(r, text="Почати запис, коли нових немає").pack(side="left")
@@ -392,6 +394,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
                     res = fetch(DownloadOptions(url=params["url"].strip(), dest=replays_dir,
                                                 count=int(params["count"]), client_version=ver[:3],
                                                 min_damage=int(params["min_damage"]), min_kills=int(params["min_kills"]),
+                                                min_assist=int(params["min_assist"]),
                                                 pause_s=float(params["pause"])),
                                 progress=lambda t, fr: q.put(("progress", ("Скачування: " + t, fr))),
                                 cancel=cancel.is_set)
@@ -416,7 +419,8 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
                 if watch:
                     res = import_folder(ImportOptions(src=Path(params["downloads_dir"]), dest=replays_dir,
                                                       client_version=ver[:3], min_damage=int(params["min_damage"]),
-                                                      min_kills=int(params["min_kills"]), min_age_s=3, seen=seen))
+                                                      min_kills=int(params["min_kills"]), min_assist=int(params["min_assist"]),
+                                                      min_age_s=3, seen=seen))
                     if res.saved:
                         last_new = time.time()
                         total["imported"] += len(res.saved)

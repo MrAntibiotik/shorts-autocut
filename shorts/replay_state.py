@@ -15,7 +15,7 @@ from .config import work_dir
 DEFAULT_CTA = "Day {day} · Ukrainian veteran on the road to 1000 subs — subscribe 🛡️♥️"
 DEFAULTS = {
     "downloads_dir": str(Path.home() / "Downloads"),
-    "min_damage": 4000, "min_kills": 0,
+    "min_damage": 4000, "min_kills": 0, "min_assist": 0,
     "game_dir": r"C:\Games\World_of_Tanks_EU",
     "publish_dir": "",
     "obs_host": "localhost", "obs_port": 4455, "obs_password": "",
