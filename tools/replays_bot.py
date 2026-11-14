@@ -280,6 +280,12 @@ class ReplaysBot:
         replays_dir.mkdir(parents=True, exist_ok=True)
         stem = re.sub(r"[^\w\-]+", "_", Path(name).stem)[:80] or f"tg_{int(time.time())}"
         target = replays_dir / f"{stem}.wotreplay"
+        if target.with_suffix(".failed").exists() and target.exists():   # раніше не вдався — ще раз
+            target.with_suffix(".failed").unlink(missing_ok=True)
+            self.bot.send(f"🔁 «{name}» раніше не записався — ставлю в чергу ще раз.")
+            if st.get("instant", True) and not ((self.thread and self.thread.is_alive()) or busy(replays_dir)):
+                self.start(manual=False)
+            return True
         if target.exists() or target.with_suffix(".recorded").exists():
             self.bot.send(f"«{name}» уже є в черзі або записаний.")
             return True
@@ -425,6 +431,9 @@ class ReplaysBot:
         replays_dir = Path(st["replays_dir"])
         if (self.thread and self.thread.is_alive()) or busy(replays_dir):
             return "⏺ Запис уже йде"
+        if manual:                        # «🎬 Записати зібрані» — і ті, що раніше не вдалися
+            from shorts.replay_job import retry_failed
+            retry_failed(replays_dir)
         n = self.pending(st)
         if not n:
             return "Черга порожня — спершу надішліть реплеї"

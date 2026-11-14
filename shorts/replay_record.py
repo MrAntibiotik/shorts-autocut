@@ -46,7 +46,7 @@ class RecordOptions:
     obs_exe: str = r"C:\Program Files\obs-studio\bin\64bit\obs64.exe"   # якщо OBS не відкритий — запустити
     obs_profile: str = ""         # профіль OBS для реплеїв (порожньо — поточний)
     obs_collection: str = ""      # набір сцен OBS для реплеїв (порожньо — поточний)
-    obs_start_wait_s: float = 60.0
+    obs_start_wait_s: float = 90.0   # перший запуск OBS буває довгим
     load_s: float = 60.0          # завантаження гри й реплею до початку відліку
     tail_s: float = 20.0          # після кінця бою
     default_battle_s: float = 900  # якщо тривалість у реплеї невідома (бій не дограно)

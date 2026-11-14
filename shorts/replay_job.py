@@ -35,6 +35,16 @@ class ReplayJobOptions:
     only: list[str] = field(default_factory=list)   # конкретні файли реплеїв; порожньо — усі незаписані
 
 
+def retry_failed(replays_dir: Path) -> int:
+    """Знову в чергу реплеї, що не вдалися (прибирає позначки .failed). Повертає їх кількість."""
+    n = 0
+    for f in Path(replays_dir).glob("*.failed"):
+        if f.with_suffix(".wotreplay").exists():
+            f.unlink(missing_ok=True)
+            n += 1
+    return n
+
+
 def pending_replays(replays_dir: Path) -> list[Path]:
     """Реплеї в папці, які ще не оброблено (поруч немає <id>.recorded чи <id>.failed)."""
     return sorted(p for p in Path(replays_dir).glob("*.wotreplay")
@@ -123,7 +133,9 @@ def run(settings: dict, opts: ReplayJobOptions, rec_opts=None, progress=None, ca
 
 
 def _run(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short):
-    from .replay_record import ensure_obs
+    from .replay_record import ensure_obs, game_exe
+    if opts.record:
+        game_exe(rec_opts.game_dir)        # немає гри — зупиняємось ДО запису: реплеї лишаються в черзі
     obs = ensure_obs(rec_opts) if opts.record else None     # OBS не відкритий — запуститься сам
     try:
         _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short, obs)
@@ -180,4 +192,4 @@ def _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive
                 rp.with_suffix(".failed").write_text(str(e), encoding="utf-8")
 
 
-__all__ = ["PROFILE_ID", "ReplayJobOptions", "cut_recording", "pending_replays", "poster_json", "publish", "run"]
+__all__ = ["PROFILE_ID", "ReplayJobOptions", "retry_failed", "cut_recording", "pending_replays", "poster_json", "publish", "run"]
