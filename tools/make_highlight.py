@@ -47,9 +47,20 @@ def load_battle(d: Path) -> dict:
 NOT_FOUND = "Не знайдено запис гри"
 
 
-def find_recording(path: str, settings: dict | None = None) -> Path:
-    """Запис за шляхом з результату; якщо його перенесли/перейменували — той самий файл з іншим
-    розширенням (OBS remux mkv→mp4) або з тією ж назвою в папці стрімів чи сусідніх папках."""
+def _videos(d: Path, deep: bool) -> list[Path]:
+    try:
+        it = d.rglob("*") if deep else d.iterdir()
+        return [q for q in it if q.is_file() and q.suffix.lower() in VIDEO_EXT and "_webcam" not in q.stem.lower()]
+    except OSError:
+        return []
+
+
+def find_recording(path: str, settings: dict | None = None, meta: dict | None = None) -> Path:
+    """Оригінальний запис стріму для хайлайту. Порядок пошуку:
+    1) шлях з результату; 2) той самий файл з іншим розширенням (OBS remux mkv→mp4);
+    3) та сама назва в папці стрімів / сусідніх папках; 4) час у назві OBS (рррр-мм-дд гг-хх-сс) ±3 с;
+    5) запис у папці стрімів з такою ж тривалістю (±1 с) і розміром кадру, як під час нарізки."""
+    from shorts.recording import _stamp
     p = Path(path)
     if p.exists():
         return p
@@ -57,17 +68,36 @@ def find_recording(path: str, settings: dict | None = None) -> Path:
         q = p.with_suffix(ext)
         if q.exists():
             return q
-    dirs = [recordings_dir(settings)] if settings else []
-    dirs += [p.parent, p.parent.parent, Path.home() / "Videos"]
-    for d in dict.fromkeys(dirs):
-        try:
-            for q in d.rglob(p.stem + ".*"):
-                if q.suffix.lower() in VIDEO_EXT and "_webcam" not in q.stem:
-                    return q
-        except OSError:
-            pass
-    raise RuntimeError(f"{NOT_FOUND}: {p}\n(його перенесли, перейменували чи видалили? "
-                       f"Виберіть файл запису або поверніть його на місце)")
+    rdir = recordings_dir(settings) if settings else Path.home() / "Videos"
+    dirs = list(dict.fromkeys([rdir, p.parent, p.parent.parent, Path.home() / "Videos"]))
+    cands: list[Path] = []
+    for d in dirs:
+        cands += _videos(d, deep=(d == rdir or d == p.parent))
+    cands = list(dict.fromkeys(cands))
+    for q in cands:                                         # 3) та сама назва
+        if q.stem.lower() == p.stem.lower():
+            return q
+    t0 = _stamp(p.stem)                                     # 4) час запису в назві OBS
+    if t0 is not None:
+        near = [(abs((_stamp(q.stem) - t0).total_seconds()), q) for q in cands if _stamp(q.stem) is not None]
+        near = [x for x in near if x[0] <= 3.0]
+        if near:
+            return min(near, key=lambda x: x[0])[1]
+    if meta and settings and meta.get("duration"):          # 5) тривалість + розмір кадру
+        dur, w, h = float(meta["duration"]), meta.get("width"), meta.get("height")
+        if t0 is not None:                                  # спершу ті, що створені ближче до часу запису
+            key = lambda q: abs(q.stat().st_mtime - t0.timestamp() - dur)
+        else:
+            key = lambda q: -q.stat().st_mtime
+        for q in sorted(cands, key=key)[:60]:
+            try:
+                i = probe(settings, q)
+            except Exception:
+                continue
+            if abs(i.duration - dur) <= 1.0 and (not w or (i.width == w and i.height == h)):
+                return q
+    raise RuntimeError(f"{NOT_FOUND}: {p}\n(у папці стрімів {rdir} немає запису з такою назвою, часом "
+                       f"чи тривалістю — виберіть файл або змініть «Папку зі стрімами»)")
 
 
 def make(job_dir: Path, battle_idx: int, settings: dict | None = None, rec_override: str | None = None) -> dict:
@@ -84,7 +114,7 @@ def make(job_dir: Path, battle_idx: int, settings: dict | None = None, rec_overr
         if not rec_path.exists():
             raise RuntimeError(f"{NOT_FOUND}: {rec_path}")
     else:
-        rec_path = find_recording(orig_path, settings)
+        rec_path = find_recording(orig_path, settings, rec)
     rec = dict(rec, path=str(rec_path))
     info = probe(settings, rec_path)
     st = resolve_recording(settings, info)
@@ -156,7 +186,7 @@ def main() -> int:
         it = next((x for x in battles_of(job_dir) if int(x["battle"]) == int(battle)), None)
         if it:
             try:
-                find_recording(it["rec"]["path"], settings)
+                find_recording(it["rec"]["path"], settings, it["rec"])
             except RuntimeError:
                 rec = ask_recording(settings, it["rec"]["path"])
     res = make(job_dir, battle, settings, rec)
