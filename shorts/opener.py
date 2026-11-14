@@ -81,10 +81,12 @@ def make_opener(settings: dict, cfg: dict, highlight_mp4: Path, starts: list[flo
     env = dict(os.environ)
     ff_dir = str(Path(find_tool(settings, "ffmpeg")).parent)
     env["PATH"] = ff_dir + os.pathsep + env.get("PATH", "")
+    env["PYTHONIOENCODING"] = "utf-8"       # Windows-консоль (cp1251) не вміє «→» та інші символи
+    env["PYTHONUTF8"] = "1"
     r = subprocess.run([sys.executable, str(script), str(job)], cwd=str(tdir), env=env, capture_output=True,
                        creationflags=_NO_WINDOW)
     if r.returncode != 0 or not out.exists():
-        raise RuntimeError((r.stdout + r.stderr).decode("utf-8", "replace")[-800:])
+        raise RuntimeError((r.stdout + r.stderr).decode("utf-8", "replace").strip()[-800:])
     job.unlink(missing_ok=True)
     return out
 

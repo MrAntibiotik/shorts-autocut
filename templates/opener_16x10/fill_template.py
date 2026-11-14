@@ -41,6 +41,11 @@ def run(cmd, what):
     if subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error"] + cmd).returncode != 0: die(what)
 
 def main():
+    for st in (sys.stdout, sys.stderr):        # Windows: вивід у cp1251 падає на «→» — пишемо UTF-8
+        try:
+            st.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     if len(sys.argv) < 2: die("вкажи файл моментів: python fill_template.py moments.json")
     if shutil.which("ffmpeg") is None: die("ffmpeg не знайдено в PATH")
     mpath = os.path.abspath(sys.argv[1]); mdir = os.path.dirname(mpath)

@@ -213,9 +213,20 @@ def make_preview(settings: dict, mp4: Path, horizontal: bool = False) -> Path:
     if out.exists():
         return out
     tmp = out.with_suffix(".tmp.mp4")
+    # якість під ліміт Telegram: бітрейт = 46 МБ / тривалість (довгий хайлайт теж влазить)
+    try:
+        from shorts.media import probe
+        dur = max(1.0, float(probe(settings, mp4).duration))
+    except Exception:
+        dur = 60.0
+    vbit = int(46 * 1024 * 1024 * 8 / dur / 1000) - 96 - 20          # кбіт/с відео (мінус звук і запас)
+    rate = ["-maxrate", f"{max(150, vbit)}k", "-bufsize", f"{max(300, vbit * 2)}k"]
+    vf = "scale=480:-2"
+    if horizontal:
+        vf = "scale=-2:480" if vbit >= 700 else "scale=-2:360"     # дуже довге — трохи менший кадр
     cmd = [find_tool(settings, "ffmpeg"), "-hide_banner", "-loglevel", "error", "-y", "-i", str(mp4),
-           "-vf", "scale=-2:480" if horizontal else "scale=480:-2", "-c:v", "libx264", "-preset", "veryfast",
-           "-crf", "30" if horizontal else "28",
+           "-vf", vf + ",setsar=1", "-c:v", "libx264", "-preset", "veryfast",
+           "-crf", "30" if horizontal else "28", *rate,
            "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(tmp)]
     r = subprocess.run(cmd, capture_output=True, creationflags=_NO_WINDOW)
     if r.returncode != 0:
