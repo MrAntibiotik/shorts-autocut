@@ -6,8 +6,11 @@
 Запас підбирається автоматично, щоб тривалість була в межах target_min_s…target_max_s.
 Бій, коротший за target_max_s, іде цілим. Початок і кінець бою — завжди.
 
-Кадр 16:10 у рідній роздільності запису (3440×1440 → 2304×1440, без розтягування гри): центр гри
-на весь кадр, вебкамера — у кутку, блок лічильників — під нею. Opener підлаштовується під цей розмір.
+Кадр (highlights → frame):
+  "stream" (за замовчуванням) — увесь кадр стріму як є, у рідній роздільності (3440×1440 лишається 3440×1440):
+           вебка, лог шкоди й усе інше — там, де їх бачили глядачі, нічого не вирізається й не накладається;
+  "crop16x10" — центр гри 16:10 (2304×1440) + вебка в кутку й блок лічильників під нею накладками.
+Opener підлаштовується під розмір кадру.
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ DEFAULTS = {
     "merge_gap_s": 20.0,
     "include_start_s": 20.0,
     "include_end_s": 10.0,
+    "frame": "stream",         # stream — увесь кадр стріму як є; crop16x10 — центр 16:10 з накладками
     "output": "auto",          # «auto» — рідна роздільність запису: висота запису × 16:10 (3440×1440 → 2304×1440)
     "webcam_width": 480,
     "webcam_corner": "top_left",
@@ -119,6 +123,12 @@ def select_highlight(b: dict, cfg: dict, rec_start: float, rec_end: float) -> li
 
 def compute_highlight_layout(profile: dict, rec_w: int, rec_h: int, webcam_file: dict | None = None) -> Layout:
     cfg = cfg_of(profile)
+    fps = int(profile["layout"]["output"].get("fps", 60))
+    if cfg.get("frame", "stream") != "crop16x10":            # увесь кадр стріму, без обрізання й накладок
+        W, H = int(rec_w) // 2 * 2, int(rec_h) // 2 * 2
+        return Layout(W, H, fps, "highlight",
+                      [Layer("game", 1, "recording", Rect(0, 0, W, H), Rect(0, 0, W, H), rec_w, rec_h)],
+                      int(H * 0.85), [], 0)
     out = cfg.get("output")
     if isinstance(out, dict) and out.get("width") and out.get("height"):
         W, H = int(out["width"]), int(out["height"])
@@ -131,7 +141,6 @@ def compute_highlight_layout(profile: dict, rec_w: int, rec_h: int, webcam_file:
     k = H / 1200.0                          # розміри вебки/лічильників/відступів задані для 1200 px
     cfg = dict(cfg, margin=float(cfg["margin"]) * k, webcam_width=float(cfg["webcam_width"]) * k,
                counters_height=float(cfg["counters_height"]) * k)
-    fps = int(profile["layout"]["output"].get("fps", 60))
     zones = profile.get("zones") or {}
     m = float(cfg["margin"])
     layers: list[Layer] = []
@@ -191,14 +200,18 @@ def make_highlight(settings: dict, info, profile: dict, b: dict, webcam: dict | 
     dur = sum(e - s for s, e in segs)
     mp4 = Path(mp4)
     log.info("  Хайлайт бою %d (%d): %s, шматків %d", b["index"], battle_value(b), fmt_time(dur, 0), len(segs))
-    render_short(settings, info, layout, segs, [], mp4, webcam)
-    opened = False
+    cam_video = webcam if any(l.source == "webcam_file" for l in layout.layers) else None
+    render_short(settings, info, layout, segs, [], mp4, cam_video)
+    opened, note = False, ""
     from .opener import cfg_of as ocfg_of, join, make_opener, pick_moments
     ocfg = ocfg_of(hcfg)
-    if ocfg.get("enabled"):
+    if not ocfg.get("enabled"):
+        note = "вимкнено в профілі (highlights → opener → enabled)"
+    else:
         starts = pick_moments(_points(b), segs, ocfg)
         if not starts:
-            log.info("    opener: яскравих моментів менше 3 — хайлайт без opener'а")
+            note = f"яскравих моментів менше 3 (у бою знайдено {len(_points(b))})"
+            log.info("    opener: %s — хайлайт без opener'а", note)
         else:
             try:
                 op = make_opener(settings, ocfg, mp4, starts, Path(work) / f"{mp4.stem}_opener.mp4",
@@ -209,6 +222,7 @@ def make_highlight(settings: dict, info, profile: dict, b: dict, webcam: dict | 
                 opened = True
                 log.info("    opener: %d моментів додано на початок", len(starts))
             except Exception as e:
-                log.warning("[УВАГА] Opener не зроблено (%s) — хайлайт без нього", str(e)[-300:])
-    return {"battle": b["index"], "mp4": str(mp4), "duration": round(dur, 1), "opener": opened,
+                note = str(e).strip()[-400:] or type(e).__name__
+                log.warning("[УВАГА] Opener не зроблено (%s) — хайлайт без нього", note)
+    return {"battle": b["index"], "mp4": str(mp4), "duration": round(dur, 1), "opener": opened, "opener_note": note,
             "segments": [{"s": s, "e": e} for s, e in segs]}

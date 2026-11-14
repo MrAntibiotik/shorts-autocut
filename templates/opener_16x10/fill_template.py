@@ -52,8 +52,16 @@ def main():
     if job.get("canvas"):
         tpl["canvas"].update({k: int(v) for k, v in job["canvas"].items() if k in ("width", "height", "fps")})
     W, H, FPS = (tpl["canvas"][k] for k in ("width", "height", "fps"))
-    KS = W / BASE_W
-    SC = f"scale={W}:{H}"
+    BASE_H = json.load(open("template.json", encoding="utf-8"))["canvas"]["height"]
+    KS = min(W / BASE_W, H / BASE_H)
+    CX = int(round((W - BASE_W * KS) / 2))          # зсув підписів, якщо кадр ширший за 16:10
+    if abs(W / H - BASE_W / BASE_H) < 0.02:
+        SC = f"scale={W}:{H}"
+        OUTRO_VF = SC
+    else:   # кадр іншої пропорції (напр. 21:9) — шари шаблону вписуються по висоті, по центру, без розтягування
+        SC = f"scale=-2:{H},format=yuva420p,pad={W}:{H}:(ow-iw)/2:0:color=black@0"
+        OUTRO_VF = (f"split[ob][of];[ob]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+                    f"boxblur=40:2,eq=brightness=-0.15[obb];[of]scale=-2:{H}[off];[obb][off]overlay=(W-w)/2:0")
     M, Lr, A = tpl["moments"], tpl["layers"], tpl["audio"]
     moms = job["moments"]; n = len(moms)
     if not M["min"] <= n <= M["max"]: die(f"моментів має бути від {M['min']} до {M['max']}, а передано {n}")
@@ -88,8 +96,8 @@ def main():
              "-map", "[v]", "-map", "[a]", "-r", str(FPS)] + fast + ["-c:a", "pcm_s16le", seg], f"момент {k + 1}")
         segs.append(seg)
     seg = os.path.join(tmp, "seg_outro.mkv")
-    run(["-i", tpl["outro"]["file"], "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-vf", SC,
-         "-map", "0:v", "-map", "1:a",
+    run(["-i", tpl["outro"]["file"], "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-filter_complex", f"[0:v]{OUTRO_VF},format=yuv420p[ov]",
+         "-map", "[ov]", "-map", "1:a",
          "-t", str(tpl["outro"]["duration"]), "-r", str(FPS), "-pix_fmt", "yuv420p"] + fast + ["-c:a", "pcm_s16le", seg], "заставка")
     segs.append(seg)
     lst = os.path.join(tmp, "list.txt")
@@ -117,6 +125,7 @@ def main():
     c = dict(tpl["caption"]); dt = []
     for key in ("x", "y", "w", "h", "size"):
         c[key] = int(round(c[key] * KS))
+    c["x"] += CX
     if job.get("captions", c["enabled"]):
         for k, ((kind, a, b), m) in enumerate(zip(tl, moms)):
             txt = m.get("caption", "").strip()[: c["max_chars"]]

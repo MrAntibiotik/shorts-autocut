@@ -11,3 +11,6 @@ defaults/
 config/telegram.json
 output/_telegram.json
 VERSION.json
+
+# тимчасові папки opener-а (fill_template.py)
+templates/opener_16x10/opener_*/

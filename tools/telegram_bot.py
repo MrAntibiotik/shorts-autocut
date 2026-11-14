@@ -325,7 +325,7 @@ class Bot:
                   markup={"inline_keyboard": rows})
 
     def start_highlight(self, job_dir: Path, s: dict, rec: str | None = None):
-        """Хайлайт 16:10 цього бою у фоні (tools/make_highlight.py); готовий — надіслати відео 480p."""
+        """Хайлайт цього бою у фоні (tools/make_highlight.py); готовий — надіслати відео 480p."""
         if self.hl_busy:
             self.send("⏳ Уже роблю інший хайлайт — дочекайтесь, будь ласка.")
             return
@@ -333,7 +333,7 @@ class Bot:
             self.send("Для цього шортсу немає даних бою (старий результат).")
             return
         self.hl_busy = True
-        wait = self.send(f"⏳ Хайлайт: {s['name']}\nРоблю 16:10 на 7–8 хв з opener'ом — це займе кілька хвилин…")
+        wait = self.send(f"⏳ Хайлайт: {s['name']}\nРоблю на 7–8 хв (увесь кадр стріму) з opener'ом — це займе кілька хвилин…")
 
         def work():
             try:
@@ -358,6 +358,9 @@ class Bot:
                 mp4 = Path(res["mp4"])
                 cap = (f"🎬 Хайлайт: {s['name']}\n⏱ {res['duration'] / 60:.1f} хв"
                        + (" + opener" if res.get("opener") else "") + f"\n📁 {mp4.parent.parent.name}\\highlights")
+                if not res.get("opener"):
+                    why = res.get("opener_note") or "причина в логах (work\\logs)"
+                    cap += ("\n⚠ Без opener'а: " + why)[:700]
                 try:
                     prev = make_preview(self.settings, mp4, horizontal=True)
                     if prev.stat().st_size > MAX_UPLOAD:
@@ -468,7 +471,7 @@ class Bot:
         if not video:
             first.insert(0, {"text": "▶ Переглянути 480p", "callback_data": f"v|{key}"})
         rows = [first, second + [{"text": "🗑 Видалити", "callback_data": f"d|{key}"}],
-                [{"text": "🎬 Хайлайт цього бою (16:10)", "callback_data": f"H|{key}"}]]
+                [{"text": "🎬 Хайлайт цього бою", "callback_data": f"H|{key}"}]]
         if published:   # помітна плашка статусу над кнопками
             rows.insert(0, [{"text": "✅ ДО ПУБЛІКАЦІЇ ✅", "callback_data": f"n|{key}"}])
         return {"inline_keyboard": rows}

@@ -353,7 +353,7 @@ def gui(settings, log_file: Path):
     v_hl = tk.BooleanVar(value=state.get("highlights_on", True))
     hl_row = tk.Frame(opts_frame)
     hl_row.pack(anchor="w")
-    tk.Checkbutton(hl_row, text="Хайлайти 16:10 (7–8 хв) для боїв зі шкодою або засвітом від",
+    tk.Checkbutton(hl_row, text="Хайлайти (7–8 хв, увесь кадр стріму) для боїв зі шкодою або засвітом від",
                    variable=v_hl).pack(side="left")
     v_hl_min = tk.IntVar(value=int(state.get("hl_min", 7000)))
     tk.Spinbox(hl_row, from_=0, to=20000, increment=500, width=6, textvariable=v_hl_min).pack(side="left", padx=4)
