@@ -398,6 +398,7 @@ def ensure_obs(opts: RecordOptions) -> "Obs":
                 if time.time() > deadline:
                     raise RecordError(f"OBS запустився, але WebSocket не відповідає — {WS_HELP}.") from None
         obs.launched = True
+        _OBS_OURS["on"] = True
     obs.switch(opts.obs_profile, opts.obs_collection)
     obs.set_dir(opts.record_dir or str(default_record_dir()))
     return obs
@@ -414,6 +415,36 @@ def game_running() -> bool | None:
         return None
     names = {line.split('","')[0].strip('"').lower() for line in r.stdout.splitlines() if line}
     return any(n.lower() in names for n in PROCESS_NAMES)
+
+
+_OBS_OURS = {"on": False}         # OBS відкрила програма (а не ви) — після запису закриємо
+
+
+def obs_ours() -> bool:
+    return _OBS_OURS["on"]
+
+
+def close_obs(wait_s: float = 15.0) -> bool:
+    """Закриває OBS, який відкрила програма: спершу м'яко (як хрестик вікна), потім — примусово.
+    OBS, відкритий вами, не чіпається. True — закрито."""
+    if not _OBS_OURS["on"]:
+        return False
+    _OBS_OURS["on"] = False
+    if not WIN:
+        return False
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    for name in OBS_PROCESSES:
+        subprocess.run(["taskkill", "/IM", name], capture_output=True, creationflags=flags)
+    deadline = time.time() + wait_s
+    while time.time() < deadline:
+        if not obs_running():
+            log.info("OBS закрито (його відкривала програма)")
+            return True
+        time.sleep(1)
+    for name in OBS_PROCESSES:                      # --disable-shutdown-check: без «безпечного режиму» потім
+        subprocess.run(["taskkill", "/IM", name, "/F"], capture_output=True, creationflags=flags)
+    log.info("OBS закрито примусово")
+    return True
 
 
 def kill_game() -> None:
@@ -579,7 +610,7 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
     return path
 
 
-__all__ = ["Cancelled", "EndDetector", "Obs", "RecordError", "RecordOptions", "default_record_dir", "desktop_dir", "obs_running", "click_player_view", "click_times", "client_version",
+__all__ = ["Cancelled", "EndDetector", "Obs", "close_obs", "obs_ours", "RecordError", "RecordOptions", "default_record_dir", "desktop_dir", "obs_running", "click_player_view", "click_times", "client_version",
            "ensure_obs", "find_game_dir",
            "game_exe", "kill_game",
            "launch_obs",
