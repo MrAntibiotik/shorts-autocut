@@ -51,5 +51,32 @@ class UpdateFeedTest(unittest.TestCase):
         self.assertIn("спробуйте за годину", str(cm.exception))
 
 
+class BotCheckRateTest(unittest.TestCase):
+    def test_at_most_hourly_and_survives_restart(self):
+        import time as T
+        import telegram_bot as tb
+        calls = []
+        saved = {}
+        with mock.patch.object(update, "remote_version", side_effect=lambda: calls.append(1) or {"sha": A, "message": "m"}), \
+                mock.patch.object(update, "local_version", return_value={"sha": A}), \
+                mock.patch.object(tb, "save_cfg", side_effect=lambda c: saved.update(c)):
+            class Api:
+                base = "x"
+
+                def call(self, *a, **k):
+                    return {"message_id": 1}
+            cfg = {"token": "T", "owner_id": 1}
+            b = tb.Bot({"paths": {"work_dir": "/tmp"}}, cfg, api=Api())
+            b.check_updates()
+            b.check_updates()                                            # одразу вдруге — без запиту
+            self.assertEqual(len(calls), 1)
+            b2 = tb.Bot({"paths": {"work_dir": "/tmp"}}, dict(saved), api=Api())   # «перезапуск» бота
+            b2.check_updates()
+            self.assertEqual(len(calls), 1)                              # час останньої перевірки збережено
+            with mock.patch.object(tb.time, "time", return_value=T.time() + 3601):
+                b2.check_updates()
+            self.assertEqual(len(calls), 2)                              # через годину — можна
+
+
 if __name__ == "__main__":
     unittest.main()
