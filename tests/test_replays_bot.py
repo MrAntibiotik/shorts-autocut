@@ -188,8 +188,8 @@ class ReplaysBotTest(unittest.TestCase):
         uo = self._doc(good)
         self.assertEqual(uo.call_args[0][0], "https://api.telegram.org/file/botTOKEN/documents/file_1.wotreplay")
         self.assertTrue((self.d / "replays" / "good.wotreplay").exists())
-        self.assertIn("Leopard1 · Prokhorovka · 7,412 шкоди", self.bot.sent[-1][0])
-        self.assertIn("Запускаю: OBS → запис бою", self.bot.sent[-1][0])
+        self.assertIn("🎬 Leopard1 · Prokhorovka · 7 412 шкоди", self.bot.sent[-1][0])     # жива картка
+        self.assertIn("⏸ Запис бою — чекає", self.bot.sent[-1][0])
         old = make_replay(self.d / "o.bin", first=dict(FIRST, clientVersionFromXml="1.25.0.0")).read_bytes()
         self._doc(old, "old.wotreplay")
         self.assertIn("не беру — інша версія гри", self.bot.sent[-1][0])
@@ -202,9 +202,8 @@ class ReplaysBotTest(unittest.TestCase):
         make_replay(self.d / "replays" / "a.wotreplay")
         calls = []
 
-        def fake_run(settings, jopts, ropts, who="", on_short=None, **kw):
+        def fake_run(settings, jopts, ropts, who="", on_stage=None, **kw):
             calls.append((who, jopts.cta_text, ropts.game_dir))
-            on_short(Path("x.mp4"), None)
             return {"recorded": 1, "shorts": ["x"], "published": [], "errors": []}
         with mock.patch.object(replay_job, "run", fake_run):
             self.assertTrue(self.rb.start(manual=True).startswith("🎬 Починаю запис: 1"))
@@ -226,12 +225,12 @@ class ReplaysBotTest(unittest.TestCase):
         self.rb.start = lambda manual: started.append(manual) or "ok"
         self._doc(good)
         self.assertEqual(started, [False])                            # одразу, без очікування
-        self.assertIn("Запускаю: OBS → запис бою → нарізка → Poster", self.bot.sent[-1][0])
+        self.assertIn("✅ Перевірено — версія 1.26.0.1", self.bot.sent[-1][0])
         # запис уже йде — другий реплей стає в чергу, нового запуску немає
         with replay_state.running(self.d / "replays", "бот"):
             self._doc(make_replay(self.d / "h.bin", first=dict(FIRST, playerName="Other")).read_bytes(), "two.wotreplay")
         self.assertEqual(started, [False])
-        self.assertIn("у черзі", self.bot.sent[-1][0])
+        self.assertIn("🕓 у черзі на запис, перед ним: 1", self.bot.sent[-1][0])
 
     def test_work_loops_until_queue_empty(self):
         (self.d / "replays").mkdir()
@@ -286,6 +285,43 @@ class ReplaysBotTest(unittest.TestCase):
         self.assertIn("раніше не записався — ставлю в чергу ще раз", self.bot.sent[-1][0])
         self.assertFalse(rp.with_suffix(".failed").exists())
         self.assertEqual(started, [False])
+
+    def test_live_card_stages(self):
+        from replay_cards import Cards
+        from shorts.replay_meta import parse
+        rp = make_replay(self.d / "card.wotreplay")
+        cards = Cards(self.bot)
+        cards.create("card", parse(rp), version="2.4.1.1")
+        mid = 99
+        text = self.bot.sent[-1][0]
+        self.assertIn("✅ Скачано", text)
+        self.assertIn("⏸ OBS — чекає", text)
+        cards.stage(None, "obs", "run", "перевіряю гру й OBS…")
+        cards.stage(None, "obs", "done", "OBS готовий")
+        n_sent = len(self.bot.sent)
+        cards.stage(rp, "rec", "run", "0:00 / ~8:12")
+        self.assertIn("🎥 Запис почався", self.bot.sent[-1][0])        # окреме сповіщення
+        cards.stage(rp, "rec", "run", "0:01 / ~8:12")                  # прогрес — без нових повідомлень
+        self.assertEqual(len(self.bot.sent), n_sent + 1)
+        cards.stage(rp, "rec", "done", "rec.mkv")
+        cards.stage(rp, "cut", "done", "шортсів: 1")
+        cards.stage(rp, "post", "done", "replay_card.mp4")
+        self.assertIn("✅ Готово до публікації", self.bot.sent[-1][0])
+        last = [c for c in self.bot.api.calls if c[0] == "editMessageText"][-1][1]
+        self.assertEqual(last["message_id"], mid)
+        for line in ("✅ OBS — OBS готовий", "✅ Запис бою — rec.mkv", "✅ Нарізка — шортсів: 1",
+                     "✅ Передача в Poster", "⏳ Публікація — Poster EN-каналу поставить"):
+            self.assertIn(line, last["text"])
+        # помилка на етапі — ❌ з причиною і окреме сповіщення
+        rp2 = make_replay(self.d / "card2.wotreplay")
+        cards.create("card2", parse(rp2))
+        cards.stage(rp2, "cut", "skip", "у бою не знайдено моментів — шортса немає")
+        last = [c for c in self.bot.api.calls if c[0] == "editMessageText"][-1][1]["text"]
+        self.assertIn("⏭ Нарізка — у бою не знайдено моментів", last)
+        self.assertIn("⏭ Публікація — немає шортса", last)
+        cards.stage(rp2, "rec", "err", "гра закрилась")
+        self.assertTrue(self.bot.sent[-1][0].startswith("❌ Leopard1"))
+        self.assertIn("Запис бою: гра закрилась", self.bot.sent[-1][0])
 
     def test_auto_start_after_idle(self):
         started = []
