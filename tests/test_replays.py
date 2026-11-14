@@ -452,6 +452,48 @@ class ObsVerifyTest(unittest.TestCase):
         obs.stop.assert_called_once()
 
 
+class EndOfBattleTest(unittest.TestCase):
+    def test_stops_when_victory_seen(self):
+        from unittest import mock
+        from shorts import replay_record as rr
+        from shorts.replay_meta import ReplayInfo
+        clock = {"t": 1000.0}
+        info = ReplayInfo(path="x", duration_s=300)                  # розрахунок: 60+30+300+20 = 410 с
+        opts = rr.RecordOptions(game_dir=Path("."), load_s=60, click_at=(), end_tail_s=4)
+        obs = mock.Mock()
+        obs.status.return_value = (True, "00:01:00")
+        obs.stop.return_value = __file__
+        shots = {"n": 0}
+
+        def ended(self, img):
+            shots["n"] += 1
+            return "перемога" if clock["t"] - 1002 >= 330 else None   # «ПЕРЕМОГА!» на 330-й с
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        with mock.patch.object(rr, "game_exe", return_value=Path(__file__)), \
+                mock.patch.object(rr.subprocess, "Popen", return_value=proc), mock.patch.object(rr, "kill_game") as kg, \
+                mock.patch.object(rr.EndDetector, "ended", ended), \
+                mock.patch.object(rr.time, "time", side_effect=lambda: clock["t"]), \
+                mock.patch.object(rr.time, "sleep", side_effect=lambda s: clock.__setitem__("t", clock["t"] + s)):
+            rr.record_one(Path(__file__), info, opts, obs)
+        elapsed = clock["t"] - 1002
+        self.assertLess(elapsed, 345)                                # зупинились одразу після перемоги
+        self.assertGreaterEqual(elapsed, 334)                        # + 4 с хвоста
+        self.assertGreater(shots["n"], 0)
+        obs.stop.assert_called_once()
+        kg.assert_called()                                           # гру закрито (вікно «Закінчити» не потрібне)
+
+    def test_end_words(self):
+        from shorts import replay_record as rr
+        d = rr.EndDetector()
+        d.text = lambda img: "відтворення запису бою закінчено. натисніть «закінчити»"
+        self.assertEqual(d.ended(object()), "відтворення запису")
+        d.text = lambda img: "15 13 victory! all enemy vehicles destroyed"
+        self.assertEqual(d.ended(object()), "victory")
+        d.text = lambda img: "loading..."
+        self.assertIsNone(d.ended(object()))
+
+
 class ImportSeenTest(unittest.TestCase):
     def test_unsuitable_checked_once(self):
         with tempfile.TemporaryDirectory() as t:

@@ -53,7 +53,9 @@ class RecordOptions:
     # ОДИН клік лівою кнопкою в грі — камера від обличчя гравця (кожен наступний клік перемикає на вільну
     # камеру і назад, тому клік один). Секунди від запуску гри; «load+15» — через 15 с після завантаження.
     click_at: tuple = ("load-5",)   # 55 с від запуску гри
-    tail_s: float = 20.0          # після кінця бою
+    tail_s: float = 20.0          # після кінця бою (запасний варіант, якщо кінець не розпізнано)
+    detect_end: bool = True       # бачити кінець бою на екрані (знімок з OBS + розпізнавання тексту)
+    end_tail_s: float = 4.0       # скільки ще писати після «Перемога» / «Відтворення… закінчено»
     default_battle_s: float = 900  # якщо тривалість у реплеї невідома (бій не дограно)
     max_s: float = 1500
 
@@ -140,6 +142,38 @@ def client_version(game_dir: Path) -> tuple:
     return parse_version(m.group(1))[1] if m else ()
 
 
+END_WORDS = ("відтворення запису", "запису бою закінчено", "перемога", "поразка", "нічия",
+             "victory", "defeat", "draw", "replay playback", "playback has", "победа", "поражение", "ничья")
+
+
+class EndDetector:
+    """Кінець бою на екрані: «ПЕРЕМОГА!» / «Поразка» / «Нічия» або вікно «Відтворення запису бою закінчено»."""
+
+    def __init__(self):
+        self.reader = None
+        self.failed = False
+
+    def text(self, img) -> str:
+        if img is None or self.failed:
+            return ""
+        try:
+            if self.reader is None:
+                import easyocr
+                try:
+                    self.reader = easyocr.Reader(["uk", "en"], gpu=True, verbose=False)
+                except Exception:  # noqa: BLE001 — без відеокарти
+                    self.reader = easyocr.Reader(["uk", "en"], gpu=False, verbose=False)
+            return " ".join(t for _, t, _ in self.reader.readtext(img)).lower()
+        except Exception as e:  # noqa: BLE001
+            log.warning("Розпізнавання кінця бою недоступне (%s) — зупинка за часом", e)
+            self.failed = True
+            return ""
+
+    def ended(self, img) -> str | None:
+        t = self.text(img)
+        return next((w for w in END_WORDS if w in t), None)
+
+
 def record_seconds(info: ReplayInfo | None, opts: RecordOptions) -> float:
     battle = info.duration_s if info and info.duration_s else opts.default_battle_s
     # +30 с — відлік перед боєм, який реплей теж показує
@@ -167,6 +201,28 @@ class Obs:
 
     def recording(self) -> bool:
         return bool(getattr(self.cl.get_record_status(), "output_active", False))
+
+    def screenshot(self, width: int = 1280):
+        """Знімок поточної сцени OBS (numpy BGR) або None."""
+        try:
+            import base64
+
+            import cv2
+            import numpy as np
+            sc = self.cl.get_current_program_scene()
+            name = getattr(sc, "current_program_scene_name", None) or getattr(sc, "scene_name", None)
+            try:                                              # пропорції кадру OBS (широкий монітор — не стискати текст)
+                vs = self.cl.get_video_settings()
+                bw, bh = int(getattr(vs, "base_width", 0) or 0), int(getattr(vs, "base_height", 0) or 0)
+                height = max(8, round(width * bh / bw)) if bw and bh else round(width * 9 / 16)
+            except Exception:  # noqa: BLE001
+                height = round(width * 9 / 16)
+            r = self.cl.get_source_screenshot(name, "jpg", width, height, 70)
+            data = str(getattr(r, "image_data", "") or "").split(",", 1)[-1]
+            return cv2.imdecode(np.frombuffer(base64.b64decode(data), np.uint8), cv2.IMREAD_COLOR)
+        except Exception as e:  # noqa: BLE001
+            log.debug("Знімок OBS: %s", e)
+            return None
 
     def status(self) -> tuple[bool, str]:
         """(чи йде запис, лічильник OBS «00:03:12»)."""
@@ -459,6 +515,11 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
         t0 = time.time()
         last_check, obs_tc = t0, ""
         last_game_check, gone = t0, 0
+        # кінець бою бачимо на екрані: перевіряємо ближче до розрахованого кінця (або з 90-ї с, якщо тривалість невідома)
+        known = bool(info and info.duration_s)
+        end_from = max(opts.load_s + 60, total - opts.tail_s - 150) if known else opts.load_s + 90
+        detector = EndDetector() if opts.detect_end else None
+        last_end_check, end_at = t0, None
         while time.time() - t0 < total:
             if cancel and cancel():
                 raise Cancelled()
@@ -474,6 +535,16 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
                 if gone >= 2:
                     log.info("Гру закрито — зупиняю запис")
                     break
+            if end_at is not None and time.time() >= end_at:
+                log.info("Бій закінчився — зупиняю запис")
+                break
+            if (detector and end_at is None and time.time() - t0 >= end_from
+                    and time.time() - last_end_check >= 5):
+                last_end_check = time.time()
+                word = detector.ended(obs.screenshot())
+                if word:
+                    log.info("На екрані «%s» — кінець бою, ще %.0f с і зупиняю", word, opts.end_tail_s)
+                    end_at = time.time() + opts.end_tail_s
             while clicks and time.time() - launched >= clicks[0]:   # камера від обличчя гравця
                 clicks.pop(0)
                 click_player_view()
@@ -508,7 +579,7 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
     return path
 
 
-__all__ = ["Cancelled", "Obs", "RecordError", "RecordOptions", "default_record_dir", "desktop_dir", "obs_running", "click_player_view", "click_times", "client_version",
+__all__ = ["Cancelled", "EndDetector", "Obs", "RecordError", "RecordOptions", "default_record_dir", "desktop_dir", "obs_running", "click_player_view", "click_times", "client_version",
            "ensure_obs", "find_game_dir",
            "game_exe", "kill_game",
            "launch_obs",
