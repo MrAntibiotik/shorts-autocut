@@ -171,6 +171,22 @@ class ReplaysBotTest(unittest.TestCase):
             self.rb.on_callback({"message": {"message_id": 6, "text": "📋 Бої"}}, "list:2")
         self.assertIn("Список не завантажився: сайт відмовив (429)", self.bot.sent[-1][0])
 
+    def test_unknown_game_version_not_in_url(self):
+        # гра 1.30 — такої версії немає у фільтрі сайту (сайт падає з 500) → у посиланні без версії + попередження
+        game = Path(replay_state.effective(self.settings)["game_dir"])
+        (game / "version.xml").write_text("<version.xml><version> v.1.30.0.0 #1</version></version.xml>")
+        self.rb.show()
+        text, markup = self.bot.sent[-1]
+        url = next(b["url"] for b in buttons(markup) if "url" in b)
+        self.assertNotIn("version=", url)
+        self.assertIn("⚠️ Ваша гра — 1.30, а на сайті такої версії немає", text)
+        # версія, яку сайт знає, — у посиланні є
+        replay_state.save(self.settings, {**replay_state.load(self.settings), "version": "2.4"})
+        self.rb.show()
+        url = next(b["url"] for b in buttons(self.bot.sent[-1][1]) if "url" in b)
+        self.assertIn("version=2.4", url)
+        self.assertNotIn("⚠️", self.bot.sent[-1][0])
+
     def test_parse_number(self):
         P = replays_bot.parse_number
         self.assertEqual([P("5500"), P("5 500"), P("5.5k"), P("7к"), P("5.500"), P("0")],

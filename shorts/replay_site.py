@@ -69,6 +69,9 @@ def _get(url: str, referer: str = "", timeout: float = 30) -> bytes:
     except urllib.error.HTTPError as e:
         if e.code in (403, 429):
             raise SiteError(f"сайт відмовив ({e.code}) — спробуйте пізніше або скачайте в браузері") from e
+        if e.code >= 500:
+            raise SiteError(f"сайт не зміг показати список (помилка {e.code}) — так буває, коли у фільтрі версія, "
+                            "якої на сайті немає, або сайт тимчасово збоїть; спробуйте ще раз або змініть фільтр") from e
         raise SiteError(f"сайт відповів помилкою {e.code}") from e
     except (urllib.error.URLError, OSError) as e:
         raise SiteError(f"немає зв'язку з сайтом: {e}") from e

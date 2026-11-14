@@ -94,8 +94,11 @@ class ReplaysBot:
         return self.version_info(st)[0]
 
     def selection(self, st: dict) -> dict:
+        from shorts.replay_filter import latest_version, site_knows
         sel = {k: list(v) for k, v in (st.get("wr_sel") or {}).items()}
         ver = self.version(st)
+        if ver and not site_knows(ver) and latest_version(replays_dir=st["replays_dir"]) not in ("", ver):
+            ver = ""          # версії немає на сайті — без неї в адресі (інакше сайт падає з помилкою 500)
         sel["version"] = [ver] if ver else []
         return sel
 
@@ -130,10 +133,16 @@ class ReplaysBot:
         md, ma = int(st.get("min_damage") or 0), int(st.get("min_assist") or 0)
         limits = " або ".join(x for x in ((f"шкода від {fmt_n(md)}" if md else ""),
                                            (f"засвіт від {fmt_n(ma)}" if ma else "")) if x) or "будь-які"
+        from shorts.replay_filter import latest_version, site_knows
         src = self.version_info(st)[2]
+        newest = latest_version(replays_dir=st["replays_dir"])
         no_game = "" if src != "найновіша" else (
             "ℹ️ Папку гри не знайдено — беру найновішу версію. Якщо ваша гра ще не оновилась, вкажіть папку гри "
             "у вкладці «🎮 Реплеї» на ПК.\n")
+        if ver and src != "найновіша" and not site_knows(ver) and newest and newest != ver:
+            no_game += (f"⚠️ {'Ваша гра' if src == 'ваша гра' else 'Вибрана версія'} — {ver}, а на сайті такої версії "
+                        f"немає (найновіша там {newest}). Список показую без фільтра версії; реплеї з сайту у вашій грі "
+                        "можуть не відкритися — бот відхилятиме їх як «інша версія гри».\n")
         return ("🎮 Реплеї для EN-каналу\n\n"
                 f"Фільтр: {' · '.join(parts) or 'усі бої'}\n"
                 f"Сортування: {sorts.get(st.get('sort') or 'date', st.get('sort'))} · версія: "
