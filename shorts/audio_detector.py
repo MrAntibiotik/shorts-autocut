@@ -41,7 +41,7 @@ AUDIO_EXT = {".wav", ".flac", ".ogg"}
 
 
 def samples_root(profile: dict) -> Path:
-    return ROOT / "samples" / profile["id"]
+    return ROOT / "samples" / (profile.get("samples_id") or profile["id"])  # реплеї — ті самі звуки, що й wot
 
 
 def mel_db(x: np.ndarray, sr: int = SR_GAME) -> np.ndarray:

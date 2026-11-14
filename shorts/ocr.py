@@ -17,7 +17,7 @@ from .errors import UserError
 
 log = logging.getLogger("ocr")
 
-DIGITS = "0123456789 "
+DIGITS = "0123456789 ,"  # кома — роздільник тисяч в англійському клієнті (3,516)
 HP_CHARS = "0123456789/ "
 
 
