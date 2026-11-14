@@ -141,7 +141,8 @@ class Separator:
 # ------------------------------------------------------------------ підготовка частин
 
 class AudioPrep:
-    def __init__(self, settings: dict, profile: dict, info: VideoInfo, force_mix: bool = False):
+    def __init__(self, settings: dict, profile: dict, info: VideoInfo, force_mix: bool = False,
+                 webcam: dict | None = None):
         self.settings = settings
         self.profile = profile
         self.info = info
@@ -149,6 +150,12 @@ class AudioPrep:
         if self.mode not in ("mixed", "separate"):
             raise UserError(f"Невідомий режим запису «{self.mode}» у settings.json.",
                             'Має бути "mixed" або "separate".')
+        # окремий файл вебки зі звуком мікрофона: голос — звідти (чистий, без гри), гра — із запису
+        self.webcam = webcam if (webcam and webcam.get("audio") and self.mode == "mixed") else None
+        if self.webcam:
+            self.mode = "webcam_voice"
+            log.info("Звук: голос — з файлу вебки (%s), гра — із запису; нейромережеве розділення не потрібне",
+                     Path(self.webcam["path"]).name)
         self.use_sep = (self.mode == "mixed" and settings["separation"]["enabled"] and not force_mix)
         self.separator: Separator | None = None
         self.sep_failed = False
@@ -169,7 +176,10 @@ class AudioPrep:
 
     def _cache_dir(self) -> Path:
         rec = self.settings["recording"]
-        key = json.dumps({"mode": self.mode, "rec": rec[self.mode], "sep": self.use_sep,
+        rec_key = rec["mixed"] if self.mode == "webcam_voice" else rec[self.mode]
+        cam_key = ({"cam": Path(self.webcam["path"]).name, "off": round(float(self.webcam.get("offset", 0)), 3)}
+                   if self.webcam else None)
+        key = json.dumps({"mode": self.mode, "rec": rec_key, "sep": self.use_sep, "cam": cam_key,
                           "model": self.settings["separation"]["model"], "v": 1}, sort_keys=True)
         h = hashlib.md5(key.encode()).hexdigest()[:8]
         st = self.info.path.stat()
@@ -214,6 +224,20 @@ class AudioPrep:
             voice = read_audio(self.settings, self.info.path, c0, dur, SR_VOICE, 1, track=m)
             mix = read_audio(self.settings, self.info.path, c0, dur, SR_GAME, 1,
                              filter_complex=f"[0:a:{g}][0:a:{m}]amix=inputs=2:normalize=0[a]")
+            separated = True
+        elif self.mode == "webcam_voice":
+            track = rec["mixed"]["audio_track"]
+            off = float(self.webcam.get("offset", 0.0))
+            mix = read_audio(self.settings, self.info.path, c0, dur, SR_GAME, 1, track=track)
+            game = mix                                # у записі гра разом з голосом
+            cs = c0 + off                             # час у файлі вебки
+            v = read_audio(self.settings, Path(self.webcam["path"]), max(0.0, cs), dur - max(0.0, -cs),
+                           SR_VOICE, 1, track=0)
+            n = int(round(dur * SR_VOICE))
+            pad = int(round(max(0.0, -cs) * SR_VOICE))   # вебка почалась пізніше за запис — тиша на початку
+            voice = np.zeros(n, np.float32)
+            v = v[: max(0, n - pad)]
+            voice[pad:pad + len(v)] = v
             separated = True
         else:
             track = rec["mixed"]["audio_track"]

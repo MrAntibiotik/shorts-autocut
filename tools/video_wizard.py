@@ -46,6 +46,12 @@ class VideoWizard:
         self.result: str | None = None
         self.mode: str | None = None            # режим гри (WoT: damage / assist)
         self.zones: dict = {}                   # підтверджені рамки цього запису
+        try:                                    # окремий файл вебки: знайдений автоматично або вибраний
+            from shorts.recording import find_webcam_file
+            w = find_webcam_file(settings, Path(path))
+        except Exception:
+            w = None
+        self.webcam: str = str(w) if w else ""
         self.remaining = remaining              # скільки ще записів вибрано разом з цим
         self.apply_rest = tk.BooleanVar(value=False)
         self.t = float(state.get("zones_preview_t", 60.0))
@@ -141,6 +147,17 @@ class VideoWizard:
         from seekbar import SeekBar
         self.seek = SeekBar(b, self.duration(), self.t, self.show_at)
         self.seek.pack(fill="x", pady=(2, 4))
+
+        # вебка: окремий файл (OBS Source Record) або з кадру запису
+        cam = tk.Frame(b)
+        cam.pack(fill="x", pady=(4, 0))
+        tk.Label(cam, text="Вебка:", font=("Segoe UI", 10, "bold")).pack(side="left")
+        self.cam_lbl = tk.Label(cam, anchor="w")
+        self.cam_lbl.pack(side="left", padx=6)
+        tk.Button(cam, text="Без окремої вебки", command=lambda: self.set_cam("")).pack(side="right")
+        tk.Button(cam, text="Вибрати файл вебки…", command=self.pick_cam).pack(side="right", padx=4)
+        self.set_cam(self.webcam)
+
         bt = tk.Frame(b)
         bt.pack(fill="x", pady=(6, 0))
         if self.remaining > 0:
@@ -192,6 +209,22 @@ class VideoWizard:
             self.w.deiconify()
             self.w.grab_set()
         self.step_zones()      # показуємо нові рамки — і знову просимо підтвердити
+
+    def set_cam(self, path: str):
+        self.webcam = path
+        if path:
+            self.cam_lbl.config(text=f"окремий файл: {Path(path).name}  (голос — звідти, якщо в ньому є звук)",
+                                fg="#2e7d32")
+        else:
+            self.cam_lbl.config(text="з кадру запису (рамка «Вебкамера»)", fg="#555")
+
+    def pick_cam(self):
+        from tkinter import filedialog
+        p = filedialog.askopenfilename(parent=self.w, title="Файл вебки (OBS Source Record)",
+                                       initialdir=str(Path(self.path).parent),
+                                       filetypes=[("Відео", "*.mkv *.mp4 *.mov *.flv"), ("Усі файли", "*.*")])
+        if p:
+            self.set_cam(p)
 
     def accept(self):
         self.state["zones_preview_t"] = self.t

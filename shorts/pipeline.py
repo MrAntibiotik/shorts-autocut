@@ -60,6 +60,7 @@ class JobOptions:
     modes: dict = field(default_factory=dict)   # {шлях запису: "damage" | "assist"} — режим гри (WoT)
     zones: dict = field(default_factory=dict)   # {шлях запису: рамки} — підтверджені рамки саме цього запису
     highlights: bool = False                    # хайлайти 16:10 для сильних боїв (WoT: 7000+)
+    webcams: dict = field(default_factory=dict)  # {шлях запису: файл вебки або "" (без окремої вебки)}
     cta_y: float | None = None                  # висота центру заклику: частка висоти кадру (0 — верх, 1 — низ)
     separation: bool = True
 
@@ -249,12 +250,18 @@ class Job:
         tag = ascii_name(path.stem)
 
         webcam = None
-        wpath = find_webcam_file(st, path)
+        if str(path) in opts.webcams:              # вибрано в майстрі: файл або "" — без окремої вебки
+            chosen = opts.webcams[str(path)]
+            wpath = Path(chosen) if chosen and Path(chosen).exists() else None
+            if chosen and wpath is None:
+                log.warning("[УВАГА] Файл вебки не знайдено: %s — камера з кадру запису", chosen)
+        else:
+            wpath = find_webcam_file(st, path)
         if wpath:
             winfo = probe(st, wpath)
             off, how = webcam_offset(st, info, winfo)
             webcam = {"path": str(wpath), "width": winfo.width, "height": winfo.height, "fps": winfo.fps,
-                      "offset": off}
+                      "offset": off, "audio": winfo.audio_streams > 0}
             log.info("Окремий файл вебкамери: %s (%d×%d), зсув %+.3f с — %s", wpath.name, winfo.width,
                      winfo.height, off, how)
         elif st["recording"]["mode"] == "separate":
@@ -270,7 +277,7 @@ class Job:
 
         # ---- звук
         stage("Підготовка звуку (розділення голос/гра)", 0.45, 0.62)
-        prep = AudioPrep(st, prof, info, force_mix=not opts.separation)
+        prep = AudioPrep(st, prof, info, force_mix=not opts.separation, webcam=webcam)
         chunks = prep.prepare(start, end, progress=P.sub(0, 1))
         stage("Звуки гри і ваш голос", 0.62, 0.66)
         sounds = GameSoundDetector(st, prof).detect(chunks, progress=P.sub(0, 0.5))

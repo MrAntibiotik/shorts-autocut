@@ -159,6 +159,7 @@ def gui(settings, log_file: Path):
 
     recs_prof: list[tuple[str, str, str | None]] = []   # (запис, профіль гри, режим) — як у списку
     rec_zones: dict[str, dict] = {}                      # запис -> його підтверджені рамки
+    rec_cams: dict[str, str] = {}                        # запис -> файл вебки ("" — з кадру)
 
     def add_paths(paths):
         """Для кожного запису: вибір гри + обов'язкова перевірка рамок (майстер)."""
@@ -180,6 +181,7 @@ def gui(settings, log_file: Path):
                 continue
             add(f, wiz.result, wiz.mode)
             rec_zones[str(Path(f))] = wiz.zones
+            rec_cams[str(Path(f))] = wiz.webcam
             save_state(settings, state)
             if wiz.apply_rest.get():
                 for g in paths[i + 1:]:
@@ -203,6 +205,7 @@ def gui(settings, log_file: Path):
         for i in reversed(files.curselection()):
             files.delete(i)
             rec_zones.pop(str(Path(recs_prof[i][0])), None)
+            rec_cams.pop(str(Path(recs_prof[i][0])), None)
             del recs_prof[i]
 
     tk.Button(bcol, text="Прибрати", width=12, command=remove_sel).pack(pady=2)
@@ -465,7 +468,8 @@ def gui(settings, log_file: Path):
                           cta_y=int(v_cta_y.get()) / 100,
                           modes={str(Path(r)): m for r, _, m in recs_prof if m},
                           zones={str(Path(r)): rec_zones[str(Path(r))] for r, _, _m in recs_prof
-                                 if rec_zones.get(str(Path(r)))})
+                                 if rec_zones.get(str(Path(r)))},
+                          webcams={k: v for k, v in rec_cams.items()})
         nb.pack_forget()
         prog.pack(fill="both", expand=True)
         h = QueueHandler(q)
