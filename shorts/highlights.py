@@ -214,6 +214,52 @@ def cta_overlays(settings: dict, layout: Layout, dur: float, tmp) -> list:
     return out
 
 
+# ====================================================================== json для Poster
+
+def poster_texts(settings: dict, b: dict) -> dict:
+    """Назва, опис і хештеги хайлайту для Poster (YouTube, звичайне відео)."""
+    dmg, assist = int(b.get("damage_total") or 0), int(b.get("assist_total") or 0)
+    parts = []
+    if dmg:
+        parts.append(f"{dmg} шкоди")
+    if assist:
+        parts.append(f"{assist} засвіту")
+    stats = " і ".join(parts)
+    title = f"{stats} — хайлайт бою | World of Tanks 🔥" if stats else "Хайлайт бою | World of Tanks 🔥"
+    cta = ((settings.get("highlight_cta") or {}).get("text") or "").strip()
+    tags = ["#wot", "#worldoftanks", "#танки", "#wotua"]
+    desc = "\n".join(x for x in [
+        f"Хайлайт бою: {stats}." if stats else "Хайлайт бою.",
+        "Найяскравіші моменти — на початку відео.",
+        "",
+        cta,
+    ] if x is not None).strip()
+    return {"title": title[:100], "description": desc, "hashtags": tags}
+
+
+def write_poster_json(settings: dict, b: dict, mp4) -> None:
+    """Поруч із хайлайтом — json для Poster (окрема черга хайлайтів, лише YouTube).
+    Уже опублікований (Poster переносить файли в posted/) не чіпаємо."""
+    import json
+    from pathlib import Path
+    js = Path(mp4).with_suffix(".json")
+    if js.exists():
+        try:
+            if json.loads(js.read_text(encoding="utf-8-sig")).get("status") == "posted":
+                return
+        except ValueError:
+            pass
+    t = poster_texts(settings, b)
+    data = {"status": "ready_to_post", "kind": "highlight", "game": "WoT",
+            "battle": {"index": b.get("index"), "damage": int(b.get("damage_total") or 0),
+                       "assist": int(b.get("assist_total") or 0)},
+            "youtube": {"title": t["title"], "description": t["description"],
+                        "tags": [h.lstrip("#") for h in t["hashtags"]], "hashtags": t["hashtags"]}}
+    tmp = js.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(js)
+
+
 # ====================================================================== повна збірка (обробка, бот, extra\make_highlight.bat)
 
 def make_highlight(settings: dict, info, profile: dict, b: dict, webcam: dict | None, mp4,
@@ -255,5 +301,9 @@ def make_highlight(settings: dict, info, profile: dict, b: dict, webcam: dict | 
             except Exception as e:
                 note = str(e).strip()[-400:] or type(e).__name__
                 log.warning("[УВАГА] Opener не зроблено (%s) — хайлайт без нього", note)
+    try:
+        write_poster_json(settings, b, mp4)
+    except OSError as e:
+        log.warning("json для Poster не записано: %s", e)
     return {"battle": b["index"], "mp4": str(mp4), "duration": round(dur, 1), "opener": opened, "opener_note": note,
             "segments": [{"s": s, "e": e} for s, e in segs]}
