@@ -836,6 +836,13 @@ class Bot:
         if m.get("document") and self.replays is not None:   # надісланий файл реплею
             self.replays.on_document(m)
             return
+        if (self.replays is not None and self.replays.awaiting and text and not text.startswith("/")
+                and text not in self.MENU_CMDS):             # число для порогу шкоди / засвіту
+            if self.replays.on_text(text):
+                self.delete_msg(m.get("message_id"))
+                return
+        if self.replays is not None:
+            self.replays.awaiting = None                     # натиснули щось інше — питання знято
         text = self.MENU_CMDS.get(text, text)        # кнопки меню внизу чату
         cmd = text.split()[0].split("@")[0].lower() if text else ""
         if cmd == "/start":

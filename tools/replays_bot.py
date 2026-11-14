@@ -27,7 +27,31 @@ log = logging.getLogger("replays")
 TIERS = ["5", "6", "7", "8", "9", "10", "11"]
 TYPES = [("1", "ЛТ"), ("2", "СТ"), ("3", "ТТ"), ("4", "ПТ"), ("5", "САУ")]
 MASTERY = [("4", "Ace"), ("3", "I"), ("2", "II"), ("1", "III")]
-DAMAGE_STEPS = [0, 2000, 3000, 4000, 5000, 6000, 8000]
+QUICK = {"min_damage": [0, 3000, 4000, 5000, 6000, 8000], "min_assist": [0, 2000, 3000, 4000, 5000, 7000]}
+LIMIT_NAMES = {"min_damage": "шкоду", "min_assist": "засвіт (асист)"}
+
+
+def parse_number(text: str) -> int | None:
+    """«5500», «5 500», «5.5k», «7к» → число (0…30000); інше — None."""
+    t = (text or "").strip().lower().replace(" ", "").replace("\u00a0", "")
+    m = re.fullmatch(r"(\d+(?:[.,]\d+)?)([kк])?", t)
+    if not m:
+        return None
+    num = m.group(1).replace(",", ".")
+    if m.group(2):
+        v = float(num) * 1000
+    elif "." in num:       # «5.500» — тисячі через крапку
+        whole, frac = num.split(".")
+        if len(frac) != 3:
+            return None
+        v = float(whole + frac)
+    else:
+        v = float(num)
+    return int(round(v)) if 0 <= v <= 30000 else None
+
+
+def fmt_n(v: int) -> str:
+    return f"{int(v):,}".replace(",", " ")
 NATION_SHORT = {"0": "СРСР", "1": "Німеччина", "2": "США", "3": "Китай", "4": "Франція", "5": "Британія",
                 "6": "Японія", "7": "Чехословаччина", "8": "Швеція", "9": "Польща", "10": "Італія"}
 MAX_FILE = 20 * 1024 * 1024        # Bot API віддає файли до 20 МБ (реплеї — 1–5 МБ)
@@ -44,6 +68,7 @@ class ReplaysBot:
         self.view = "main"
         self.thread: threading.Thread | None = None
         self.last_received = 0.0
+        self.awaiting: str | None = None     # «min_damage» / «min_assist» — чекаємо число від вас
 
     # -------------------------------------------------------------- стан
     def state(self) -> dict:
@@ -96,11 +121,17 @@ class ReplaysBot:
         state = ("⏺ Зараз іде запис/нарізка на ПК" if (self.thread and self.thread.is_alive()) or
                  busy(Path(st["replays_dir"])) else f"Зібрано до запису: {self.pending(st)}")
         idle = int(st.get("idle_min") or 0)
-        dmg = f"{int(st.get('min_damage') or 0):,}".replace(",", " ")
+        md, ma = int(st.get("min_damage") or 0), int(st.get("min_assist") or 0)
+        limits = " або ".join(x for x in ((f"шкода від {fmt_n(md)}" if md else ""),
+                                           (f"засвіт від {fmt_n(ma)}" if ma else "")) if x) or "будь-які"
+        no_game = "" if ver else (
+            "⚠️ Папку гри не знайдено — у вкладці «🎮 Реплеї» на ПК вкажіть папку гри й натисніть «▶ Почати» "
+            "(інакше реплеї іншої версії не відсіються).\n")
         return ("🎮 Реплеї для EN-каналу\n\n"
                 f"Фільтр: {' · '.join(parts) or 'усі бої'}\n"
                 f"Сортування: {sorts.get(st.get('sort') or 'date', st.get('sort'))} · версія: {ver or 'будь-яка'}\n"
-                f"Беру бої зі шкодою від {dmg}\n"
+                f"Беру бої: {limits}\n"
+                f"{no_game}"
                 f"{state}\n\n"
                 "Як: 🌐 Відкрити підбірку → скачайте реплей → перешліть файл сюди "
                 "(або скачайте на ПК — вкладка забере з «Завантажень»). "
@@ -111,7 +142,7 @@ class ReplaysBot:
         sel = st.get("wr_sel") or {}
 
         def b(label, data, on=False):
-            return {"text": ("✅ " if on else "") + label, "callback_data": f"F|{data}"}
+            return {"text": ("✓" if on else "") + label, "callback_data": f"F|{data}"}  # коротко — щоб не обрізалось
 
         if self.view == "nation":
             nats = [o["value"] for o in load_filters().get("nation", [])]
@@ -128,12 +159,14 @@ class ReplaysBot:
         sorts = load_filters().get("sorts", [])
         sort_label = next((o["label"] for o in sorts if o["value"] == st.get("sort")), "Нові")
         n_nat = len(sel.get("nation") or [])
+        md, ma = int(st.get("min_damage") or 0), int(st.get("min_assist") or 0)
         rows = [
             [b(t, f"t:{t}", t in (sel.get("tier") or [])) for t in TIERS],
             [b(lbl, f"y:{v}", v in (sel.get("type") or [])) for v, lbl in TYPES],
             [b(lbl, f"m:{v}", v in (sel.get("mastery") or [])) for v, lbl in MASTERY],
-            [b(f"🌍 Нації{f' ({n_nat})' if n_nat else ''}", "v:nation"), b(f"↕ {sort_label}", "s"),
-             b(f"💥 від {int(st.get('min_damage') or 0) // 1000}k", "d")],
+            [b(f"🌍 Нації{f' ({n_nat})' if n_nat else ''}", "v:nation"), b(f"↕ {sort_label}", "s")],
+            [b(f"💥 Шкода від {fmt_n(md) if md else '—'}", "ask:min_damage"),
+             b(f"🔦 Засвіт від {fmt_n(ma) if ma else '—'}", "ask:min_assist")],
             [{"text": "🌐 Відкрити підбірку", "url": build_url(self.selection(st), sort=st.get("sort") or "date")}],
             [b(f"🎬 Записати зібрані ({self.pending(st)})", "go"), b("🔄", "ref"), b("♻ Скинути", "r")],
         ]
@@ -172,18 +205,45 @@ class ReplaysBot:
             sorts = [o["value"] for o in load_filters().get("sorts", [])] or ["date"]
             cur = st.get("sort") or "date"
             self.update(sort=sorts[(sorts.index(cur) + 1) % len(sorts)] if cur in sorts else sorts[0])
-        elif kind == "d":
-            cur = int(st.get("min_damage") or 0)
-            nxt = next((d for d in DAMAGE_STEPS if d > cur), DAMAGE_STEPS[0])
-            self.update(min_damage=nxt)
+        elif kind == "ask" and val in QUICK:
+            self.awaiting = val
+            cur = int(st.get(val) or 0)
+            quick = [{"text": ("✓" if v == cur else "") + (fmt_n(v) if v else "без порогу"),
+                      "callback_data": f"F|set:{val}={v}"} for v in QUICK[val]]
+            self.bot.send(f"✍️ Напишіть мінімальну {LIMIT_NAMES[val]} числом — напр. 5500 або 5.5k "
+                          f"(зараз: {fmt_n(cur) if cur else 'без порогу'}). Або виберіть:",
+                          {"inline_keyboard": [quick[:3], quick[3:]]})
+            return None
+        elif kind == "set":
+            field, _, num = val.partition("=")
+            if field in QUICK and num.isdigit():
+                self.update(**{field: int(num)})
+                self.awaiting = None
+                if msg and "Напишіть мінімальну" in (msg.get("text") or ""):
+                    self.bot.delete_msg(msg.get("message_id"))     # підказку прибираємо, показуємо меню знову
+                    self.show()
+                    return f"{LIMIT_NAMES[field].capitalize()} від {fmt_n(int(num))}" if int(num) else "Без порогу"
         elif kind == "r":
-            self.update(wr_sel={}, sort="date", min_damage=0)
+            self.update(wr_sel={}, sort="date", min_damage=0, min_assist=0)
             toast = "♻ Фільтр скинуто"
         elif kind == "go":
             toast = self.start(manual=True)
         if msg:
             self.redraw(msg)
         return toast
+
+    def on_text(self, text: str) -> bool:
+        """Число після «💥 Шкода від» / «🔦 Засвіт від». True — повідомлення оброблено."""
+        if not self.awaiting:
+            return False
+        v = parse_number(text)
+        if v is None:
+            self.bot.send("Не схоже на число. Напишіть, напр., 5500 або 5.5k (0 — без порогу).")
+            return True
+        field, self.awaiting = self.awaiting, None
+        self.update(**{field: v})
+        self.show()
+        return True
 
     # -------------------------------------------------------------- файли реплеїв
     def on_document(self, m: dict) -> None:
@@ -212,7 +272,8 @@ class ReplaysBot:
         tmp.write_bytes(data)
         from shorts.replay_download import ImportOptions, check_replay
         opts = ImportOptions(src=replays_dir, dest=replays_dir, client_version=self.client_version(st)[:3],
-                             min_damage=int(st.get("min_damage") or 0), min_kills=int(st.get("min_kills") or 0))
+                             min_damage=int(st.get("min_damage") or 0), min_kills=int(st.get("min_kills") or 0),
+                             min_assist=int(st.get("min_assist") or 0))
         info, why = check_replay(tmp, opts)
         if why:
             tmp.unlink(missing_ok=True)

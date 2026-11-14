@@ -42,6 +42,9 @@ class FakeBot:
         self.sent.append((text, markup))
         return {"message_id": 99}
 
+    def delete_msg(self, mid):
+        self.api.calls.append(("deleteMessage", {"message_id": mid}))
+
 
 def buttons(markup):
     return [b for row in markup["inline_keyboard"] for b in row]
@@ -77,12 +80,10 @@ class ReplaysBotTest(unittest.TestCase):
         self.rb.on_callback({"message": msg}, "t:10")          # прибрати 10
         self.rb.on_callback({"message": msg}, "y:2")           # СТ
         self.rb.on_callback({"message": msg}, "s")             # сортування → наступне
-        self.rb.on_callback({"message": msg}, "d")             # шкода 4000 → 5000
         st = replay_state.effective(self.settings)
         self.assertEqual(st["wr_sel"]["tier"], ["8", "9"])
         self.assertEqual(st["wr_sel"]["type"], ["2"])
         self.assertEqual(st["sort"], "view")
-        self.assertEqual(st["min_damage"], 5000)
         edit = [c for c in self.bot.api.calls if c[0] == "editMessageText"][-1][1]
         url = next(b["url"] for b in buttons(edit["reply_markup"]) if "url" in b)
         self.assertEqual(url, "https://wot-record.com/replays/view/desc?tier=8,9&type=2&version=1.26&mastery=4")
@@ -92,6 +93,37 @@ class ReplaysBotTest(unittest.TestCase):
         self.rb.on_callback({"message": msg}, "n:9")
         self.assertEqual(replay_state.effective(self.settings)["wr_sel"]["nation"], ["9"])
         self.assertEqual(self.rb.on_callback({"message": msg}, "r"), "♻ Фільтр скинуто")
+
+    def test_type_own_damage_and_assist(self):
+        msg = {"message_id": 5}
+        self.rb.on_callback({"message": msg}, "ask:min_damage")
+        self.assertEqual(self.rb.awaiting, "min_damage")
+        self.assertIn("Напишіть мінімальну шкоду", self.bot.sent[-1][0])
+        self.assertTrue(self.rb.on_text("5 500"))
+        self.assertIsNone(self.rb.awaiting)
+        self.assertEqual(replay_state.effective(self.settings)["min_damage"], 5500)
+        self.assertIn("шкода від 5 500", self.bot.sent[-1][0])           # меню показано знову
+        self.rb.on_callback({"message": msg}, "ask:min_assist")
+        self.assertTrue(self.rb.on_text("дуже багато"))                    # не число — питаємо ще раз
+        self.assertEqual(self.rb.awaiting, "min_assist")
+        self.rb.on_text("3.5k")
+        st = replay_state.effective(self.settings)
+        self.assertEqual(st["min_assist"], 3500)
+        self.assertIn("шкода від 5 500 або засвіт від 3 500", self.bot.sent[-1][0])
+        labels = [b["text"] for b in buttons(self.bot.sent[-1][1])]
+        self.assertIn("💥 Шкода від 5 500", labels)
+        self.assertIn("🔦 Засвіт від 3 500", labels)
+        # швидкий вибір кнопкою
+        self.rb.on_callback({"message": {"message_id": 7, "text": "✍️ Напишіть мінімальну шкоду"}},
+                            "set:min_damage=0")
+        self.assertEqual(replay_state.effective(self.settings)["min_damage"], 0)
+        self.assertFalse(self.rb.on_text("123"))                            # питання вже знято
+
+    def test_parse_number(self):
+        P = replays_bot.parse_number
+        self.assertEqual([P("5500"), P("5 500"), P("5.5k"), P("7к"), P("5.500"), P("0")],
+                         [5500, 5500, 5500, 7000, 5500, 0])
+        self.assertEqual([P("abc"), P("99999"), P("5.5")], [None, None, None])
 
     def _doc(self, data: bytes, name="good.wotreplay"):
         with mock.patch.object(replays_bot.urllib.request, "urlopen", return_value=io.BytesIO(data)) as uo:
