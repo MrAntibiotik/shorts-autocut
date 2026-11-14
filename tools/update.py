@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -44,22 +45,66 @@ def local_version() -> dict:
         return {}
 
 
+_FEED: dict = {"t": 0.0, "items": []}
+
+
+def feed(max_age_s: float = 60) -> list[dict]:
+    """Останні коміти гілки зі стрічки GitHub (…/commits/main.atom) — НЕ рахується в ліміт API
+    (60 запитів/год без входу). [{sha, date, message}], новіші першими. Кеш на хвилину."""
+    import html as H
+    import re
+    import time
+    import xml.etree.ElementTree as ET
+    if time.time() - _FEED["t"] < max_age_s and _FEED["items"]:
+        return _FEED["items"]
+    ns = {"a": "http://www.w3.org/2005/Atom"}
+    root = ET.fromstring(http(f"https://github.com/{REPO}/commits/{BRANCH}.atom", 30))
+    items = []
+    for e in root.findall("a:entry", ns):
+        sha = (e.findtext("a:id", "", ns) or "").rsplit("/", 1)[-1].strip()
+        title = " ".join((e.findtext("a:title", "", ns) or "").split())
+        if title.startswith("Merge pull request"):     # злиття — беремо назву PR з опису
+            body = re.sub(r"<[^>]+>", "", H.unescape(e.findtext("a:content", "", ns) or ""))
+            lines = [x.strip() for x in body.splitlines() if x.strip()]
+            title = next((x for x in lines[1:] if not x.startswith("Merge pull request")), title)
+        if re.fullmatch(r"[0-9a-f]{40}", sha):
+            items.append({"sha": sha, "date": e.findtext("a:updated", "", ns) or "", "message": title})
+    if not items:
+        raise RuntimeError("Порожня стрічка комітів GitHub")
+    _FEED.update(t=time.time(), items=items)
+    return items
+
+
 def remote_version() -> dict:
-    """Останній коміт гілки: {sha, date, message}."""
-    d = json.loads(http(f"https://api.github.com/repos/{REPO}/commits/{BRANCH}", 30))
+    """Останній коміт гілки: {sha, date, message}. Спершу — стрічка комітів (без ліміту API)."""
+    try:
+        return dict(feed()[0])
+    except Exception:  # noqa: BLE001 — запасний шлях: API (ліміт 60/год)
+        pass
+    try:
+        d = json.loads(http(f"https://api.github.com/repos/{REPO}/commits/{BRANCH}", 30))
+    except urllib.error.HTTPError as e:
+        if e.code == 403:
+            raise RuntimeError("GitHub тимчасово обмежив кількість запитів — спробуйте за годину") from e
+        raise
     c = d.get("commit") or {}
     return {"sha": d["sha"], "date": (c.get("committer") or {}).get("date", ""),
             "message": (c.get("message") or "").split("\n")[0]}
 
 
 def changes_since(old_sha: str | None, limit: int = 10) -> list[str]:
-    """Заголовки нових комітів (для повідомлення «що нового»)."""
+    """Заголовки нових комітів (для повідомлення «що нового») — зі стрічки, без API."""
     if not old_sha:
         return []
     try:
-        d = json.loads(http(f"https://api.github.com/repos/{REPO}/compare/{old_sha}...{BRANCH}", 30))
-        return [(c["commit"]["message"] or "").split("\n")[0] for c in d.get("commits", [])][-limit:]
-    except Exception:
+        out = []
+        for it in feed():
+            if it["sha"] == old_sha:
+                break
+            if not it["message"].startswith("Merge "):
+                out.append(it["message"])
+        return list(reversed(out))[-limit:]
+    except Exception:  # noqa: BLE001
         return []
 
 
