@@ -118,9 +118,11 @@ def cut_recording(settings: dict, recording: Path, cta_text: str, progress=None,
 
 
 def run(settings: dict, opts: ReplayJobOptions, rec_opts=None, progress=None, cancel=None, who: str = "вкладка",
-        on_short=None) -> dict:
+        on_short=None, on_stage=None) -> dict:
     """Записує й нарізає реплеї з папки. progress(текст, частка); cancel() -> bool;
-    on_short(шлях у Poster, дані реплею) — після кожного готового шортса.
+    on_short(шлях у Poster, дані реплею) — після кожного готового шортса;
+    on_stage(реплей | None, етап, стан, деталь) — для живих карток у боті:
+      етапи obs / rec / cut / post; стани run / done / err / skip (реплей None — стосується всіх).
     Busy (replay_state), якщо запис уже йде з іншого місця (вкладка / бот)."""
     from .replay_state import running
     replays = [Path(p) for p in opts.only] if opts.only else pending_replays(opts.replays_dir)
@@ -128,24 +130,46 @@ def run(settings: dict, opts: ReplayJobOptions, rec_opts=None, progress=None, ca
     if not replays:
         return summary
     with running(opts.replays_dir, who) as alive:
-        _run(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short)
+        _run(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short, _stage_cb(on_stage))
     return summary
 
 
-def _run(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short):
-    from .replay_record import ensure_obs, game_exe
+def _stage_cb(on_stage):
+    def call(rp, stage, state, detail=""):
+        if on_stage:
+            try:
+                on_stage(rp, stage, state, detail)
+            except Exception as e:  # noqa: BLE001 — сповіщення не має ламати запис
+                log.warning("Сповіщення про етап: %s", e)
+    return call
+
+
+def _mmss(sec: float) -> str:
+    sec = max(0, int(sec))
+    return f"{sec // 60}:{sec % 60:02d}"
+
+
+def _run(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short, stage):
+    from .replay_record import RecordError, ensure_obs, game_exe
+    obs = None
     if opts.record:
-        game_exe(rec_opts.game_dir)        # немає гри — зупиняємось ДО запису: реплеї лишаються в черзі
-    obs = ensure_obs(rec_opts) if opts.record else None     # OBS не відкритий — запуститься сам
+        stage(None, "obs", "run", "перевіряю гру й OBS…")
+        try:
+            game_exe(rec_opts.game_dir)    # немає гри — зупиняємось ДО запису: реплеї лишаються в черзі
+            obs = ensure_obs(rec_opts)     # OBS не відкритий — запуститься сам
+        except RecordError as e:
+            stage(None, "obs", "err", str(e))
+            raise
+        stage(None, "obs", "done", "OBS готовий" + (" (запущено програмою)" if obs.launched else ""))
     try:
-        _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short, obs)
+        _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short, obs, stage)
     finally:
         if obs is not None:
             obs.restore()                                     # профіль / набір сцен — як були
 
 
-def _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short, obs):
-    from .replay_record import record_one
+def _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short, obs, stage):
+    from .replay_record import record_one, record_seconds
     for i, rp in enumerate(replays):
         alive()
         if cancel and cancel():
@@ -157,27 +181,45 @@ def _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive
             if progress:
                 progress(f"[{i + 1}/{len(replays)}] {text}", (i + max(0.0, min(1.0, frac))) / len(replays))
         marker = rp.with_suffix(".recorded")
+        cur = "rec" if opts.record else "cut"
         try:
             if opts.record:
-                video = record_one(rp, info, rec_opts, obs, progress=lambda t, f: sub(t, f * 0.6), cancel=cancel)
+                total = record_seconds(info, rec_opts)
+                stage(rp, "rec", "run", f"0:00 / ~{_mmss(total)}")
+
+                def rec_progress(t, f, total=total):
+                    sub(t, f * 0.6)
+                    stage(rp, "rec", "run", f"{_mmss(f * total)} / ~{_mmss(total)}")
+                video = record_one(rp, info, rec_opts, obs, progress=rec_progress, cancel=cancel)
                 marker.write_text(str(video), encoding="utf-8")
                 summary["recorded"] += 1
+                stage(rp, "rec", "done", Path(video).name)
             elif marker.exists():
                 video = Path(marker.read_text(encoding="utf-8").strip())
             else:
                 raise RuntimeError("реплей ще не записано")
             if opts.cut:
+                cur = "cut"
                 sub("Автонарізка…", 0.6)
+                stage(rp, "cut", "run", "шукаю моменти…")
                 shorts = cut_recording(settings, video, opts.cta_text,
-                                       progress=lambda stage, f: sub(stage, 0.6 + 0.4 * f), cancel=cancel)
+                                       progress=lambda st_, f: (sub(st_, 0.6 + 0.4 * f),
+                                                                stage(rp, "cut", "run", f"{int(f * 100)}%")), cancel=cancel)
                 summary["shorts"] += [str(s) for s in shorts]
                 if not shorts:
                     log.info("%s: шортсів немає (у бою не знайдено моментів)", rp.name)
+                    stage(rp, "cut", "skip", "у бою не знайдено моментів — шортса немає")
+                    stage(rp, "post", "skip", "")
+                else:
+                    stage(rp, "cut", "done", f"шортсів: {len(shorts)}")
+                cur = "post"
                 for s in shorts:
                     p = publish(s, info, opts, rid)
                     if p:
                         summary["published"].append(str(p))
                         log.info("  → у публікацію: %s", p)
+                    stage(rp, "post", "done" if p else "skip",
+                          Path(p).name if p else "папку EN-каналу не вказано — шортс лише в output")
                     if on_short:
                         try:
                             on_short(p or s, info)
@@ -188,6 +230,7 @@ def _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive
                 raise
             log.error("%s: %s", rp.name, e)
             summary["errors"].append(f"{rp.name}: {e}")
+            stage(rp, cur, "err", str(e))
             if not marker.exists():   # не записався — не пробувати знову щоразу (видаліть .failed, щоб повторити)
                 rp.with_suffix(".failed").write_text(str(e), encoding="utf-8")
 

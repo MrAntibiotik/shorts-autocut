@@ -71,6 +71,8 @@ class ReplaysBot:
         self.awaiting: str | None = None     # «min_damage» / «min_assist» — чекаємо число від вас
         self.listing: dict = {}              # останній список боїв: {"page", "items", "url", "hidden"}
         self.got: set[str] = set()           # номери реплеїв, уже скачаних зі списку
+        from replay_cards import Cards
+        self.cards = Cards(bot)              # живі картки: етапи від скачування до публікації
 
     # -------------------------------------------------------------- стан
     def state(self) -> dict:
@@ -304,20 +306,19 @@ class ReplaysBot:
         info.path = str(target)
         target.with_suffix(".json").write_text(json.dumps(info.to_dict(), ensure_ascii=False, indent=1),
                                                encoding="utf-8")
-        head = f"✓ {info.vehicle} · {info.map_name} · {info.damage:,} шкоди · фрагів {info.kills}\n"
-        if st.get("instant", True):        # одразу: запис → нарізка → Poster
-            running = (self.thread and self.thread.is_alive()) or busy(replays_dir)
+        running = (self.thread and self.thread.is_alive()) or busy(replays_dir)
+        ahead = self.pending(st) - 1
+        queue = (f"у черзі на запис, перед ним: {ahead}" if running and ahead > 0 else
+                 "чекає, доки закінчиться запис іншого бою" if running else "")
+        self.cards.create(stem, info, version=info.version, queue=queue)   # жива картка етапів
+        if st.get("instant", True):        # одразу: OBS → запис → нарізка → Poster
             if not running:
                 self.start(manual=False)
-                self.bot.send(head + "🎬 Запускаю: OBS → запис бою → нарізка → Poster EN-каналу.")
-            else:
-                self.bot.send(head + f"⏳ Іде запис іншого бою — цей у черзі (перед ним: {self.pending(st) - 1}). "
-                                     "Запишеться одразу після.")
             return True
         self.last_received = time.time()
         idle = int(st.get("idle_min") or 0)
         n = self.pending(st)
-        self.bot.send(head + f"У черзі на запис: {n}."
+        self.bot.send(f"У черзі на запис: {n}."
                       + (f" Запис почнеться сам через {idle} хв без нових реплеїв." if idle else ""),
                       {"inline_keyboard": [[{"text": f"🎬 Записати зібрані ({n})", "callback_data": "F|go"}]]})
         return True
@@ -443,7 +444,6 @@ class ReplaysBot:
 
     def _work(self, st: dict) -> None:
         from shorts.replay_job import ReplayJobOptions, run
-        from shorts.replay_meta import title_en
         from shorts.replay_record import RecordError, RecordOptions
         n = self.pending(st)
         if not st.get("instant", True) or n > 1:
@@ -458,15 +458,14 @@ class ReplaysBot:
                                  cta_text=cta_text(st), credit_author=bool(st.get("credit", True)),
                                  record=bool(st.get("do_record", True)), cut=bool(st.get("do_cut", True)))
 
-        def on_short(path, info):
-            self.bot.send(f"✅ Шортс: {title_en(info) if info else Path(path).stem}"
-                          + ("\n→ у Poster EN-каналу" if jopts.publish_dir else "\n(папку EN-каналу не вказано — лише output)"))
         total = {"recorded": 0, "shorts": 0, "published": 0, "errors": []}
         for _ in range(100):               # реплеї, скачані під час запису, — одразу слідом
             if not self.pending(st):
                 break
             try:
-                summary = run(self.settings, jopts, ropts, who="Telegram-бот", on_short=on_short)
+                from shorts.replay_job import pending_replays
+                self.cards.set_queue([p.stem for p in pending_replays(Path(st["replays_dir"]))])
+                summary = run(self.settings, jopts, ropts, who="Telegram-бот", on_stage=self.cards.stage)
             except Busy as e:
                 self.bot.send(f"⏺ Не починаю: {e}.")
                 return
