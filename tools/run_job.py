@@ -131,7 +131,7 @@ def gui(settings, log_file: Path):
 
     root = tk.Tk()
     root.title("Автонарізка шортсів")
-    root.geometry("780x660")
+    root.geometry("780x760")
     root.minsize(640, 520)
     pad = {"padx": 10, "pady": 4}
 
@@ -388,6 +388,21 @@ def gui(settings, log_file: Path):
     v_hl_best = tk.BooleanVar(value=state.get("hl_best", True))
     tk.Checkbutton(opts_frame, text="    + найкращий бій кожного запису — хайлайт завжди (навіть нижче порогу)",
                    variable=v_hl_best).pack(anchor="w")
+    hc_row = tk.Frame(opts_frame)
+    hc_row.pack(anchor="w", fill="x")
+    tk.Label(hc_row, text="    Напис у хайлайті (на 30-й с і в кінці; порожньо — без напису):").pack(side="left")
+    v_hl_cta = tk.StringVar(value=(settings.get("highlight_cta") or {}).get("text", ""))
+    tk.Entry(hc_row, textvariable=v_hl_cta, width=40, font=("Segoe UI", 10)).pack(side="left", padx=4, fill="x",
+                                                                                  expand=True)
+
+    def save_hl_cta(*_):
+        t = v_hl_cta.get().strip()
+        if t != (settings.get("highlight_cta") or {}).get("text", ""):
+            settings.setdefault("highlight_cta", {})["text"] = t
+            try:
+                save_setting(("highlight_cta", "text"), t)    # і для кнопки «Хайлайт» у боті
+            except Exception as e:
+                messagebox.showerror("Помилка", f"Не вдалося зберегти в settings.json: {e}")
 
     st = read_status(settings)
     if st and st.get("status") == "done" and not (work_dir(settings) / "jobs" / f"{st.get('job_id')}.imported").exists():
@@ -529,6 +544,7 @@ def gui(settings, log_file: Path):
         state.update(profile=prof, cta=text_tpl, render=v_render.get(), subtitles_on=v_subs.get(),
                      speech_ai_on=v_sai.get(), highlights_on=v_hl.get(), hl_best=v_hl_best.get(), separation=v_sep.get(), last_dir=state.get("last_dir") or str(Path(recs[0]).parent))
         save_state(settings, state)
+        save_hl_cta()
         opts = JobOptions(recordings=[Path(r) for r in recs], profile_id=prof, cta_text=text, start=a, end=b,
                           render=v_render.get(), subtitles=v_subs.get(), separation=v_sep.get(),
                           speech_ai=v_sai.get(), highlights=v_hl.get(), hl_min=hl_min, hl_best=v_hl_best.get(),

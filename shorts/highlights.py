@@ -184,6 +184,36 @@ def compute_highlight_layout(profile: dict, rec_w: int, rec_h: int, webcam_file:
     return Layout(W, H, fps, "highlight", layers, int(H * 0.85), warnings, 0)
 
 
+# ====================================================================== напис-заклик
+
+def cta_overlays(settings: dict, layout: Layout, dur: float, tmp) -> list:
+    """«Підпишись — підтримай ветерана 🛡️♥️»: на at_s секунді і в останні end_s секунд хайлайту."""
+    from pathlib import Path
+
+    from .render import Overlay
+    from .textimg import render_text
+    c = settings.get("highlight_cta") or {}
+    text = (c.get("text") or "").strip()
+    if not text:
+        return []
+    W, H = layout.width, layout.height
+    img = render_text(text, settings["subtitles"], font_size=int(H * float(c.get("font_size_pct", 6.0)) / 100),
+                      max_width=int(W * 0.8))
+    tmp = Path(tmp)
+    tmp.mkdir(parents=True, exist_ok=True)
+    png = tmp / "highlight_cta.png"
+    img.save(png)
+    x = (W - img.width) // 2
+    y = max(0, min(H - img.height, int(H * float(c.get("y_pct", 86.0)) / 100) - img.height // 2))
+    show, at, end = float(c.get("show_s", 6.0)), float(c.get("at_s", 30.0)), float(c.get("end_s", 6.0))
+    out = []
+    if at > 0 and at + show < dur - max(end, 0) - 5:
+        out.append(Overlay(png, at, at + show, x, y))
+    if end > 0:
+        out.append(Overlay(png, max(0.0, dur - end), dur, x, y))
+    return out
+
+
 # ====================================================================== повна збірка (обробка, бот, extra\make_highlight.bat)
 
 def make_highlight(settings: dict, info, profile: dict, b: dict, webcam: dict | None, mp4,
@@ -201,7 +231,8 @@ def make_highlight(settings: dict, info, profile: dict, b: dict, webcam: dict | 
     mp4 = Path(mp4)
     log.info("  Хайлайт бою %d (%d): %s, шматків %d", b["index"], battle_value(b), fmt_time(dur, 0), len(segs))
     cam_video = webcam if any(l.source == "webcam_file" for l in layout.layers) else None
-    render_short(settings, info, layout, segs, [], mp4, cam_video)
+    overlays = cta_overlays(settings, layout, dur, Path(work) / f"{mp4.stem}_cta")
+    render_short(settings, info, layout, segs, overlays, mp4, cam_video)
     opened, note = False, ""
     from .opener import cfg_of as ocfg_of, join, make_opener, pick_moments
     ocfg = ocfg_of(hcfg)
