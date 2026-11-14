@@ -102,10 +102,17 @@ def join(settings: dict, opener: Path, main: Path, out: Path, width: int, height
          f"[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]")
     tmp = out.with_name(out.stem + ".part.mp4")
     err = ""
+    # другий прохід (opener + хайлайт) — з запасом якості, щоб перекодування не «їло» картинку
+    cq, crf = max(12, int(r["cq"]) - 3), max(12, int(r["x264_crf"]) - 3)
+    maxrate = r["max_bitrate"]
+    try:
+        maxrate = f"{int(float(str(maxrate).rstrip('Mm')) * 1.5)}M"
+    except ValueError:
+        pass
     for enc in (r["encoder"], r["fallback_encoder"]):
-        vc = (["-c:v", "h264_nvenc", "-preset", r["nvenc_preset"], "-rc", "vbr", "-cq", str(r["cq"]), "-b:v", "0",
-               "-maxrate", r["max_bitrate"], "-bufsize", "40M", "-profile:v", "high"] if enc == "h264_nvenc" else
-              ["-c:v", "libx264", "-preset", "medium", "-crf", str(r["x264_crf"]), "-profile:v", "high"])
+        vc = (["-c:v", "h264_nvenc", "-preset", "p6", "-tune", "hq", "-rc", "vbr", "-cq", str(cq), "-b:v", "0",
+               "-maxrate", maxrate, "-bufsize", "120M", "-profile:v", "high"] if enc == "h264_nvenc" else
+              ["-c:v", "libx264", "-preset", "medium", "-crf", str(crf), "-profile:v", "high"])
         cmd = [ff, "-hide_banner", "-loglevel", "error", "-y", "-i", str(opener), "-i", str(main),
                "-filter_complex", g, "-map", "[v]", "-map", "[a]", *vc, "-c:a", "aac", "-b:a", r["audio_bitrate"],
                "-movflags", "+faststart", str(tmp)]

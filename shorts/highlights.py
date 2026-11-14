@@ -33,7 +33,9 @@ DEFAULTS = {
     "merge_gap_s": 20.0,
     "include_start_s": 20.0,
     "include_end_s": 10.0,
-    "frame": "stream",         # stream — увесь кадр стріму як є; crop16x10 — центр 16:10 з накладками
+    "frame": "stream",
+    "cq": 17,                  # якість хайлайту (менше = краще); шортси — render.cq
+    "max_bitrate": "60M",      # 3440×1440 60 к/с потребує більше, ніж 20M шортсів (YouTube радить 35–45M для 1440p60)         # stream — увесь кадр стріму як є; crop16x10 — центр 16:10 з накладками
     "output": "auto",          # «auto» — рідна роздільність запису: висота запису × 16:10 (3440×1440 → 2304×1440)
     "webcam_width": 480,
     "webcam_corner": "top_left",
@@ -214,6 +216,20 @@ def cta_overlays(settings: dict, layout: Layout, dur: float, tmp) -> list:
     return out
 
 
+# ====================================================================== якість
+
+def hq_settings(settings: dict, hcfg: dict) -> dict:
+    """Налаштування рендеру для хайлайту: вищий бітрейт і якість (великий кадр, 60 к/с, YouTube)."""
+    import copy
+    st = copy.deepcopy(settings)
+    r = st["render"]
+    r["cq"] = min(int(r.get("cq", 19)), int(hcfg.get("cq", 17)))
+    r["x264_crf"] = min(int(r.get("x264_crf", 18)), int(hcfg.get("cq", 17)))
+    r["max_bitrate"] = str(hcfg.get("max_bitrate") or "60M")
+    r["audio_bitrate"] = "256k"
+    return st
+
+
 # ====================================================================== json для Poster
 
 def poster_texts(settings: dict, b: dict) -> dict:
@@ -271,6 +287,7 @@ def make_highlight(settings: dict, info, profile: dict, b: dict, webcam: dict | 
     from .render import render_short
     from .util import fmt_time
     hcfg = cfg_of(profile)
+    settings = hq_settings(settings, hcfg)          # висока якість для великого кадру
     layout = compute_highlight_layout(profile, info.width, info.height, webcam)
     segs = select_highlight(b, hcfg, rec_start, rec_end)
     dur = sum(e - s for s, e in segs)

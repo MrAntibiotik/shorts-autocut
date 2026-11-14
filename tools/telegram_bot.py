@@ -223,12 +223,13 @@ def make_preview(settings: dict, mp4: Path, horizontal: bool = False) -> Path:
     for attempt in range(4):
         vbit = max(120, int(target_mb * 1024 * 1024 * 8 / dur / 1000) - abit - 16)   # кбіт/с відео
         if horizontal:
-            height = 480 if vbit >= 700 else 360 if vbit >= 350 else 270
+            height = 720 if vbit >= 1800 else 540 if vbit >= 800 else 432 if vbit >= 450 else 360
             vf = f"scale=-2:{height}"
         else:
             vf = "scale=480:-2" if vbit >= 350 else "scale=360:-2"
         cmd = [find_tool(settings, "ffmpeg"), "-hide_banner", "-loglevel", "error", "-y", "-i", str(mp4),
-               "-vf", vf + ",setsar=1", "-c:v", "libx264", "-preset", "veryfast", "-crf", "30" if horizontal else "28",
+               "-vf", vf + ",setsar=1", "-c:v", "libx264", "-preset", "medium" if horizontal else "veryfast",
+               "-crf", "26" if horizontal else "28",
                "-maxrate", f"{vbit}k", "-bufsize", f"{vbit}k",
                "-c:a", "aac", "-b:a", f"{abit}k", "-movflags", "+faststart", str(tmp)]
         r = subprocess.run(cmd, capture_output=True, creationflags=_NO_WINDOW)

@@ -105,11 +105,19 @@ def build_command(settings: dict, info: VideoInfo, layout: Layout, segments: lis
     r = settings["render"]
     if encoder == "h264_nvenc":
         cmd += ["-c:v", "h264_nvenc", "-preset", r["nvenc_preset"], "-rc", "vbr", "-cq", str(r["cq"]),
-                "-b:v", "0", "-maxrate", r["max_bitrate"], "-bufsize", "40M", "-profile:v", "high"]
+                "-b:v", "0", "-maxrate", r["max_bitrate"], "-bufsize", _bufsize(r["max_bitrate"]), "-profile:v", "high"]
     else:
         cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", str(r["x264_crf"]), "-profile:v", "high"]
     cmd += ["-c:a", "aac", "-b:a", r["audio_bitrate"], "-movflags", "+faststart", str(out_path)]
     return cmd
+
+
+def _bufsize(maxrate: str) -> str:
+    """Буфер = 2 × максимальний бітрейт (не менше 40M), щоб у динамічних сценах не «сипалось»."""
+    try:
+        return f"{max(40, int(float(str(maxrate).rstrip('Mm')) * 2))}M"
+    except ValueError:
+        return "40M"
 
 
 _nvenc_broken = False
