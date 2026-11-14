@@ -69,6 +69,7 @@ class ReplaysBot:
         self.thread: threading.Thread | None = None
         self.last_received = 0.0
         self.awaiting: str | None = None     # «min_damage» / «min_assist» — чекаємо число від вас
+        self.cancel = threading.Event()      # «⏹ Зупинити запис»
         self.listing: dict = {}              # останній список боїв: {"page", "items", "url", "hidden"}
         self.got: set[str] = set()           # номери реплеїв, уже скачаних зі списку
         from replay_cards import Cards
@@ -254,6 +255,8 @@ class ReplaysBot:
             toast = "♻ Фільтр скинуто"
         elif kind == "go":
             toast = self.start(manual=True)
+        elif kind == "stop":
+            return self.stop()
         if msg:
             self.redraw(msg)
         return toast
@@ -443,8 +446,13 @@ class ReplaysBot:
     def start(self, manual: bool) -> str:
         st = self.state()
         replays_dir = Path(st["replays_dir"])
-        if (self.thread and self.thread.is_alive()) or busy(replays_dir):
+        mine = bool(self.thread and self.thread.is_alive())
+        if mine or busy(replays_dir, own_running=False):     # обірвані залишки busy() знімає сам
+            if manual:
+                self.bot.send("⏺ Запис уже йде" + ("" if mine else " (з вкладки на ПК)") + ". Зупинити?",
+                              {"inline_keyboard": [[{"text": "⏹ Зупинити запис", "callback_data": "F|stop"}]]})
             return "⏺ Запис уже йде"
+        self.cancel.clear()
         if manual:                        # «🎬 Записати зібрані» — і ті, що раніше не вдалися
             from shorts.replay_job import retry_failed
             retry_failed(replays_dir)
@@ -454,6 +462,20 @@ class ReplaysBot:
         self.thread = threading.Thread(target=self._work, args=(st,), daemon=True, name="replays-bot")
         self.thread.start()
         return f"🎬 Починаю запис: {n}"
+
+    def stop(self) -> str:
+        """«⏹ Зупинити запис»: OBS зупиняється, гра закривається, позначка «іде запис» знімається."""
+        from shorts.replay_record import kill_game
+        from shorts.replay_state import clear_lock
+        st = self.state()
+        self.cancel.set()
+        running = bool(self.thread and self.thread.is_alive())
+        if not running:                      # запис ішов не з бота або обірвався — прибираємо самі
+            kill_game()
+            clear_lock(Path(st["replays_dir"]))
+            self.bot.send("⏹ Позначку «іде запис» знято, гру закрито. Можна знову «🎬 Записати зібрані».")
+            return "⏹ Зупинено"
+        return "⏹ Зупиняю… (до кількох секунд)"
 
     def _work(self, st: dict) -> None:
         from shorts.replay_job import ReplayJobOptions, run
@@ -480,7 +502,8 @@ class ReplaysBot:
             try:
                 from shorts.replay_job import pending_replays
                 self.cards.set_queue([p.stem for p in pending_replays(Path(st["replays_dir"]))])
-                summary = run(self.settings, jopts, ropts, who="Telegram-бот", on_stage=self.cards.stage)
+                summary = run(self.settings, jopts, ropts, who="Telegram-бот", on_stage=self.cards.stage,
+                              cancel=self.cancel.is_set)
             except Busy as e:
                 self.bot.send(f"⏺ Не починаю: {e}.")
                 return
@@ -488,6 +511,10 @@ class ReplaysBot:
                 self.bot.send(f"❌ Запис не почався: {e}")
                 return
             except Exception as e:  # noqa: BLE001
+                if type(e).__name__ == "Cancelled" or self.cancel.is_set():
+                    self.cards.stage(None, "rec", "skip", "зупинено вами — реплей лишився в черзі")
+                    self.bot.send("⏹ Запис зупинено. Реплей лишився в черзі — «🎬 Записати зібрані», щоб почати знову.")
+                    return
                 log.exception("Реплеї з бота")
                 self.bot.send(f"❌ Помилка: {type(e).__name__}: {e}")
                 return

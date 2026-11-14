@@ -79,8 +79,12 @@ class Cards:
         if not force and now - c["edited"] < EDIT_EVERY_S:
             return
         c["edited"] = now
+        active = c["st"].get("rec") == "run" or c["st"].get("obs") == "run"
+        markup = {"inline_keyboard": [[{"text": "⏹ Зупинити запис", "callback_data": "F|stop"}]]} if active \
+            else {"inline_keyboard": []}
         try:
-            self.bot.api.call("editMessageText", chat_id=self.bot.owner, message_id=c["msg"], text=self.text(c))
+            self.bot.api.call("editMessageText", chat_id=self.bot.owner, message_id=c["msg"], text=self.text(c),
+                              reply_markup=markup)
         except Exception as e:  # noqa: BLE001 — «not modified» і подібне не важливі
             if "not modified" not in str(e):
                 import logging

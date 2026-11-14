@@ -78,12 +78,63 @@ def lock_path(replays_dir: Path) -> Path:
     return Path(replays_dir) / ".running"
 
 
-def busy(replays_dir: Path) -> bool:
+def pid_alive(pid: int) -> bool:
+    """Чи живий процес (Windows і Linux)."""
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        try:
+            import ctypes
+            k = ctypes.windll.kernel32
+            h = k.OpenProcess(0x1000, False, pid)            # PROCESS_QUERY_LIMITED_INFORMATION
+            if not h:
+                return False
+            code = ctypes.c_ulong()
+            ok = k.GetExitCodeProcess(h, ctypes.byref(code))
+            k.CloseHandle(h)
+            return bool(ok) and code.value == 259            # STILL_ACTIVE
+        except Exception:
+            return True
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+
+
+def lock_pid(replays_dir: Path) -> int:
+    import re
+    try:
+        m = re.search(r"PID (\d+)", lock_path(replays_dir).read_text(encoding="utf-8"))
+        return int(m.group(1)) if m else 0
+    except OSError:
+        return 0
+
+
+def clear_lock(replays_dir: Path) -> None:
+    try:
+        lock_path(replays_dir).unlink()
+    except OSError:
+        pass
+
+
+def busy(replays_dir: Path, own_running: bool | None = None) -> bool:
+    """Чи йде запис зараз. Залишки обірваного запису (процесу вже немає, або це наш процес, але запис у ньому
+    не йде — own_running=False) знімаються автоматично."""
     p = lock_path(replays_dir)
     try:
-        return time.time() - p.stat().st_mtime < LOCK_STALE_S
+        if time.time() - p.stat().st_mtime >= LOCK_STALE_S:
+            clear_lock(replays_dir)
+            return False
     except OSError:
         return False
+    pid = lock_pid(replays_dir)
+    if pid and (not pid_alive(pid) or (pid == os.getpid() and own_running is False)):
+        clear_lock(replays_dir)
+        return False
+    return True
 
 
 @contextmanager
@@ -107,5 +158,5 @@ def running(replays_dir: Path, who: str):
             pass
 
 
-__all__ = ["Busy", "DEFAULTS", "DEFAULT_CTA", "busy", "cta_text", "effective", "load", "lock_path", "running", "save",
+__all__ = ["Busy", "DEFAULTS", "DEFAULT_CTA", "busy", "clear_lock", "cta_text", "lock_pid", "pid_alive", "effective", "load", "lock_path", "running", "save",
            "state_file"]

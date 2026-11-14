@@ -347,6 +347,19 @@ def ensure_obs(opts: RecordOptions) -> "Obs":
     return obs
 
 
+def game_running() -> bool | None:
+    """Чи працює гра (WorldOfTanks.exe — будь-який процес, не лише запущений нами). None — невідомо."""
+    if not WIN:
+        return None
+    try:
+        r = subprocess.run(["tasklist", "/FO", "CSV", "/NH"], capture_output=True, text=True, errors="replace",
+                           timeout=20, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, subprocess.SubprocessError):
+        return None
+    names = {line.split('","')[0].strip('"').lower() for line in r.stdout.splitlines() if line}
+    return any(n.lower() in names for n in PROCESS_NAMES)
+
+
 def kill_game() -> None:
     for name in PROCESS_NAMES:
         if WIN:
@@ -445,15 +458,22 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
         started = True
         t0 = time.time()
         last_check, obs_tc = t0, ""
+        last_game_check, gone = t0, 0
         while time.time() - t0 < total:
             if cancel and cancel():
                 raise Cancelled()
             if progress:
                 progress(f"Запис {replay.name}: {int(time.time() - t0)} / {int(total)} с"
                          + (f" · OBS ● REC {obs_tc}" if obs_tc else ""), (time.time() - t0) / total)
-            if proc.poll() is not None and time.time() - t0 > opts.load_s:
-                log.info("Гру закрито раніше — зупиняю запис")
-                break
+            if time.time() - t0 > opts.load_s and time.time() - last_game_check >= 5:
+                last_game_check = time.time()
+                alive = game_running()
+                if alive is None:                               # не вдалось дізнатися — як раніше, за процесом
+                    alive = proc.poll() is None
+                gone = 0 if alive else gone + 1
+                if gone >= 2:
+                    log.info("Гру закрито — зупиняю запис")
+                    break
             while clicks and time.time() - launched >= clicks[0]:   # камера від обличчя гравця
                 clicks.pop(0)
                 click_player_view()

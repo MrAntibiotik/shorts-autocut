@@ -234,13 +234,56 @@ class ReplaysBotTest(unittest.TestCase):
         self.assertEqual(calls[0][0], "Telegram-бот")
         self.assertIn("Day 1", calls[0][1])
         self.assertIn("🏁 Готово: записано 1", self.bot.sent[-1][0])
-        # запис уже йде з вкладки → бот не починає
-        with replay_state.running(self.d / "replays", "вкладка"):
-            self.assertEqual(self.rb.start(manual=True), "⏺ Запис уже йде")
-            with self.assertRaises(replay_state.Busy):
-                with replay_state.running(self.d / "replays", "бот"):
-                    pass
+        import os
+        lock = replay_state.lock_path(self.d / "replays")
+        # запис справді йде з вкладки (інший живий процес) → бот не починає, пропонує «Зупинити»
+        lock.write_text(f"вкладка, PID {os.getppid()}", encoding="utf-8")
+        self.assertEqual(self.rb.start(manual=True), "⏺ Запис уже йде")
+        self.assertIn("F|stop", str(self.bot.sent[-1][1]))
+        with self.assertRaises(replay_state.Busy):
+            with replay_state.running(self.d / "replays", "бот"):
+                pass
+        # залишок обірваного запису: процесу вже немає → знімається сам
+        lock.write_text("вкладка, PID 999999", encoding="utf-8")
         self.assertFalse(replay_state.busy(self.d / "replays"))
+        self.assertFalse(lock.exists())
+        # залишок від самого бота (запис у ньому вже не йде) → теж знімається, запис починається
+        lock.write_text(f"Telegram-бот, PID {os.getpid()}", encoding="utf-8")
+        with mock.patch.object(replay_job, "run", fake_run):
+            self.assertTrue(self.rb.start(manual=True).startswith("🎬 Починаю запис"))
+            self.rb.thread.join(5)
+
+    def test_stop_during_recording(self):
+        import time as T
+        from shorts import replay_record
+        (self.d / "replays").mkdir(exist_ok=True)
+        rp = make_replay(self.d / "replays" / "a.wotreplay")
+
+        def fake_run(settings, jopts, ropts, who="", on_stage=None, cancel=None, **kw):
+            for _ in range(200):                       # «запис» — доки не натиснуть «Зупинити»
+                if cancel():
+                    raise replay_record.Cancelled()
+                T.sleep(0.01)
+            return {"recorded": 0, "shorts": [], "published": [], "errors": []}
+        with mock.patch.object(replay_job, "run", fake_run):
+            self.rb.start(manual=True)
+            T.sleep(0.05)
+            self.assertEqual(self.rb.on_callback({"message": {}}, "stop"), "⏹ Зупиняю… (до кількох секунд)")
+            self.rb.thread.join(5)
+        self.assertIn("⏹ Запис зупинено", self.bot.sent[-1][0])
+        self.assertFalse(rp.with_suffix(".failed").exists())                 # реплей лишився в черзі
+
+    def test_stop_button_clears_leftover(self):
+        import os
+        (self.d / "replays").mkdir(exist_ok=True)
+        lock = replay_state.lock_path(self.d / "replays")
+        lock.write_text(f"вкладка, PID {os.getppid()}", encoding="utf-8")
+        from shorts import replay_record
+        with mock.patch.object(replay_record, "kill_game") as kg:
+            self.assertEqual(self.rb.on_callback({"message": {}}, "stop"), "⏹ Зупинено")
+        kg.assert_called_once()
+        self.assertFalse(lock.exists())
+        self.assertIn("Позначку «іде запис» знято", self.bot.sent[-1][0])
 
     def test_instant_record_after_download(self):
         good = make_replay(self.d / "g.bin").read_bytes()
