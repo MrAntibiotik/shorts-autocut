@@ -32,7 +32,7 @@ from .media import probe
 from .render import Overlay, render_short
 from .report import write_reports
 from .resolve_export import markers_for, write_lua, write_marker_edl, write_status
-from .selection import Short, SpeechMap, describe, select_shorts
+from .selection import SHORT_MAX_S, Short, SpeechMap, cap_segments, describe, select_shorts, shorts_limit
 from .recording import find_webcam_file, resolve_recording, webcam_offset  # noqa: F401
 from .speech_ai import words_for_short
 from .subtitles import Cue, add_emoji, build_cues, transcribe_shorts, write_srt
@@ -187,7 +187,7 @@ class Job:
                 c = dict(cfg, merge_gap_s=sel["merge_gap_s"])
                 for sh in shorts:
                     before = sh.duration
-                    sh.segments = extend_to_phrases(sh.segments, phrases, float(sel["max_duration_s"]), c,
+                    sh.segments = extend_to_phrases(sh.segments, phrases, shorts_limit(sel), c,
                                                     start, end)
                     if abs(sh.duration - before) > 0.05:
                         log.info("    %s: до кінця фраз %+.1f с → %.1f с", sh.title, sh.duration - before,
@@ -281,6 +281,8 @@ class Job:
             speech = self._silero_speech(chunks, sai_cfg, speech)
         shorts = select_shorts(battles, prof, start, end, speech)
         ai_words = self._speech_ai(chunks, shorts, battles, sai_cfg, start, end, P) if opts.speech_ai and shorts else None
+        for sh in shorts:                     # після подовження до кінця фраз — ще раз: не довше 59,5 с
+            sh.segments = cap_segments(sh.segments, SHORT_MAX_S)
         log.info("Боїв: %d, шортсів: %d", len(battles), len(shorts))
         for sh in shorts:
             log.info("  %s", describe(sh))
