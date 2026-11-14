@@ -300,9 +300,15 @@ def write_poster_json(settings: dict, b: dict, mp4) -> None:
 # ====================================================================== повна збірка (обробка, бот, extra\make_highlight.bat)
 
 def make_highlight(settings: dict, info, profile: dict, b: dict, webcam: dict | None, mp4,
-                   work, rec_start: float, rec_end: float) -> dict:
+                   work, rec_start: float, rec_end: float, progress=None) -> dict:
     """Рендер хайлайту бою + opener на початок. Повертає опис для job.json. Помилка рендеру — виняток;
-    помилка opener'а — хайлайт без нього."""
+    помилка opener'а — хайлайт без нього. progress(текст, частка 0..1 або None) — для вікна прогресу."""
+    def say(text: str, frac=None):
+        if progress:
+            try:
+                progress(text, frac)
+            except Exception:  # noqa: BLE001
+                pass
     from pathlib import Path
 
     from .render import render_short
@@ -316,7 +322,9 @@ def make_highlight(settings: dict, info, profile: dict, b: dict, webcam: dict | 
     log.info("  Хайлайт бою %d (%d): %s, шматків %d", b["index"], battle_value(b), fmt_time(dur, 0), len(segs))
     cam_video = webcam if any(l.source == "webcam_file" for l in layout.layers) else None
     overlays = cta_overlays(settings, layout, dur, Path(work) / f"{mp4.stem}_cta")
-    render_short(settings, info, layout, segs, overlays, mp4, cam_video)
+    say(f"Рендер хайлайту ({fmt_time(dur, 0)}) у якості оригіналу…", 0.0)
+    render_short(settings, info, layout, segs, overlays, mp4, cam_video,
+                 progress=(lambda f: say(f"Рендер хайлайту ({fmt_time(dur, 0)}) у якості оригіналу…", f)))
     opened, note = False, ""
     from .opener import cfg_of as ocfg_of, join, make_opener, pick_moments
     ocfg = ocfg_of(hcfg)
@@ -329,8 +337,10 @@ def make_highlight(settings: dict, info, profile: dict, b: dict, webcam: dict | 
             log.info("    opener: %s — хайлайт без opener'а", note)
         else:
             try:
+                say(f"Opener: збираю {len(starts)} найяскравіших моментів у шаблон…")
                 op = make_opener(settings, ocfg, mp4, starts, Path(work) / f"{mp4.stem}_opener.mp4",
                                  (layout.width, layout.height))
+                say("Opener: приклеюю на початок хайлайту…")
                 joined = mp4.with_name(mp4.stem + "_with_opener.mp4")
                 join(settings, op, mp4, joined, layout.width, layout.height, layout.fps)
                 joined.replace(mp4)

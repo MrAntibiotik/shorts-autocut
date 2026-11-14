@@ -100,7 +100,8 @@ def find_recording(path: str, settings: dict | None = None, meta: dict | None = 
                        f"чи тривалістю — виберіть файл або змініть «Папку зі стрімами»)")
 
 
-def make(job_dir: Path, battle_idx: int, settings: dict | None = None, rec_override: str | None = None) -> dict:
+def make(job_dir: Path, battle_idx: int, settings: dict | None = None, rec_override: str | None = None,
+         progress=None) -> dict:
     from shorts.highlights import make_highlight
     settings = settings or load_settings()
     items = [x for x in battles_of(job_dir) if int(x["battle"]) == int(battle_idx)]
@@ -109,6 +110,8 @@ def make(job_dir: Path, battle_idx: int, settings: dict | None = None, rec_overr
     it = items[0]
     rec = it["rec"]
     orig_path = rec["path"]
+    if progress:
+        progress("Шукаю оригінальний запис стріму…", None)
     if rec_override:
         rec_path = Path(rec_override)
         if not rec_path.exists():
@@ -128,7 +131,7 @@ def make(job_dir: Path, battle_idx: int, settings: dict | None = None, rec_overr
     mp4 = highlight_path(settings, job_dir.name, rec.get("tag", "rec"), it["dir"].name)
     start, end = (rec.get("range") or [0.0, info.duration])
     res = make_highlight(st, info, prof, b, rec.get("webcam"), mp4, work_dir(settings) / "jobs" / job_dir.name,
-                         float(start), float(end))
+                         float(start), float(end), progress=progress)
     # запис у job.json — щоб бот і DaVinci знали про хайлайт
     job = json.loads((job_dir / "job.json").read_text(encoding="utf-8"))
     for r in job.get("recordings", []):
@@ -153,6 +156,17 @@ def ask_recording(settings: dict, orig: str) -> str:
     return ans
 
 
+_last_line = {"t": 0.0, "text": ""}
+
+
+def _console_progress(text: str, frac=None):
+    import time
+    if text == _last_line["text"] and time.time() - _last_line["t"] < 5 and frac not in (None, 1.0):
+        return
+    _last_line.update(t=time.time(), text=text)
+    print(f"{text}" + (f" {int(frac * 100)}%" if frac is not None else ""), flush=True)
+
+
 def main() -> int:
     for s in (sys.stdout, sys.stderr):
         try:
@@ -164,6 +178,8 @@ def main() -> int:
     ap.add_argument("battle", nargs="?", type=int)
     ap.add_argument("--json", action="store_true", help="вивести результат JSON (для бота)")
     ap.add_argument("--rec", help="файл запису гри (якщо оригінал перенесли/перейменували)")
+    ap.add_argument("--gui", action="store_true", help="показати вікно з прогресом")
+    ap.add_argument("--title", default="", help="назва для вікна прогресу")
     a = ap.parse_args()
     settings = load_settings()
     setup_logging("make_highlight", work_dir(settings) / "logs")
@@ -190,7 +206,14 @@ def main() -> int:
                 find_recording(it["rec"]["path"], settings, it["rec"])
             except RuntimeError:
                 rec = ask_recording(settings, it["rec"]["path"])
-    res = make(job_dir, battle, settings, rec)
+    if a.gui:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from progress_window import run_with_window
+        res = run_with_window(f"🎬 Хайлайт — {a.title or f'бій {battle}'}",
+                              lambda report: make(job_dir, battle, settings, rec, progress=report),
+                              folder_of=lambda r: Path(r["mp4"]).parent)
+    else:
+        res = make(job_dir, battle, settings, rec, progress=_console_progress)
     if a.json:
         print("RESULT " + json.dumps(res, ensure_ascii=False))
     else:

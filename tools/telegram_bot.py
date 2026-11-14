@@ -359,7 +359,10 @@ class Bot:
         def work():
             try:
                 exe = Path(sys.executable)
-                cmd = [str(exe), str(ROOT / "tools" / "make_highlight.py"), str(job_dir), str(s["battle"]), "--json"]
+                pyw = exe.with_name("pythonw.exe")             # вікно прогресу без консолі
+                exe = pyw if pyw.exists() else exe
+                cmd = [str(exe), str(ROOT / "tools" / "make_highlight.py"), str(job_dir), str(s["battle"]), "--json",
+                       "--gui", "--title", s["name"]]
                 if rec:
                     cmd += ["--rec", rec]
                 r = subprocess.run(cmd, capture_output=True, cwd=str(ROOT), creationflags=_NO_WINDOW)

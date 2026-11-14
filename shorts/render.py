@@ -143,8 +143,32 @@ def _bufsize(maxrate: str) -> str:
 _nvenc_broken = False
 
 
+def _run_with_progress(cmd: list[str], total: float, progress) -> subprocess.CompletedProcess:
+    """ffmpeg з -progress: progress(частка 0..1) за часом уже закодованого відео."""
+    import threading
+    cmd = cmd[:1] + ["-progress", "pipe:1", "-nostats"] + cmd[1:]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=_NO_WINDOW)
+    err: list[bytes] = []
+    t = threading.Thread(target=lambda: err.append(proc.stderr.read()), daemon=True)
+    t.start()
+    last = -1.0
+    for line in proc.stdout:
+        k, _, v = line.decode("utf-8", "replace").strip().partition("=")
+        if k in ("out_time_us", "out_time_ms") and v.isdigit() and total > 0:
+            frac = min(1.0, int(v) / 1e6 / total)
+            if frac - last >= 0.005:
+                last = frac
+                try:
+                    progress(frac)
+                except Exception:  # noqa: BLE001
+                    pass
+    proc.wait()
+    t.join(timeout=5)
+    return subprocess.CompletedProcess(cmd, proc.returncode, b"", b"".join(err))
+
+
 def render_short(settings: dict, info: VideoInfo, layout: Layout, segments: list[tuple[float, float]],
-                 overlays: list[Overlay], out_path: Path, webcam: dict | None = None) -> Path:
+                 overlays: list[Overlay], out_path: Path, webcam: dict | None = None, progress=None) -> Path:
     global _nvenc_broken
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = out_path.with_name(out_path.stem + ".part.mp4")
@@ -156,7 +180,10 @@ def render_short(settings: dict, info: VideoInfo, layout: Layout, segments: list
         cmd = build_command(settings, info, layout, segments, overlays, tmp, webcam, enc)
         log.debug("RENDER %s", " ".join(cmd))
         t0 = time.time()
-        res = subprocess.run(cmd, capture_output=True, creationflags=_NO_WINDOW)
+        if progress:
+            res = _run_with_progress(cmd, sum(b - a for a, b in segments), progress)
+        else:
+            res = subprocess.run(cmd, capture_output=True, creationflags=_NO_WINDOW)
         if res.returncode == 0 and tmp.exists() and tmp.stat().st_size > 1000:
             tmp.replace(out_path)
             log.info("    MP4 готовий за %.0f с (%s): %s", time.time() - t0, enc, out_path.name)

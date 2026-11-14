@@ -404,8 +404,12 @@ class Job:
                     from .config import highlight_path
                     mp4 = highlight_path(self.settings, self.out.name, tag, disk)
                     try:
+                        def hl_progress(text, f, n=b["index"]):
+                            if P.callback:
+                                pct = f" {int(f * 100)}%" if f is not None else ""
+                                P.callback(f"{P.stage} — бій {n}: {text}{pct}", P.base)
                         highlights_out.append(make_highlight(st, info, prof, b, webcam, mp4, self.work / tag,
-                                                             start, end))
+                                                             start, end, progress=hl_progress))
                     except UserError as e:
                         log.error("[ПОМИЛКА] Хайлайт бою %d: %s", b["index"], e)
             else:

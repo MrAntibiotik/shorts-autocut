@@ -9,6 +9,15 @@ import json, os, subprocess, sys, shutil, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+# Windows: ffmpeg/ffprobe без чорних вікон консолі (шаблон запускається з програми у фоні)
+if os.name == "nt":
+    _orig_run = subprocess.run
+
+    def _quiet_run(*a, **k):
+        k.setdefault("creationflags", 0x08000000)  # CREATE_NO_WINDOW
+        return _orig_run(*a, **k)
+    subprocess.run = _quiet_run
+
 def die(msg): print("ПОМИЛКА:", msg); sys.exit(1)
 
 def has_audio(path):
