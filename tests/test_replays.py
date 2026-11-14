@@ -260,8 +260,10 @@ class ObsLaunchTest(unittest.TestCase):
             exe = Path(t) / "obs64.exe"
             exe.write_text("x")
             opts = rr.RecordOptions(game_dir=Path(t), obs_exe=str(exe), obs_profile="WoT Replays",
-                                    obs_collection="WoT Replays", obs_start_wait_s=30)
+                                    obs_collection="WoT Replays", obs_start_wait_s=30,
+                                    record_dir=str(Path(t) / "Desktop" / "wot replays eu"))
             cl = mock.Mock()
+            cl.get_record_directory.return_value = mock.Mock(record_directory=str(Path(t) / "Videos"))
             cl.get_profile_list.return_value = mock.Mock(current_profile_name="Stream")
             cl.get_scene_collection_list.return_value = mock.Mock(current_scene_collection_name="Stream")
             tries = {"n": 0}
@@ -285,9 +287,18 @@ class ObsLaunchTest(unittest.TestCase):
             cl.set_current_profile.assert_called_once_with("WoT Replays")
             cl.get_profile_list.return_value = mock.Mock(current_profile_name="WoT Replays")
             cl.get_scene_collection_list.return_value = mock.Mock(current_scene_collection_name="WoT Replays")
+            cl.set_record_directory.assert_called_once_with(str(Path(t) / "Desktop" / "wot replays eu"))
+            self.assertTrue((Path(t) / "Desktop" / "wot replays eu").is_dir())   # папку створено
             obs.restore()
+            cl.set_record_directory.assert_called_with(str(Path(t) / "Videos"))   # повернули папку OBS
             cl.set_current_profile.assert_called_with("Stream")
             cl.set_current_scene_collection.assert_called_with("Stream")
+
+    def test_default_record_dir_on_desktop(self):
+        from unittest import mock
+        from shorts import replay_record as rr
+        with mock.patch.object(rr, "desktop_dir", return_value=Path("C:/Users/x/OneDrive/Desktop")):
+            self.assertEqual(rr.default_record_dir(), Path("C:/Users/x/OneDrive/Desktop") / "wot replays eu")
 
     def test_no_obs_exe_gives_clear_error(self):
         from unittest import mock
