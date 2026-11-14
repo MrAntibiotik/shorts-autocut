@@ -348,7 +348,7 @@ class ClickTest(unittest.TestCase):
         from unittest import mock
         from shorts import replay_record as rr
         o = rr.RecordOptions(game_dir=Path("."), load_s=60)
-        self.assertEqual(rr.click_times(o), [75.0])                      # один клік — камера від гравця
+        self.assertEqual(rr.click_times(o), [55.0])                      # один клік — камера від гравця
         self.assertEqual(rr.click_times(rr.RecordOptions(game_dir=Path("."), click_at=())), [])
         o2 = rr.RecordOptions(game_dir=Path("."), load_s=40, click_at=("load+5", "120", "bad"))
         self.assertEqual(rr.click_times(o2), [45.0, 120.0])
@@ -372,6 +372,54 @@ class ClickTest(unittest.TestCase):
         self.assertGreaterEqual(clicks[0], 3)
         self.assertGreaterEqual(clicks[1], 5)
         self.assertFalse(rr.click_player_view() if sys.platform != "win32" else False)
+
+
+class ObsVerifyTest(unittest.TestCase):
+    def _obs(self, states):
+        from unittest import mock
+        from shorts import replay_record as rr
+        o = rr.Obs.__new__(rr.Obs)
+        o.cl = mock.Mock()
+        seq = iter(states)
+        o.cl.get_record_status.side_effect = lambda: mock.Mock(output_active=next(seq, states[-1]),
+                                                                output_timecode="00:03:12.345")
+        return rr, o
+
+    def test_start_verifies_recording(self):
+        from unittest import mock
+        rr, o = self._obs([False, False, True])                # не пише → пише
+        with mock.patch.object(rr.time, "sleep"):
+            o.start(wait_s=5)
+        o.cl.start_record.assert_called_once()
+        self.assertEqual(o.status(), (True, "00:03:12"))
+        rr, o = self._obs([False])                             # так і не почав
+        clock = {"t": 0.0}
+        with mock.patch.object(rr.time, "sleep", side_effect=lambda s: clock.__setitem__("t", clock["t"] + s)), \
+                mock.patch.object(rr.time, "time", side_effect=lambda: clock["t"]):
+            with self.assertRaises(rr.RecordError) as cm:
+                o.start(wait_s=3)
+        self.assertIn("OBS не почав запис", str(cm.exception))
+        rr, o = self._obs([True])                              # уже пише
+        with self.assertRaises(rr.RecordError):
+            o.start()
+
+    def test_obs_stops_mid_battle(self):
+        from unittest import mock
+        from shorts import replay_record as rr
+        clock = {"t": 1000.0}
+        opts = rr.RecordOptions(game_dir=Path("."), load_s=5, click_at=(), tail_s=0, default_battle_s=60, max_s=120)
+        obs = mock.Mock()
+        obs.status.return_value = (False, "")
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        with mock.patch.object(rr, "game_exe", return_value=Path(__file__)), \
+                mock.patch.object(rr.subprocess, "Popen", return_value=proc), mock.patch.object(rr, "kill_game"), \
+                mock.patch.object(rr.time, "time", side_effect=lambda: clock["t"]), \
+                mock.patch.object(rr.time, "sleep", side_effect=lambda s: clock.__setitem__("t", clock["t"] + s)):
+            with self.assertRaises(rr.RecordError) as cm:
+                rr.record_one(Path(__file__), None, opts, obs)
+        self.assertIn("OBS зупинив запис", str(cm.exception))
+        obs.stop.assert_called_once()
 
 
 class ImportSeenTest(unittest.TestCase):

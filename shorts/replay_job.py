@@ -189,7 +189,8 @@ def _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive
 
                 def rec_progress(t, f, total=total):
                     sub(t, f * 0.6)
-                    stage(rp, "rec", "run", f"{_mmss(f * total)} / ~{_mmss(total)}")
+                    rec = t.split("OBS ", 1)[1] if "OBS " in t else ""     # лічильник самого OBS — запис справді йде
+                    stage(rp, "rec", "run", f"{_mmss(f * total)} / ~{_mmss(total)}" + (f" · {rec}" if rec else ""))
                 video = record_one(rp, info, rec_opts, obs, progress=rec_progress, cancel=cancel)
                 marker.write_text(str(video), encoding="utf-8")
                 summary["recorded"] += 1
