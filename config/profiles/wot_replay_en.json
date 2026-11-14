@@ -34,6 +34,12 @@
       0.3,
       0.4,
       0.35
+    ],
+    "minimap": [
+      0.852,
+      0.652,
+      0.148,
+      0.348
     ]
   },
   "signals": {
@@ -304,7 +310,7 @@
       "webcam_y": 40,
       "webcam_width": 640,
       "webcam_height": 410,
-      "webcam_fit": "cover",
+      "webcam_fit": "contain",
       "game_below_webcam": false,
       "game_zoom": 1.0,
       "game_offset_x": 0.0,
@@ -325,7 +331,9 @@
     },
     "subtitles_y": 1620,
     "avoid_webcam_in_game": false,
-    "cta_y": 1780
+    "cta_y": 1780,
+    "top_zone": "minimap",
+    "_top_zone": "Що ставити нагору шортсу замість вебкамери: зона кадру «minimap» (міні-мапа). Вона вписується без обрізання в той самий прямокутник, де була вебка (overlay: webcam_x/y/width/height) — не більше за вебку, вгорі посередині."
   },
   "highlights": {
     "_опис": "Хайлайти 16:10 (галочка у вікні запуску): для боїв зі шкодою або засвітом від min_value — окреме горизонтальне відео target_min_s…target_max_s секунд (7–8 хв) з ключовими моментами, у папці highlights результату. Короткий бій — цілим. Кадр output: «auto» — рідна роздільність запису 16:10 (3440×1440 → 2304×1440), або {\"width\":…, \"height\":…}, вебкамера в куті (webcam_corner: top_left / top_right / bottom_left / bottom_right, ширина webcam_width), лічильники під нею.",
