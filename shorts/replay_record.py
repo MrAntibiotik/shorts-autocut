@@ -47,7 +47,10 @@ class RecordOptions:
     obs_profile: str = ""         # профіль OBS для реплеїв (порожньо — поточний)
     obs_collection: str = ""      # набір сцен OBS для реплеїв (порожньо — поточний)
     obs_start_wait_s: float = 90.0   # перший запуск OBS буває довгим
-    load_s: float = 60.0          # завантаження гри й реплею до початку відліку
+    load_s: float = 60.0
+    # Клік лівою кнопкою в грі — камера від обличчя гравця. Секунди від запуску гри (після завантаження
+    # і ще раз після відліку перед боєм — на випадок, якщо перший клік припав на завантаження).
+    click_at: tuple = ("load", "load+10", "load+35")          # завантаження гри й реплею до початку відліку
     tail_s: float = 20.0          # після кінця бою
     default_battle_s: float = 900  # якщо тривалість у реплеї невідома (бій не дограно)
     max_s: float = 1500
@@ -256,6 +259,78 @@ def kill_game() -> None:
             subprocess.run(["pkill", "-f", name], capture_output=True)
 
 
+GAME_TITLES = ("WoT Client", "World of Tanks")
+
+
+def click_times(opts: RecordOptions) -> list[float]:
+    """«load», «load+10», «75» → секунди від запуску гри."""
+    out = []
+    for c in opts.click_at or ():
+        t = str(c).replace(" ", "").lower()
+        try:
+            if t.startswith("load"):
+                out.append(float(opts.load_s) + float(t[4:] or 0))
+            else:
+                out.append(float(t))
+        except ValueError:
+            log.warning("Неправильний час кліку: %r", c)
+    return sorted(out)
+
+
+def _game_window():
+    """Вікно гри (Windows): за назвою «WoT Client» / «World of Tanks»."""
+    import ctypes
+    from ctypes import wintypes
+    user32 = ctypes.windll.user32
+    for title in GAME_TITLES:
+        h = user32.FindWindowW(None, title)
+        if h:
+            return h
+    found = []
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def each(hwnd, _):
+        n = user32.GetWindowTextLengthW(hwnd)
+        if n and user32.IsWindowVisible(hwnd):
+            buf = ctypes.create_unicode_buffer(n + 1)
+            user32.GetWindowTextW(hwnd, buf, n + 1)
+            if any(t.lower() in buf.value.lower() for t in GAME_TITLES):
+                found.append(hwnd)
+                return False
+        return True
+    user32.EnumWindows(each, 0)
+    return found[0] if found else None
+
+
+def click_player_view() -> bool:
+    """Ліва кнопка миші в центрі вікна гри — камера переходить на танк гравця. True — клікнули."""
+    if not WIN:
+        return False
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+        hwnd = _game_window()
+        if hwnd:
+            user32.ShowWindow(hwnd, 9)               # SW_RESTORE
+            user32.SetForegroundWindow(hwnd)
+            r = wintypes.RECT()
+            user32.GetWindowRect(hwnd, ctypes.byref(r))
+            x, y = (r.left + r.right) // 2, (r.top + r.bottom) // 2
+        else:
+            x, y = user32.GetSystemMetrics(0) // 2, user32.GetSystemMetrics(1) // 2
+        time.sleep(0.3)
+        user32.SetCursorPos(x, y)
+        user32.mouse_event(0x0002, 0, 0, 0, 0)       # ліва кнопка вниз
+        time.sleep(0.08)
+        user32.mouse_event(0x0004, 0, 0, 0, 0)       # ліва кнопка вгору
+        log.info("Клік у грі — камера від обличчя гравця%s", "" if hwnd else " (вікно гри не знайдено — центр екрана)")
+        return True
+    except Exception as e:  # noqa: BLE001
+        log.warning("Клік у грі не вдався: %s", e)
+        return False
+
+
 def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: Obs,
                progress=None, cancel=None) -> Path:
     """Відтворює один реплей і повертає шлях до запису OBS."""
@@ -265,6 +340,8 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
     time.sleep(2)
     log.info("Реплей %s: запускаю гру, запис ~%d хв", replay.name, round(total / 60))
     proc = subprocess.Popen([str(exe), str(Path(replay).resolve())], cwd=str(exe.parent))
+    launched = time.time()
+    clicks = click_times(opts)
     started = False
     try:
         obs.start()
@@ -278,6 +355,9 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
             if proc.poll() is not None and time.time() - t0 > opts.load_s:
                 log.info("Гру закрито раніше — зупиняю запис")
                 break
+            while clicks and time.time() - launched >= clicks[0]:   # камера від обличчя гравця
+                clicks.pop(0)
+                click_player_view()
             time.sleep(1)
     finally:
         out = ""
@@ -299,7 +379,8 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
     return path
 
 
-__all__ = ["Cancelled", "Obs", "RecordError", "RecordOptions", "client_version", "ensure_obs", "find_game_dir",
+__all__ = ["Cancelled", "Obs", "RecordError", "RecordOptions", "click_player_view", "click_times", "client_version",
+           "ensure_obs", "find_game_dir",
            "game_exe", "kill_game",
            "launch_obs",
            "record_one", "record_seconds"]

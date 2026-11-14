@@ -343,6 +343,36 @@ class FindGameTest(unittest.TestCase):
                 self.assertIn("Steam", str(cm.exception))
 
 
+class ClickTest(unittest.TestCase):
+    def test_click_times_and_calls_during_recording(self):
+        from unittest import mock
+        from shorts import replay_record as rr
+        o = rr.RecordOptions(game_dir=Path("."), load_s=60)
+        self.assertEqual(rr.click_times(o), [60.0, 70.0, 95.0])
+        o2 = rr.RecordOptions(game_dir=Path("."), load_s=40, click_at=("load+5", "120", "bad"))
+        self.assertEqual(rr.click_times(o2), [45.0, 120.0])
+        # запис: кліки йдуть за розкладом від запуску гри
+        clock = {"t": 1000.0}
+        o3 = rr.RecordOptions(game_dir=Path("."), load_s=3, click_at=("load", "load+2"), tail_s=0,
+                              default_battle_s=0, max_s=8)
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        obs = mock.Mock()
+        obs.stop.return_value = __file__
+        clicks = []
+        with mock.patch.object(rr, "game_exe", return_value=Path(__file__)), \
+                mock.patch.object(rr.subprocess, "Popen", return_value=proc), \
+                mock.patch.object(rr, "kill_game"), \
+                mock.patch.object(rr.time, "time", side_effect=lambda: clock["t"]), \
+                mock.patch.object(rr.time, "sleep", side_effect=lambda s: clock.__setitem__("t", clock["t"] + s)), \
+                mock.patch.object(rr, "click_player_view", side_effect=lambda: clicks.append(clock["t"] - 1002.0)):
+            rr.record_one(Path(__file__), None, o3, obs)
+        self.assertEqual(len(clicks), 2)
+        self.assertGreaterEqual(clicks[0], 3)
+        self.assertGreaterEqual(clicks[1], 5)
+        self.assertFalse(rr.click_player_view() if sys.platform != "win32" else False)
+
+
 class ImportSeenTest(unittest.TestCase):
     def test_unsuitable_checked_once(self):
         with tempfile.TemporaryDirectory() as t:
