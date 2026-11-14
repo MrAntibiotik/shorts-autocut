@@ -348,7 +348,8 @@ class ClickTest(unittest.TestCase):
         from unittest import mock
         from shorts import replay_record as rr
         o = rr.RecordOptions(game_dir=Path("."), load_s=60)
-        self.assertEqual(rr.click_times(o), [60.0, 70.0, 95.0])
+        self.assertEqual(rr.click_times(o), [75.0])                      # один клік — камера від гравця
+        self.assertEqual(rr.click_times(rr.RecordOptions(game_dir=Path("."), click_at=())), [])
         o2 = rr.RecordOptions(game_dir=Path("."), load_s=40, click_at=("load+5", "120", "bad"))
         self.assertEqual(rr.click_times(o2), [45.0, 120.0])
         # запис: кліки йдуть за розкладом від запуску гри

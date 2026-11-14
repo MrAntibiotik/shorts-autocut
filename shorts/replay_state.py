@@ -21,7 +21,7 @@ DEFAULTS = {
     "obs_host": "localhost", "obs_port": 4455, "obs_password": "",
     "obs_exe": r"C:\Program Files\obs-studio\bin\64bit\obs64.exe", "obs_profile": "", "obs_collection": "",
     "instant": True,             # запис одразу після скачування реплею (без очікування)
-    "load_s": 60, "cta": DEFAULT_CTA, "day_n": 1, "credit": True,
+    "load_s": 60, "click_s": 75, "cta": DEFAULT_CTA, "day_n": 1, "credit": True,
     "do_record": True, "do_cut": True,
     "sort": "date", "version": "", "idle_min": 3,
     "wr_sel": {"tier": ["8", "9", "10"], "mastery": ["4"]},

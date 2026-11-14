@@ -451,6 +451,7 @@ class ReplaysBot:
                           "Готові шортси підуть у Poster EN-каналу, сюди — коротко про кожен.")
         ropts = RecordOptions(game_dir=Path(st["game_dir"]), obs_host=st["obs_host"], obs_port=int(st["obs_port"]),
                               obs_password=st["obs_password"], load_s=float(st["load_s"]),
+                              click_at=(str(int(st.get("click_s") or 0)),) if int(st.get("click_s") or 0) else (),
                               obs_exe=str(st.get("obs_exe") or ""), obs_profile=str(st.get("obs_profile") or ""),
                               obs_collection=str(st.get("obs_collection") or ""))
         jopts = ReplayJobOptions(replays_dir=Path(st["replays_dir"]),
