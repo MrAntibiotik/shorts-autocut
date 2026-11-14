@@ -224,6 +224,16 @@ def make_preview(settings: dict, mp4: Path, horizontal: bool = False) -> Path:
     return out
 
 
+def video_size(settings: dict, mp4: Path) -> tuple[int, int, int | None]:
+    """Ширина, висота, тривалість — Telegram без розміру показує відео квадратом (сплющеним)."""
+    try:
+        from shorts.media import probe
+        info = probe(settings, mp4)
+        return int(info.width), int(info.height), int(info.duration)
+    except Exception:
+        return 768, 480, None
+
+
 def delete_short(settings: dict, job_dir: Path, s: dict, cur: Path) -> dict:
     """Переносить шортс у output\\_видалені\\<результат>\\: усю папку бою (якщо шортс на місці)
     або лише MP4 + SRT (якщо він уже в папці публікації). Повертає запис для відновлення."""
@@ -353,8 +363,10 @@ class Bot:
                     if prev.stat().st_size > MAX_UPLOAD:
                         raise RuntimeError("завеликий")
                     self.api.call("sendChatAction", chat_id=self.owner, action="upload_video")
+                    vw, vh, vd = video_size(self.settings, prev)     # без розміру Telegram показує квадрат
                     self.track(self.api.send_file("sendVideo", "video", prev, chat_id=self.owner, caption=cap,
-                                                  supports_streaming="true", _timeout=900))
+                                                  supports_streaming="true", width=vw, height=vh, duration=vd,
+                                                  _timeout=900))
                 except Exception as e:
                     log.warning("Перегляд хайлайту не надіслано: %s", e)
                     self.send(cap + "\n(перегляд завеликий для Telegram — файл на ПК)")
