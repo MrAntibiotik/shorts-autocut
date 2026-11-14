@@ -382,7 +382,9 @@ class Bot:
         f.write_text(json.dumps(data), encoding="utf-8")
 
     def send(self, text: str, markup: dict | None = None):
-        res = self.api.call("sendMessage", chat_id=self.owner, text=text, reply_markup=markup,
+        # звичайні повідомлення несуть меню-клавіатуру внизу — кнопки завжди під рукою
+        res = self.api.call("sendMessage", chat_id=self.owner, text=text,
+                            reply_markup=markup if markup is not None else self.MENU,
                             disable_web_page_preview=True)
         self.track(res)
         return res
