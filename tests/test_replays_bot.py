@@ -194,6 +194,28 @@ class ReplaysBotTest(unittest.TestCase):
         self.rb.show()
         self.assertIn("(найновіша)", self.bot.sent[-1][0])
 
+    def test_deleted_replay_can_be_downloaded_again(self):
+        from shorts import replay_site
+        self.rb.start = lambda manual: "ok"
+        html = (ROOT / "tests" / "data" / "wot_record_list.html").read_text(encoding="utf-8")
+        items = replay_site.parse_list(html)
+        replay_state.save(self.settings, {**replay_state.load(self.settings), "min_damage": 0})
+        good = make_replay(self.d / "g.bin").read_bytes()
+        with mock.patch.object(replay_site, "fetch_list", return_value=items):
+            self.rb.on_callback({"message": {"message_id": 5, "text": "🎮"}}, "list:1")
+        with mock.patch.object(replay_site, "download", return_value=good):
+            self.assertEqual(self.rb.on_callback({"message": {}}, "dl:448004"), "⬇ Скачано")
+        f = next((self.d / "replays").glob("wr_448004_*.wotreplay"))
+        f.with_suffix(".recorded").write_text("rec.mkv")
+        f.unlink()                                                          # ви видалили реплей
+        self.assertIn("1.", self.rb.list_text())                            # знову не ✅
+        self.assertEqual(buttons(self.rb.list_markup())[0]["text"], "⬇1")
+        with mock.patch.object(replay_site, "download", return_value=good) as dl:
+            self.assertEqual(self.rb.on_callback({"message": {}}, "dl:448004"), "⬇ Скачано")
+        dl.assert_called_once()                                             # скачано знову
+        self.assertTrue(f.exists())
+        self.assertFalse(f.with_suffix(".recorded").exists())               # старий залишок прибрано
+
     def test_parse_number(self):
         P = replays_bot.parse_number
         self.assertEqual([P("5500"), P("5 500"), P("5.5k"), P("7к"), P("5.500"), P("0")],
