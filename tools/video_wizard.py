@@ -156,6 +156,8 @@ class VideoWizard:
         self.cam_lbl.pack(side="left", padx=6)
         tk.Button(cam, text="Без окремої вебки", command=lambda: self.set_cam("")).pack(side="right")
         tk.Button(cam, text="Вибрати файл вебки…", command=self.pick_cam).pack(side="right", padx=4)
+        self.crop_btn = tk.Button(cam, text="✂ Обрізати вебку…", command=self.crop_cam)
+        self.crop_btn.pack(side="right", padx=4)
         self.set_cam(self.webcam)
 
         bt = tk.Frame(b)
@@ -213,10 +215,42 @@ class VideoWizard:
     def set_cam(self, path: str):
         self.webcam = path
         if path:
-            self.cam_lbl.config(text=f"окремий файл: {Path(path).name}  (голос — звідти, якщо в ньому є звук)",
-                                fg="#2e7d32")
+            crop = (_raw(self.pid).get("zones") or {}).get("webcam_file")
+            cut = (f"обрізано {int(crop[2] * 100)}×{int(crop[3] * 100)}% кадру" if crop else
+                   "уся камера — «✂ Обрізати вебку…», щоб прибрати зайве")
+            self.cam_lbl.config(text=f"окремий файл: {Path(path).name} · {cut}", fg="#2e7d32")
+            self.crop_btn.config(state="normal")
         else:
             self.cam_lbl.config(text="з кадру запису (рамка «Вебкамера»)", fg="#555")
+            self.crop_btn.config(state="disabled")
+
+    def crop_cam(self):
+        """Обрізка окремого файлу вебки — зберігається в рамках («webcam_file»), як і інші рамки."""
+        if not self.webcam:
+            return
+        try:
+            from cam_crop import CamCropDialog, target_aspect
+            from pick_zones import get_frame
+            from shorts.config import load_profile
+            img = get_frame(self.settings, Path(self.webcam), self.t)
+            raw = _raw(self.pid)
+            dlg = CamCropDialog(self.w, img, (raw.get("zones") or {}).get("webcam_file"),
+                                target_aspect(load_profile(self.pid)))
+        except Exception as e:  # noqa: BLE001
+            from tkinter import messagebox
+            messagebox.showerror("Обрізати вебку", f"Не вдалося показати кадр з вебки: {e}", parent=self.w)
+            return
+        if dlg.result is None:
+            return
+        from shorts.config import load_profile_raw, save_profile_raw
+        data = load_profile_raw(self.pid)
+        zones = data.setdefault("zones", {})
+        if dlg.result:
+            zones["webcam_file"] = dlg.result
+        else:
+            zones.pop("webcam_file", None)
+        save_profile_raw(self.pid, data)
+        self.set_cam(self.webcam)
 
     def pick_cam(self):
         from tkinter import filedialog

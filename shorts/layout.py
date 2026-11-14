@@ -111,6 +111,8 @@ def compute_layout(profile: dict, rec_w: int, rec_h: int, webcam_file: dict | No
     if webcam_file is not None:
         cam_sw, cam_sh = int(webcam_file["width"]), int(webcam_file["height"])
         cam_full, cam_source = Rect(0, 0, cam_sw, cam_sh), "webcam_file"
+        if zones.get("webcam_file"):          # обрізка окремого файлу вебки (майстер: «✂ Обрізати вебку…»)
+            cam_full = Rect(*zone_px(zones["webcam_file"], cam_sw, cam_sh))
     elif zones.get("webcam"):
         cam_full = Rect(*zone_px(zones["webcam"], rec_w, rec_h))
     if preset == "split":

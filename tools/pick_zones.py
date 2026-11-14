@@ -89,7 +89,7 @@ def draw_zones(img: Image.Image, zones: dict) -> Image.Image:
     W, H = out.size
     font = load_font(max(14, H // 60))
     for key, z in zones.items():
-        if not z:
+        if not z or key == "webcam_file":      # обрізка окремого файлу вебки — не на кадрі запису
             continue
         title, _, color = ZONE_INFO.get(key, (key, "", "#00ffff"))
         x0, y0 = z[0] * W, z[1] * H
