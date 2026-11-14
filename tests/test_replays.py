@@ -283,6 +283,8 @@ class ObsLaunchTest(unittest.TestCase):
             self.assertEqual(args[args.index("--profile") + 1], "WoT Replays")
             self.assertEqual(po.call_args[1]["cwd"], str(exe.parent))
             self.assertTrue(obs.launched)
+            self.assertTrue(rr.obs_ours())                                  # відкрили ми — закриємо після запису
+            rr._OBS_OURS["on"] = False
             cl.set_current_scene_collection.assert_called_once_with("WoT Replays")
             cl.set_current_profile.assert_called_once_with("WoT Replays")
             cl.get_profile_list.return_value = mock.Mock(current_profile_name="WoT Replays")
@@ -293,6 +295,24 @@ class ObsLaunchTest(unittest.TestCase):
             cl.set_record_directory.assert_called_with(str(Path(t) / "Videos"))   # повернули папку OBS
             cl.set_current_profile.assert_called_with("Stream")
             cl.set_current_scene_collection.assert_called_with("Stream")
+
+    def test_close_only_obs_we_opened(self):
+        from unittest import mock
+        from shorts import replay_record as rr
+        rr._OBS_OURS["on"] = False
+        with mock.patch.object(rr.subprocess, "run") as run:
+            self.assertFalse(rr.close_obs())                               # OBS відкрили ви — не чіпаємо
+        run.assert_not_called()
+        rr._OBS_OURS["on"] = True
+        states = iter([True, False])
+        with mock.patch.object(rr, "WIN", True), mock.patch.object(rr.subprocess, "run") as run, \
+                mock.patch.object(rr, "obs_running", side_effect=lambda: next(states)), \
+                mock.patch.object(rr.time, "sleep"):
+            self.assertTrue(rr.close_obs())
+        cmds = [c.args[0] for c in run.call_args_list]
+        self.assertIn(["taskkill", "/IM", "obs64.exe"], cmds)               # м'яко
+        self.assertFalse(any("/F" in c for c in cmds))                      # примусово не знадобилось
+        self.assertFalse(rr.obs_ours())
 
     def test_default_record_dir_on_desktop(self):
         from unittest import mock

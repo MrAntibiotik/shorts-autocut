@@ -187,6 +187,10 @@ def _run(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on
     finally:
         if obs is not None:
             obs.restore()                                     # профіль / набір сцен — як були
+            from .replay_record import close_obs
+            if not pending_replays(opts.replays_dir):       # черга порожня — OBS, відкритий програмою, закриваємо
+                if close_obs():
+                    stage(None, "obs", "done", "OBS закрито після запису")
 
 
 def _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short, obs, stage):
