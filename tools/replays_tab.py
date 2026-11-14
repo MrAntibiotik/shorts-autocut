@@ -81,6 +81,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
         "obs_exe": tk.StringVar(value=st.get("obs_exe", r"C:\Program Files\obs-studio\bin\64bit\obs64.exe")),
         "obs_profile": tk.StringVar(value=st.get("obs_profile", "")),
         "obs_collection": tk.StringVar(value=st.get("obs_collection", "")),
+        "record_dir": tk.StringVar(value=st.get("record_dir", "")),
         "load_s": tk.IntVar(value=int(st.get("load_s", 60))),
         "click_s": tk.IntVar(value=int(st.get("click_s", 55))),
         "cta": tk.StringVar(value=st.get("cta", DEFAULT_CTA)),
@@ -313,6 +314,10 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
     tk.Entry(r, textvariable=v["obs_profile"], width=16).pack(side="left", padx=(2, 10))
     tk.Label(r, text="Набір сцен OBS").pack(side="left")
     tk.Entry(r, textvariable=v["obs_collection"], width=16).pack(side="left", padx=2)
+    from shorts.replay_record import default_record_dir
+    row(b2, "Папка записів", v["record_dir"], browse=pick_dir(v["record_dir"]))
+    tk.Label(b2, text=f"Порожньо — {default_record_dir()}. OBS пише туди лише записи реплеїв (потім повертає свою папку).",
+             fg="#666", font=("Segoe UI", 8), wraplength=700, justify="left").pack(anchor="w")
     tk.Label(b2, text="Якщо OBS закритий — програма запустить його сама. Профіль і набір сцен (напр. «WoT Replays») "
                       "вмикаються на час запису, потім повертаються ваші. Порожньо — як зараз в OBS.",
              fg="#666", font=("Segoe UI", 8), wraplength=700, justify="left").pack(anchor="w")
@@ -446,7 +451,8 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
                                   obs_password=params["obs_password"], load_s=float(params["load_s"]),
                                   click_at=(str(int(params["click_s"])),) if int(params["click_s"]) else (),
                                   obs_exe=params["obs_exe"], obs_profile=params["obs_profile"].strip(),
-                                  obs_collection=params["obs_collection"].strip())
+                                  obs_collection=params["obs_collection"].strip(),
+                                  record_dir=params["record_dir"].strip())
             jopts = ReplayJobOptions(replays_dir=replays_dir,
                                      publish_dir=Path(params["publish_dir"]) if params["publish_dir"].strip() else None,
                                      cta_text=params["cta_text"], credit_author=bool(params["credit"]),

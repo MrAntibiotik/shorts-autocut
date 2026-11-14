@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import subprocess
 import sys
@@ -46,6 +47,7 @@ class RecordOptions:
     obs_exe: str = r"C:\Program Files\obs-studio\bin\64bit\obs64.exe"   # якщо OBS не відкритий — запустити
     obs_profile: str = ""         # профіль OBS для реплеїв (порожньо — поточний)
     obs_collection: str = ""      # набір сцен OBS для реплеїв (порожньо — поточний)
+    record_dir: str = ""          # куди OBS пише записи реплеїв; порожньо — «wot replays eu» на робочому столі
     obs_start_wait_s: float = 90.0   # перший запуск OBS буває довгим
     load_s: float = 60.0          # завантаження гри й реплею до початку відліку
     # ОДИН клік лівою кнопкою в грі — камера від обличчя гравця (кожен наступний клік перемикає на вільну
@@ -151,6 +153,7 @@ class Obs:
 
     def __init__(self, host: str, port: int, password: str = ""):
         self.prev: tuple[str, str] = ("", "")
+        self.prev_dir = ""
         try:
             import obsws_python as obs
         except ImportError as e:
@@ -215,8 +218,28 @@ class Obs:
             raise RecordError(f"OBS не перемкнувся на профіль «{profile}» / набір сцен «{collection}»: {e}. "
                               "Перевірте назви (Профіль / Набір сцен у меню OBS).") from e
 
+    def set_dir(self, folder: str) -> None:
+        """Папка записів OBS на час запису реплеїв (попередню restore() повертає)."""
+        if not folder:
+            return
+        Path(folder).mkdir(parents=True, exist_ok=True)
+        try:
+            self.prev_dir = str(getattr(self.cl.get_record_directory(), "record_directory", "") or "")
+            if os.path.normcase(os.path.abspath(self.prev_dir or ".")) != os.path.normcase(os.path.abspath(folder)):
+                self.cl.set_record_directory(str(folder))
+                log.info("OBS: записи реплеїв — у %s", folder)
+        except Exception as e:  # noqa: BLE001 — старий OBS (до 30) не вміє — пише в свою папку
+            self.prev_dir = ""
+            log.warning("OBS не змінив папку записів (%s) — запис піде в папку з налаштувань OBS. "
+                        "Оновіть OBS до 30+ або вкажіть папку в OBS: Налаштування → Вивід → Шлях запису.", e)
+
     def restore(self) -> None:
-        """Повертає профіль і набір сцен, які були до запису реплеїв."""
+        """Повертає профіль, набір сцен і папку записів, які були до запису реплеїв."""
+        if getattr(self, "prev_dir", ""):
+            try:
+                self.cl.set_record_directory(self.prev_dir)
+            except Exception as e:  # noqa: BLE001
+                log.warning("OBS: не вдалося повернути папку записів: %s", e)
         p, c = self.prev
         try:
             cur_p = getattr(self.cl.get_profile_list(), "current_profile_name", "") or ""
@@ -227,6 +250,30 @@ class Obs:
                 self.cl.set_current_scene_collection(c)
         except Exception as e:  # noqa: BLE001
             log.warning("OBS: не вдалося повернути профіль/набір сцен: %s", e)
+
+
+RECORD_FOLDER = "wot replays eu"
+
+
+def desktop_dir() -> Path:
+    """Робочий стіл Windows (у т.ч. перенесений в OneDrive)."""
+    if WIN:
+        try:
+            import ctypes
+            buf = ctypes.create_unicode_buffer(260)
+            if ctypes.windll.shell32.SHGetFolderPathW(None, 0x10, None, 0, buf) == 0 and buf.value:   # CSIDL_DESKTOPDIRECTORY
+                return Path(buf.value)
+        except Exception:  # noqa: BLE001
+            pass
+        for d in (Path(os.environ.get("OneDrive", "")) / "Desktop", Path.home() / "OneDrive" / "Desktop"):
+            if str(d).strip() and d.is_dir():
+                return d
+    return Path.home() / "Desktop"
+
+
+def default_record_dir() -> Path:
+    """Типова папка записів реплеїв: «wot replays eu» на робочому столі."""
+    return desktop_dir() / RECORD_FOLDER
 
 
 OBS_PROCESSES = ("obs64.exe", "obs32.exe", "obs.exe")
@@ -296,6 +343,7 @@ def ensure_obs(opts: RecordOptions) -> "Obs":
                     raise RecordError(f"OBS запустився, але WebSocket не відповідає — {WS_HELP}.") from None
         obs.launched = True
     obs.switch(opts.obs_profile, opts.obs_collection)
+    obs.set_dir(opts.record_dir or str(default_record_dir()))
     return obs
 
 
@@ -440,7 +488,7 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
     return path
 
 
-__all__ = ["Cancelled", "Obs", "RecordError", "RecordOptions", "obs_running", "click_player_view", "click_times", "client_version",
+__all__ = ["Cancelled", "Obs", "RecordError", "RecordOptions", "default_record_dir", "desktop_dir", "obs_running", "click_player_view", "click_times", "client_version",
            "ensure_obs", "find_game_dir",
            "game_exe", "kill_game",
            "launch_obs",

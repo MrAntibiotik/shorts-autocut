@@ -466,7 +466,8 @@ class ReplaysBot:
                               obs_password=st["obs_password"], load_s=float(st["load_s"]),
                               click_at=(str(int(st.get("click_s") or 0)),) if int(st.get("click_s") or 0) else (),
                               obs_exe=str(st.get("obs_exe") or ""), obs_profile=str(st.get("obs_profile") or ""),
-                              obs_collection=str(st.get("obs_collection") or ""))
+                              obs_collection=str(st.get("obs_collection") or ""),
+                              record_dir=str(st.get("record_dir") or ""))
         jopts = ReplayJobOptions(replays_dir=Path(st["replays_dir"]),
                                  publish_dir=Path(st["publish_dir"]) if str(st.get("publish_dir") or "").strip() else None,
                                  cta_text=cta_text(st), credit_author=bool(st.get("credit", True)),
