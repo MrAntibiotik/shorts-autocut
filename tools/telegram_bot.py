@@ -313,8 +313,10 @@ class Bot:
                 line = next((ln for ln in out.splitlines() if ln.startswith("RESULT ")), None)
                 self.delete_msg(wait.get("message_id") if isinstance(wait, dict) else None)
                 if r.returncode != 0 or not line:
-                    err = (out + r.stderr.decode("utf-8", "replace")).strip().splitlines()[-1:] or ["?"]
-                    self.send(f"❌ Хайлайт не вийшов: {err[0][:300]}")
+                    txt = (out + r.stderr.decode("utf-8", "replace")).strip()
+                    if "[ПОМИЛКА]" in txt:
+                        txt = txt[txt.rindex("[ПОМИЛКА]") + 9:].strip()
+                    self.send(f"❌ Хайлайт не вийшов:\n{txt[-700:] or '?'}")
                     return
                 res = json.loads(line[7:])
                 mp4 = Path(res["mp4"])

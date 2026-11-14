@@ -43,6 +43,30 @@ def load_battle(d: Path) -> dict:
     return b
 
 
+VIDEO_EXT = (".mp4", ".mkv", ".mov", ".flv")
+
+
+def find_recording(path: str) -> Path:
+    """Запис за шляхом з результату; якщо його перенесли/перейменували — той самий файл з іншим
+    розширенням (OBS remux mkv→mp4) або з тією ж назвою в сусідніх папках."""
+    p = Path(path)
+    if p.exists():
+        return p
+    for ext in VIDEO_EXT:
+        q = p.with_suffix(ext)
+        if q.exists():
+            return q
+    for d in [p.parent, p.parent.parent, Path.home() / "Videos"]:
+        try:
+            for q in d.rglob(p.stem + ".*"):
+                if q.suffix.lower() in VIDEO_EXT and "_webcam" not in q.stem:
+                    return q
+        except OSError:
+            pass
+    raise RuntimeError(f"Не знайдено запис гри: {p}\n(його перенесли, перейменували чи видалили? "
+                       f"Поверніть файл на місце — тоді хайлайт вийде)")
+
+
 def make(job_dir: Path, battle_idx: int, settings: dict | None = None) -> dict:
     from shorts.highlights import make_highlight
     settings = settings or load_settings()
@@ -51,7 +75,10 @@ def make(job_dir: Path, battle_idx: int, settings: dict | None = None) -> dict:
         raise RuntimeError(f"У {job_dir.name} немає бою {battle_idx} зі звітом (moments.json)")
     it = items[0]
     rec = it["rec"]
-    info = probe(settings, rec["path"])
+    orig_path = rec["path"]
+    rec_path = find_recording(orig_path)
+    rec = dict(rec, path=str(rec_path))
+    info = probe(settings, rec_path)
     st = resolve_recording(settings, info)
     prof = copy.deepcopy(load_profile(it["job"].get("profile", "wot")))
     if rec.get("zones"):
@@ -66,7 +93,8 @@ def make(job_dir: Path, battle_idx: int, settings: dict | None = None) -> dict:
     # запис у job.json — щоб бот і DaVinci знали про хайлайт
     job = json.loads((job_dir / "job.json").read_text(encoding="utf-8"))
     for r in job.get("recordings", []):
-        if r.get("path") == rec.get("path"):
+        if r.get("path") == orig_path:
+            r["path"] = str(rec_path)                # запис знайшовся в іншому місці — запам'ятати
             hl = [h for h in r.get("highlights", []) if int(h.get("battle", -1)) != int(battle_idx)]
             r["highlights"] = hl + [res]
     (job_dir / "job.json").write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
