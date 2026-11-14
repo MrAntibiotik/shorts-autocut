@@ -76,6 +76,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
 
     v = {
         "url": tk.StringVar(value=st.get("url", "")),
+        "downloads_dir": tk.StringVar(value=st.get("downloads_dir", str(Path.home() / "Downloads"))),
         "count": tk.IntVar(value=int(st.get("count", 5))),
         "min_damage": tk.IntVar(value=int(st.get("min_damage", 4000))),
         "min_kills": tk.IntVar(value=int(st.get("min_kills", 0))),
@@ -130,11 +131,16 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
         return go
 
     # ------------------------------------------------------------------ 1. скачування
-    b1 = tk.LabelFrame(f, text=" 1. Скачування з wotreplays ", padx=8, pady=6)
+    b1 = tk.LabelFrame(f, text=" 1. Звідки реплеї ", padx=8, pady=6)
     b1.pack(fill="x", pady=4)
-    row(b1, "Посилання з фільтром", v["url"], width=60)
-    tk.Label(b1, text="Налаштуйте фільтр на сайті (танк, карта, версія, сортування) і скопіюйте адресу сторінки зі списком.",
-             fg="#666", font=("Segoe UI", 8)).pack(anchor="w")
+    row(b1, "Забирати з папки", v["downloads_dir"], browse=pick_dir(v["downloads_dir"]))
+    tk.Label(b1, text="Відкрийте сайт реплеїв (напр. wot-record.com) з фільтром і тисніть «Download» на боях, що сподобались, — "
+                      "підхожі .wotreplay звідси перенесуться в папку реплеїв (непідхожі лишаться на місці).",
+             fg="#666", font=("Segoe UI", 8), wraplength=700, justify="left").pack(anchor="w")
+    row(b1, "або посилання з фільтром", v["url"], width=60)
+    tk.Label(b1, text="Автоскачування — лише з сайтів, що дозволяють його у robots.txt (wot-record.com — забороняє). "
+                      "Порожньо — лише папка вище.",
+             fg="#666", font=("Segoe UI", 8), wraplength=700, justify="left").pack(anchor="w")
     r = tk.Frame(b1)
     r.pack(fill="x", pady=2)
     for label, key, lo, hi in (("Скільки нових", "count", 1, 100), ("Шкода від", "min_damage", 0, 20000),
@@ -186,7 +192,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
     # ------------------------------------------------------------------ запуск
     b4 = tk.Frame(f)
     b4.pack(fill="x", pady=(8, 2))
-    for text, key in (("Скачати", "do_download"), ("Записати", "do_record"), ("Нарізати", "do_cut")):
+    for text, key in (("Забрати реплеї", "do_download"), ("Записати", "do_record"), ("Нарізати", "do_cut")):
         tk.Checkbutton(b4, text=text, variable=v[key]).pack(side="left")
     btn_go = tk.Button(b4, text="▶  Почати", font=("Segoe UI", 10, "bold"), bg="#2e7d32", fg="white", width=14)
     btn_go.pack(side="right")
@@ -242,18 +248,29 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
             game_dir = Path(params["game_dir"])
             ver = client_version(game_dir)
             if params["do_download"]:
-                if not params["url"].strip():
-                    raise ValueError("Вставте посилання з фільтром wotreplays (або зніміть галочку «Скачати»)")
-                res = fetch(DownloadOptions(url=params["url"].strip(), dest=Path(params["replays_dir"]),
+                from shorts.replay_download import Blocked, ImportOptions, import_folder
+                if not params["url"].strip() and not params["downloads_dir"].strip():
+                    raise ValueError("Вкажіть папку завантажень або посилання з фільтром (або зніміть галочку «Забрати реплеї»)")
+                if params["downloads_dir"].strip():
+                    res = import_folder(ImportOptions(src=Path(params["downloads_dir"]), dest=Path(params["replays_dir"]),
+                                                      client_version=ver[:3], min_damage=int(params["min_damage"]),
+                                                      min_kills=int(params["min_kills"])))
+                    q.put(("log", f"З папки забрано: {len(res.saved)}; лишилось: "
+                                  + (", ".join(f"{k} — {n}" for k, n in res.skipped.items()) or "0")))
+            if params["do_download"] and params["url"].strip():
+                try:
+                    res = fetch(DownloadOptions(url=params["url"].strip(), dest=Path(params["replays_dir"]),
                                             count=int(params["count"]), client_version=ver[:3],
                                             min_damage=int(params["min_damage"]), min_kills=int(params["min_kills"]),
                                             pause_s=float(params["pause"])),
                             progress=lambda t, fr: q.put(("progress", ("Скачування: " + t, fr * 0.1))),
                             cancel=cancel.is_set)
-                q.put(("log", f"Скачано: {len(res.saved)}; пропущено: "
-                              + (", ".join(f"{k} — {n}" for k, n in res.skipped.items()) or "0")))
-                for e in res.errors:
-                    q.put(("log", "⚠️ " + e))
+                    q.put(("log", f"Скачано: {len(res.saved)}; пропущено: "
+                                  + (", ".join(f"{k} — {n}" for k, n in res.skipped.items()) or "0")))
+                    for e in res.errors:
+                        q.put(("log", "⚠️ " + e))
+                except Blocked as e:
+                    q.put(("log", "⛔ " + str(e)))
             if params["do_record"] or params["do_cut"]:
                 ropts = RecordOptions(game_dir=game_dir, obs_host=params["obs_host"], obs_port=int(params["obs_port"]),
                                       obs_password=params["obs_password"], load_s=float(params["load_s"]))

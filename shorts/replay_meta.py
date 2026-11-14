@@ -147,7 +147,10 @@ def parse(path: str | Path) -> ReplayInfo:
             break
     info.vehicle = _human(short) if short else ""
     info.map_tag = str(first.get("mapName") or "")
-    info.map_name = str(first.get("mapDisplayName") or "") or _human(info.map_tag).title()
+    # mapDisplayName — мовою клієнта того, хто записав («Мурованка»); для англійських назв беремо тег карти
+    shown = str(first.get("mapDisplayName") or "")
+    info.extra["map_display"] = shown
+    info.map_name = shown if shown.isascii() and shown else _human(info.map_tag).title()
     info.version, info.version_tuple = parse_version(
         str(first.get("clientVersionFromXml") or first.get("clientVersionFromExe") or ""))
     info.server = str(first.get("serverName") or "")
