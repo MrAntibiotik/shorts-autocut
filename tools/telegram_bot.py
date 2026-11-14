@@ -125,6 +125,7 @@ def job_shorts(job_dir: Path) -> list[dict]:
             mp4 = Path(sh["mp4"]) if sh.get("mp4") else job_dir / sh.get("dir", "") / f"{sh['file_base']}.mp4"
             bdir = job_dir / sh["dir"] if sh.get("dir") else None
             res.append({"i": i, "name": sh.get("name", f"Шортс {i}"), "mp4": mp4, "dir": bdir,
+                        "battle": sh.get("battle"),
                         "duration": float(sh.get("duration") or 0), "deleted": not mp4.exists()})
     return res
 
@@ -202,8 +203,8 @@ def move_with_srt(mp4: Path, dst_dir: Path) -> Path:
     return new
 
 
-def make_preview(settings: dict, mp4: Path) -> Path:
-    """Легка копія 480×854 для перегляду в Telegram (кешується)."""
+def make_preview(settings: dict, mp4: Path, horizontal: bool = False) -> Path:
+    """Легка копія для перегляду в Telegram (кешується): шортс — 480 завширшки, хайлайт — 480 заввишки."""
     from shorts.media import find_tool
     d = work_dir(settings) / "tg_preview"
     d.mkdir(parents=True, exist_ok=True)
@@ -213,7 +214,8 @@ def make_preview(settings: dict, mp4: Path) -> Path:
         return out
     tmp = out.with_suffix(".tmp.mp4")
     cmd = [find_tool(settings, "ffmpeg"), "-hide_banner", "-loglevel", "error", "-y", "-i", str(mp4),
-           "-vf", "scale=480:-2", "-c:v", "libx264", "-preset", "veryfast", "-crf", "28",
+           "-vf", "scale=-2:480" if horizontal else "scale=480:-2", "-c:v", "libx264", "-preset", "veryfast",
+           "-crf", "30" if horizontal else "28",
            "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(tmp)]
     r = subprocess.run(cmd, capture_output=True, creationflags=_NO_WINDOW)
     if r.returncode != 0:
@@ -265,6 +267,7 @@ class Bot:
         self.last_status: tuple | None = None
         self.lock = None                       # сокет «один бот на ПК» (для перезапуску після оновлення)
         self.notified_sha = cfg.get("notified_sha")
+        self.hl_busy = False
         self.last_update_check = 0.0
 
     # -------------------------------------------------------------- відправка
@@ -288,6 +291,52 @@ class Bot:
 
     def delete_later(self, mid, delay: float = 6.0) -> None:
         threading.Timer(delay, self.delete_msg, args=(mid,)).start()
+
+    def start_highlight(self, job_dir: Path, s: dict):
+        """Хайлайт 16:10 цього бою у фоні (tools/make_highlight.py); готовий — надіслати відео 480p."""
+        if self.hl_busy:
+            self.send("⏳ Уже роблю інший хайлайт — дочекайтесь, будь ласка.")
+            return
+        if s.get("battle") is None:
+            self.send("Для цього шортсу немає даних бою (старий результат).")
+            return
+        self.hl_busy = True
+        wait = self.send(f"⏳ Хайлайт: {s['name']}\nРоблю 16:10 на 7–8 хв з opener'ом — це займе кілька хвилин…")
+
+        def work():
+            try:
+                exe = Path(sys.executable)
+                r = subprocess.run([str(exe), str(ROOT / "tools" / "make_highlight.py"), str(job_dir),
+                                    str(s["battle"]), "--json"], capture_output=True, cwd=str(ROOT),
+                                   creationflags=_NO_WINDOW)
+                out = r.stdout.decode("utf-8", "replace")
+                line = next((ln for ln in out.splitlines() if ln.startswith("RESULT ")), None)
+                self.delete_msg(wait.get("message_id") if isinstance(wait, dict) else None)
+                if r.returncode != 0 or not line:
+                    err = (out + r.stderr.decode("utf-8", "replace")).strip().splitlines()[-1:] or ["?"]
+                    self.send(f"❌ Хайлайт не вийшов: {err[0][:300]}")
+                    return
+                res = json.loads(line[7:])
+                mp4 = Path(res["mp4"])
+                cap = (f"🎬 Хайлайт: {s['name']}\n⏱ {res['duration'] / 60:.1f} хв"
+                       + (" + opener" if res.get("opener") else "") + f"\n📁 {mp4.parent.parent.name}\\highlights")
+                try:
+                    prev = make_preview(self.settings, mp4, horizontal=True)
+                    if prev.stat().st_size > MAX_UPLOAD:
+                        raise RuntimeError("завеликий")
+                    self.api.call("sendChatAction", chat_id=self.owner, action="upload_video")
+                    self.track(self.api.send_file("sendVideo", "video", prev, chat_id=self.owner, caption=cap,
+                                                  supports_streaming="true", _timeout=900))
+                except Exception as e:
+                    log.warning("Перегляд хайлайту не надіслано: %s", e)
+                    self.send(cap + "\n(перегляд завеликий для Telegram — файл на ПК)")
+            except Exception as e:
+                log.exception("Хайлайт")
+                self.send(f"❌ Хайлайт не вийшов: {e}")
+            finally:
+                self.hl_busy = False
+
+        threading.Thread(target=work, daemon=True).start()
 
     def cmd_deleted(self, limit: int = 5):
         marks = Marks(self.settings)
@@ -376,7 +425,8 @@ class Bot:
         first = [{"text": "📱 Оригінал (повна якість)", "callback_data": f"f|{key}"}]
         if not video:
             first.insert(0, {"text": "▶ Переглянути 480p", "callback_data": f"v|{key}"})
-        rows = [first, second + [{"text": "🗑 Видалити", "callback_data": f"d|{key}"}]]
+        rows = [first, second + [{"text": "🗑 Видалити", "callback_data": f"d|{key}"}],
+                [{"text": "🎬 Хайлайт цього бою (16:10)", "callback_data": f"H|{key}"}]]
         if published:   # помітна плашка статусу над кнопками
             rows.insert(0, [{"text": "✅ ДО ПУБЛІКАЦІЇ ✅", "callback_data": f"n|{key}"}])
         return {"inline_keyboard": rows}
@@ -550,7 +600,7 @@ class Bot:
             "🗑 Видалити — у output\\_видалені.")
 
     # -------------------------------------------------------------- кнопки
-    TOASTS = {"X": "🧹 Готово", "R": "♻ Відновлено", "k": "✅ Підходить — перенесено в папку публікації", "u": "↩ Повернуто з папки публікації",
+    TOASTS = {"X": "🧹 Готово", "R": "♻ Відновлено", "H": "🎬 Роблю хайлайт — пришлю, коли буде готовий", "k": "✅ Підходить — перенесено в папку публікації", "u": "↩ Повернуто з папки публікації",
               "D": "🗑 Видалено. Повернути — кнопка «🗑 Видалені» в меню", "n": "✅ Цей шортс уже в папці публікації", "c": "Скасовано",
               "v": "Готую відео…", "f": "Надсилаю оригінал…"}
 
@@ -563,7 +613,7 @@ class Bot:
     def on_callback(self, cq: dict):
         """Спливаюче повідомлення-підтвердження на кожну кнопку; довгі дії (відео, оновлення) — одразу."""
         act = cq.get("data", "").partition("|")[0]
-        if act in ("v", "f", "U", "j"):
+        if act in ("v", "f", "U", "j", "H"):
             self._answer(cq, self.TOASTS.get(act))
             self._on_callback(cq)
             return
@@ -608,6 +658,9 @@ class Bot:
             marks.set_deleted(key, None)
             self.delete_msg(msg.get("message_id"))
             self.send_short(key, s, mp4, False)
+            return
+        if act == "H":
+            self.start_highlight(job_dir, s)
             return
         cur, pub = self.locate(job_dir, s, marks)
         if cur is None:

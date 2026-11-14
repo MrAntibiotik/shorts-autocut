@@ -173,3 +173,42 @@ def compute_highlight_layout(profile: dict, rec_w: int, rec_h: int, webcam_file:
             y = (cam_dst.y1 + 12) if cam_dst is not None and cam_dst.y < H / 2 else m
             layers.append(Layer("counters", 3, "recording", cz, Rect(x, y, cz.w * k, cz.h * k), rec_w, rec_h))
     return Layout(W, H, fps, "highlight", layers, int(H * 0.85), warnings, 0)
+
+
+# ====================================================================== повна збірка (обробка, бот, extra\make_highlight.bat)
+
+def make_highlight(settings: dict, info, profile: dict, b: dict, webcam: dict | None, mp4,
+                   work, rec_start: float, rec_end: float) -> dict:
+    """Рендер хайлайту бою + opener на початок. Повертає опис для job.json. Помилка рендеру — виняток;
+    помилка opener'а — хайлайт без нього."""
+    from pathlib import Path
+
+    from .render import render_short
+    from .util import fmt_time
+    hcfg = cfg_of(profile)
+    layout = compute_highlight_layout(profile, info.width, info.height, webcam)
+    segs = select_highlight(b, hcfg, rec_start, rec_end)
+    dur = sum(e - s for s, e in segs)
+    mp4 = Path(mp4)
+    log.info("  Хайлайт бою %d (%d): %s, шматків %d", b["index"], battle_value(b), fmt_time(dur, 0), len(segs))
+    render_short(settings, info, layout, segs, [], mp4, webcam)
+    opened = False
+    from .opener import cfg_of as ocfg_of, join, make_opener, pick_moments
+    ocfg = ocfg_of(hcfg)
+    if ocfg.get("enabled"):
+        starts = pick_moments(_points(b), segs, ocfg)
+        if not starts:
+            log.info("    opener: яскравих моментів менше 3 — хайлайт без opener'а")
+        else:
+            try:
+                op = make_opener(settings, ocfg, mp4, starts, Path(work) / f"{mp4.stem}_opener.mp4",
+                                 (layout.width, layout.height))
+                joined = mp4.with_name(mp4.stem + "_with_opener.mp4")
+                join(settings, op, mp4, joined, layout.width, layout.height, layout.fps)
+                joined.replace(mp4)
+                opened = True
+                log.info("    opener: %d моментів додано на початок", len(starts))
+            except Exception as e:
+                log.warning("[УВАГА] Opener не зроблено (%s) — хайлайт без нього", str(e)[-300:])
+    return {"battle": b["index"], "mp4": str(mp4), "duration": round(dur, 1), "opener": opened,
+            "segments": [{"s": s, "e": e} for s, e in segs]}

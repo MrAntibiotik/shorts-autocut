@@ -60,6 +60,8 @@ class JobOptions:
     modes: dict = field(default_factory=dict)   # {шлях запису: "damage" | "assist"} — режим гри (WoT)
     zones: dict = field(default_factory=dict)   # {шлях запису: рамки} — підтверджені рамки саме цього запису
     highlights: bool = False                    # хайлайти 16:10 для сильних боїв (WoT: 7000+)
+    hl_min: int | None = None                   # поріг хайлайту (None — з профілю, 7000)
+    hl_best: bool = False                       # найкращий бій запису — хайлайт завжди
     webcams: dict = field(default_factory=dict)  # {шлях запису: файл вебки або "" (без окремої вебки)}
     cta_y: float | None = None                  # висота центру заклику: частка висоти кадру (0 — верх, 1 — низ)
     separation: bool = True
@@ -152,30 +154,6 @@ class Job:
         log.info("ГОТОВО: %d шортсів за %s. Папка: %s", total, fmt_time(time.time() - t0, 0), self.out)
         cleanup_work(self.settings, keep=[self.work])
         return self.result
-
-    # ------------------------------------------------------------------ opener хайлайту
-    def _add_opener(self, hcfg: dict, b: dict, segs, mp4: Path, layout, tag: str, disk: str) -> bool:
-        """3–6 найяскравіших моментів у шаблоні MR_ANTIBIOTIK — на початок хайлайту. Помилка — хайлайт без opener'а."""
-        from .highlights import _points
-        from .opener import cfg_of, join, make_opener, pick_moments
-        ocfg = cfg_of(hcfg)
-        if not ocfg.get("enabled"):
-            return False
-        starts = pick_moments(_points(b), segs, ocfg)
-        if not starts:
-            log.info("    opener: яскравих моментів менше 3 — хайлайт без opener'а")
-            return False
-        try:
-            op = make_opener(self.settings, ocfg, mp4, starts, self.work / tag / f"{disk}_opener.mp4",
-                             (layout.width, layout.height))
-            joined = mp4.with_name(mp4.stem + "_with_opener.mp4")
-            join(self.settings, op, mp4, joined, layout.width, layout.height, layout.fps)
-            joined.replace(mp4)
-            log.info("    opener: %d моментів додано на початок", len(starts))
-            return True
-        except Exception as e:
-            log.warning("[УВАГА] Opener не зроблено (%s) — хайлайт без нього", str(e)[-300:])
-            return False
 
     # ------------------------------------------------------------------ експериментально: розумна мова
     def _silero_speech(self, chunks, cfg: dict, fallback: SpeechMap) -> SpeechMap:
@@ -409,26 +387,24 @@ class Job:
         # ---- хайлайти 16:10 для сильних боїв
         highlights_out = []
         if opts.highlights and opts.render and st["render"]["enabled"]:
-            from .highlights import cfg_of, compute_highlight_layout, select_highlight, wanted, battle_value
+            from .highlights import battle_value, cfg_of, make_highlight
             hcfg = cfg_of(prof)
-            strong = [b for b in battles if wanted(b, hcfg)]
+            if opts.hl_min is not None:
+                hcfg["min_value"] = int(opts.hl_min)
+            strong = [b for b in battles if battle_value(b) >= int(hcfg["min_value"])] if hcfg.get("enabled") else []
+            if opts.hl_best and battles:                 # найкращий бій запису — завжди
+                best = max(battles, key=battle_value)
+                if battle_value(best) > 0 and best not in strong:
+                    strong.append(best)
+                    log.info("  Хайлайт: найкращий бій запису — бій %d (%d)", best["index"], battle_value(best))
             if strong:
                 stage(f"Хайлайти 16:10 ({len(strong)})", 0.995, 0.999)
-                hl_layout = compute_highlight_layout(prof, info.width, info.height, webcam)
-                hdir = self.out / "highlights"
-                for b in strong:
-                    segs = select_highlight(b, hcfg, start, end)
-                    dur = sum(e - s for s, e in segs)
+                for b in sorted(strong, key=lambda b: b["index"]):
                     disk = labels.get(b["index"], (f"battle_{b['index']:02d}", ""))[0]
-                    mp4 = hdir / f"{tag}_{disk}_highlight.mp4"
-                    log.info("  Хайлайт бою %d (%d): %s, шматків %d", b["index"], battle_value(b),
-                             fmt_time(dur, 0), len(segs))
+                    mp4 = self.out / "highlights" / f"{tag}_{disk}_highlight.mp4"
                     try:
-                        render_short(st, info, hl_layout, segs, [], mp4, webcam)
-                        opened = self._add_opener(hcfg, b, segs, mp4, hl_layout, tag, disk)
-                        highlights_out.append({"battle": b["index"], "mp4": str(mp4), "duration": round(dur, 1),
-                                               "opener": opened,
-                                               "segments": [{"s": s, "e": e} for s, e in segs]})
+                        highlights_out.append(make_highlight(st, info, prof, b, webcam, mp4, self.work / tag,
+                                                             start, end))
                     except UserError as e:
                         log.error("[ПОМИЛКА] Хайлайт бою %d: %s", b["index"], e)
             else:
@@ -460,6 +436,7 @@ class Job:
             "master_name": f"{path.stem} — моменти",
             "markers": markers, "edl": str(edl), "report_csv": str(csv_p), "report_json": str(json_p),
             "layout": layout.to_dict(), "shorts": shorts_out, "highlights": highlights_out,
+            "zones": prof.get("zones"), "mode": prof.get("mode"), "start": start, "end": end,
             "range": [start, end],
         }
 

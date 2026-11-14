@@ -323,8 +323,15 @@ def gui(settings, log_file: Path):
     tk.Checkbutton(opts_frame, text="Повні фрази + субтитри (експериментально; спершу extra\\setup_speech_ai.bat)", variable=v_sai).pack(anchor="w")
     tk.Checkbutton(opts_frame, text="Відділяти голос від гри (нейромережа)", variable=v_sep).pack(anchor="w")
     v_hl = tk.BooleanVar(value=state.get("highlights_on", True))
-    tk.Checkbutton(opts_frame, text="Хайлайти 16:10 (7–8 хв) для боїв зі шкодою або засвітом 7000+",
-                   variable=v_hl).pack(anchor="w")
+    hl_row = tk.Frame(opts_frame)
+    hl_row.pack(anchor="w")
+    tk.Checkbutton(hl_row, text="Хайлайти 16:10 (7–8 хв) для боїв зі шкодою або засвітом від",
+                   variable=v_hl).pack(side="left")
+    v_hl_min = tk.IntVar(value=int(state.get("hl_min", 7000)))
+    tk.Spinbox(hl_row, from_=0, to=20000, increment=500, width=6, textvariable=v_hl_min).pack(side="left", padx=4)
+    v_hl_best = tk.BooleanVar(value=state.get("hl_best", True))
+    tk.Checkbutton(opts_frame, text="    + найкращий бій кожного запису — хайлайт завжди (навіть нижче порогу)",
+                   variable=v_hl_best).pack(anchor="w")
 
     st = read_status(settings)
     if st and st.get("status") == "done" and not (work_dir(settings) / "jobs" / f"{st.get('job_id')}.imported").exists():
@@ -458,13 +465,17 @@ def gui(settings, log_file: Path):
         except (tk.TclError, ValueError):
             day_n = 1
         text = text_tpl.replace("{день}", str(day_n)).replace("{day}", str(day_n))
-        state.update(day_n=day_n, day_date=date.today().isoformat(), cta_y_pct=int(v_cta_y.get()))
+        try:
+            hl_min = max(0, int(v_hl_min.get()))
+        except (tk.TclError, ValueError):
+            hl_min = 7000
+        state.update(day_n=day_n, day_date=date.today().isoformat(), cta_y_pct=int(v_cta_y.get()), hl_min=hl_min)
         state.update(profile=prof, cta=text_tpl, render=v_render.get(), subtitles_on=v_subs.get(),
-                     speech_ai_on=v_sai.get(), highlights_on=v_hl.get(), separation=v_sep.get(), last_dir=state.get("last_dir") or str(Path(recs[0]).parent))
+                     speech_ai_on=v_sai.get(), highlights_on=v_hl.get(), hl_best=v_hl_best.get(), separation=v_sep.get(), last_dir=state.get("last_dir") or str(Path(recs[0]).parent))
         save_state(settings, state)
         opts = JobOptions(recordings=[Path(r) for r in recs], profile_id=prof, cta_text=text, start=a, end=b,
                           render=v_render.get(), subtitles=v_subs.get(), separation=v_sep.get(),
-                          speech_ai=v_sai.get(), highlights=v_hl.get(),
+                          speech_ai=v_sai.get(), highlights=v_hl.get(), hl_min=hl_min, hl_best=v_hl_best.get(),
                           cta_y=int(v_cta_y.get()) / 100,
                           modes={str(Path(r)): m for r, _, m in recs_prof if m},
                           zones={str(Path(r)): rec_zones[str(Path(r))] for r, _, _m in recs_prof

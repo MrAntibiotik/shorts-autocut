@@ -36,6 +36,7 @@ TESTS = [
 ]
 TOOLS = [
     ("Редагувати субтитри", "edit_subs.bat", False, "виправити фрази й перерендерити MP4"),
+    ("Хайлайт будь-якого бою", "make_highlight.bat", False, "16:10 з opener'ом для вибраного бою"),
     ("Перерендерити MP4", "rerender.bat", False, "після зміни заклику"),
     ("Встановити розумну мову", "setup_speech_ai.bat", False, "Silero VAD + faster-whisper"),
     ("Встановити whisper.cpp", "setup_whisper.bat", False, "старі субтитри"),
