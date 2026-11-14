@@ -468,7 +468,8 @@ def build_overlays(settings: dict, cues: list[Cue], cta: dict | None, layout: La
         out.append(Overlay(p, c.start, c.end, (layout.width - img.width) // 2,
                            max(0, layout.subtitles_y - img.height // 2)))
     if cta:
-        img = render_text(cta["text"], st, font_size=settings["cta"]["font_size"], max_width=layout.width - 80)
+        from .textimg import cta_image
+        img = cta_image(cta["text"], settings, layout.width)
         p = tmp / "cta.png"
         img.save(p)
         out.append(Overlay(p, cta["start"], cta["start"] + cta["dur"], (layout.width - img.width) // 2,
@@ -480,8 +481,8 @@ def write_cta_png(settings: dict, cta: dict, layout: Layout, path: Path) -> Path
     """Заклик картинкою на весь кадр (прозоре тло) — для DaVinci, якщо титр Text+ не вставляється.
     Розмір = кадр шортсу, тож DaVinci кладе її без масштабування, текст рівно там, де в MP4."""
     from PIL import Image
-    img = render_text(cta["text"], settings["subtitles"], font_size=settings["cta"]["font_size"],
-                      max_width=layout.width - 80)
+    from .textimg import cta_image
+    img = cta_image(cta["text"], settings, layout.width)
     frame = Image.new("RGBA", (layout.width, layout.height), (0, 0, 0, 0))
     x = (layout.width - img.width) // 2
     y = max(0, int(layout.cta_y or settings["cta"]["y"]) - img.height // 2)

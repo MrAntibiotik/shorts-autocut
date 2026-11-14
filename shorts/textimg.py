@@ -73,16 +73,73 @@ def _emoji_font(style: dict, size: int):
     return None
 
 
-def render_text(text: str, style: dict, font_size: int | None = None, max_width: int = 1000) -> Image.Image:
-    """Повертає RGBA-картинку з текстом (рядки через \\n), обрізану по вмісту з полями."""
+def _measure(line: str, style: dict, size: int) -> int:
+    """Ширина рядка в пікселях (так само, як у _render), з полями під контур і тінь."""
+    font = load_font(style.get("font", ""), size, TEXT_FALLBACKS)
+    w = 0
+    for frag, is_emoji in split_runs(line):
+        if is_emoji:
+            n = len([c for c in frag if ord(c) > 0x2000 and c not in "\uFE0F\u200D"])
+            w += max(int(size * 1.15) * n, int(size * 1.15))
+        else:
+            w += int(font.getlength(frag))
+    pad = int(style.get("outline_width", 6)) + int(style.get("shadow_offset", 5)) + 8
+    return w + 2 * pad
+
+
+def wrap(text: str, style: dict, size: int, max_width: int, max_lines: int = 3) -> list[str]:
+    """Переносить слова на нові рядки, щоб кожен рядок влазив у max_width."""
+    out = []
+    for para in [p for p in text.split("\n") if p.strip()] or [" "]:
+        words, cur = para.split(), ""
+        for wd in words:
+            test = f"{cur} {wd}".strip()
+            if cur and _measure(test, style, size) > max_width:
+                out.append(cur)
+                cur = wd
+            else:
+                cur = test
+        out.append(cur)
+    return out if len(out) <= max_lines else out[:max_lines - 1] + [" ".join(out[max_lines - 1:])]
+
+
+def render_text(text: str, style: dict, font_size: int | None = None, max_width: int = 1000,
+                max_lines: int = 3) -> Image.Image:
+    """Повертає RGBA-картинку з текстом, обрізану по вмісту з полями. Довгий текст переноситься на рядки
+    (до max_lines); якщо й так не влазить — зменшується шрифт. Ширина НІКОЛИ не більша за max_width."""
     size = int(font_size or style.get("font_size", 66))
-    lines = [l for l in text.split("\n") if l.strip()] or [" "]
-    for _ in range(6):   # якщо не влазить по ширині — зменшуємо шрифт
+    img = None
+    for _ in range(10):
+        lines = wrap(text, style, size, max_width, max_lines)
         img = _render(lines, style, size)
-        if img.width <= max_width + 40 or size <= 30:
-            return img
+        if img.width <= max_width or size <= 24:
+            break
         size = int(size * 0.9)
+    if img.width > max_width:                 # крайній випадок — стиснути, але не обрізати
+        k = max_width / img.width
+        img = img.resize((max_width, max(1, int(img.height * k))), Image.LANCZOS)
     return img
+
+
+def add_box(img: Image.Image, alpha: int = 150, radius: int = 28, pad: int = 18) -> Image.Image:
+    """Напівпрозора темна плашка під текстом (заклик помітніший на будь-якому фоні)."""
+    W, H = img.width + 2 * pad, img.height + 2 * pad
+    out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(out).rounded_rectangle((0, 0, W - 1, H - 1), radius=radius, fill=(0, 0, 0, int(alpha)))
+    out.alpha_composite(img, (pad, pad))
+    return out
+
+
+def cta_image(text: str, settings: dict, frame_width: int) -> Image.Image:
+    """Заклик: більший шрифт, свій колір, товстий контур, плашка; переноситься на рядки, не виходить за кадр."""
+    c = settings.get("cta") or {}
+    style = {**(settings.get("subtitles") or {}), "color": c.get("color", "#FFE14D"),
+             "outline_width": int(c.get("outline_width", 8))}
+    margin = int(c.get("margin", 70))
+    box = bool(c.get("box", True))
+    max_w = frame_width - 2 * margin - (36 if box else 0)
+    img = render_text(text, style, font_size=int(c.get("font_size", 76)), max_width=max_w, max_lines=3)
+    return add_box(img, int(c.get("box_alpha", 150))) if box else img
 
 
 def _render(lines: list[str], style: dict, size: int) -> Image.Image:
