@@ -303,6 +303,22 @@ class ObsLaunchTest(unittest.TestCase):
 
 
 class FindGameTest(unittest.TestCase):
+    def test_steam_region_subfolder(self):
+        from unittest import mock
+        from shorts import replay_record as rr
+        with tempfile.TemporaryDirectory() as t:
+            steam = Path(t) / "Steam"
+            base = steam / "steamapps" / "common" / "World of Tanks"
+            game = base / "ru"
+            game.mkdir(parents=True)
+            (game / "version.xml").write_text("<version>v.2.4.1.1 #1</version>")
+            (game / "WorldOfTanks.exe").write_text("x")
+            with mock.patch.object(rr, "STEAM_ROOTS", [str(steam)]), mock.patch.object(rr, "KNOWN_DIRS", []):
+                self.assertEqual(rr.find_game_dir(""), game)
+                self.assertEqual(rr.find_game_dir(str(base)), game)       # вказали папку без «ru» — теж знайде
+                self.assertEqual(rr.find_game_dir(str(game)), game)
+                self.assertEqual(rr.game_exe(Path(str(base))), game / "WorldOfTanks.exe")
+
     def test_steam_and_preferred(self):
         from unittest import mock
         from shorts import replay_record as rr

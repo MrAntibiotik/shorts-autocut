@@ -80,14 +80,36 @@ def steam_dirs(roots=None) -> list[Path]:
     return out
 
 
+REGION_DIRS = ["eu", "na", "asia", "ru", "ct"]   # Steam-версія: гра — у підпапці регіону
+
+
+def _game_in(d) -> Path | None:
+    """Гра в самій папці або в підпапці регіону (Steam: …\\World of Tanks\\eu, …\\ru)."""
+    if not str(d or "").strip():
+        return None
+    d = Path(d)
+    if is_game_dir(d):
+        return d
+    try:
+        subs = [x for x in d.iterdir() if x.is_dir()]
+    except OSError:
+        return None
+    order = {r: i for i, r in enumerate(REGION_DIRS)}
+    for sub in sorted(subs, key=lambda x: (order.get(x.name.lower(), 99), x.name.lower())):
+        if is_game_dir(sub):
+            return sub
+    return None
+
+
 def find_game_dir(preferred="") -> Path:
-    """Папка гри: вказана у вкладці → Steam (усі бібліотеки) → стандартні папки Wargaming Game Center.
-    Нічого не знайдено — повертає вказану (помилка буде зрозумілою)."""
+    """Папка гри: вказана у вкладці → Steam (усі бібліотеки) → стандартні папки Wargaming Game Center;
+    у кожній — і підпапки регіонів (eu, na, asia, ru…). Нічого не знайдено — повертає вказану."""
     cands = [preferred] if str(preferred or "").strip() else []
     cands += steam_dirs() + KNOWN_DIRS
     for c in cands:
-        if is_game_dir(c):
-            return Path(c)
+        found = _game_in(c)
+        if found:
+            return found
     return Path(preferred or KNOWN_DIRS[0])
 
 
