@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import queue
@@ -25,25 +24,13 @@ TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOOLS.parent))
 
 from shorts.config import work_dir  # noqa: E402
-
-DEFAULT_CTA = "Day {day} · Ukrainian veteran on the road to 1000 subs — subscribe 🛡️♥️"
-
-
-def state_file(settings) -> Path:
-    return work_dir(settings) / "replays_state.json"
-
-
-def load(settings) -> dict:
-    try:
-        return json.loads(state_file(settings).read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+from shorts.replay_state import DEFAULT_CTA, Busy, load  # noqa: E402
+from shorts.replay_state import save as _save  # noqa: E402
 
 
 def save(settings, data: dict) -> None:
-    p = state_file(settings)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    """Зберігає налаштування вкладки, не стираючи те, що змінив Telegram-бот (фільтр — спільний)."""
+    _save(settings, {**load(settings), **data})
 
 
 class _QH(logging.Handler):
@@ -439,8 +426,16 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
                 if due:
                     go_now.clear()
                     q.put(("log", f"▶ Записую й нарізаю: {len(pend)} реплеїв"))
-                    summary = run(settings, jopts, ropts,
-                                  progress=lambda t, fr: q.put(("progress", (t, fr))), cancel=cancel.is_set)
+                    try:
+                        summary = run(settings, jopts, ropts, who="вкладка",
+                                      progress=lambda t, fr: q.put(("progress", (t, fr))), cancel=cancel.is_set)
+                    except Busy as e:
+                        q.put(("log", f"⏳ Зачекаю: {e}"))
+                        go_now.clear()
+                        last_new = time.time()
+                        if not watch:
+                            break
+                        continue
                     total["recorded"] += summary["recorded"]
                     total["shorts"] += len(summary["shorts"])
                     total["published"] += len(summary["published"])

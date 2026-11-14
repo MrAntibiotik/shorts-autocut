@@ -107,15 +107,26 @@ def cut_recording(settings: dict, recording: Path, cta_text: str, progress=None,
     return out
 
 
-def run(settings: dict, opts: ReplayJobOptions, rec_opts=None, progress=None, cancel=None) -> dict:
-    """Записує й нарізає реплеї з папки. progress(текст, частка); cancel() -> bool."""
-    from .replay_record import Obs, record_one
+def run(settings: dict, opts: ReplayJobOptions, rec_opts=None, progress=None, cancel=None, who: str = "вкладка",
+        on_short=None) -> dict:
+    """Записує й нарізає реплеї з папки. progress(текст, частка); cancel() -> bool;
+    on_short(шлях у Poster, дані реплею) — після кожного готового шортса.
+    Busy (replay_state), якщо запис уже йде з іншого місця (вкладка / бот)."""
+    from .replay_state import running
     replays = [Path(p) for p in opts.only] if opts.only else pending_replays(opts.replays_dir)
     summary = {"replays": len(replays), "recorded": 0, "shorts": [], "published": [], "errors": []}
     if not replays:
         return summary
+    with running(opts.replays_dir, who) as alive:
+        _run(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short)
+    return summary
+
+
+def _run(settings, opts, rec_opts, replays, summary, progress, cancel, alive, on_short):
+    from .replay_record import Obs, record_one
     obs = Obs(rec_opts.obs_host, rec_opts.obs_port, rec_opts.obs_password) if opts.record else None
     for i, rp in enumerate(replays):
+        alive()
         if cancel and cancel():
             break
         rid = rp.stem
@@ -146,6 +157,11 @@ def run(settings: dict, opts: ReplayJobOptions, rec_opts=None, progress=None, ca
                     if p:
                         summary["published"].append(str(p))
                         log.info("  → у публікацію: %s", p)
+                    if on_short:
+                        try:
+                            on_short(p or s, info)
+                        except Exception as e:  # noqa: BLE001 — сповіщення не має ламати запис
+                            log.warning("Сповіщення про шортс: %s", e)
         except Exception as e:  # noqa: BLE001 — один невдалий реплей не зупиняє решту
             if type(e).__name__ == "Cancelled":
                 raise
@@ -153,7 +169,6 @@ def run(settings: dict, opts: ReplayJobOptions, rec_opts=None, progress=None, ca
             summary["errors"].append(f"{rp.name}: {e}")
             if not marker.exists():   # не записався — не пробувати знову щоразу (видаліть .failed, щоб повторити)
                 rp.with_suffix(".failed").write_text(str(e), encoding="utf-8")
-    return summary
 
 
 __all__ = ["PROFILE_ID", "ReplayJobOptions", "cut_recording", "pending_replays", "poster_json", "publish", "run"]
