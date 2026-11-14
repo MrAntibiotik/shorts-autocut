@@ -651,11 +651,20 @@ class Bot:
                          creationflags=_NO_WINDOW)
         os._exit(0)
 
+    UPDATE_CHECK_S = 3600       # автоматично — не частіше ніж раз на годину (і після перезапуску теж)
+
     def check_updates(self):
-        """Раз на 6 годин: якщо на GitHub нова версія — повідомити (один раз на версію)."""
-        if time.time() - self.last_update_check < 6 * 3600 or self.owner is None:
+        """Не частіше ніж раз на годину: якщо на GitHub нова версія — повідомити (один раз на версію).
+        Час останньої перевірки зберігається, тож перезапуски бота (після оновлень) не додають перевірок."""
+        last = max(self.last_update_check, float(self.cfg.get("last_update_check") or 0))
+        if time.time() - last < self.UPDATE_CHECK_S or self.owner is None:
             return
         self.last_update_check = time.time()
+        self.cfg["last_update_check"] = self.last_update_check
+        try:
+            save_cfg(self.cfg)
+        except Exception:
+            pass
         import update
         try:
             lv, rv = update.local_version(), update.remote_version()
