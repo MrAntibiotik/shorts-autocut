@@ -61,7 +61,8 @@ class ReplaysBotTest(unittest.TestCase):
         game.mkdir()
         (game / "version.xml").write_text("<version.xml><version> v.1.26.0.1 #1234</version></version.xml>")
         replay_state.save(self.settings, {"game_dir": str(game), "replays_dir": str(self.d / "replays"),
-                                          "min_damage": 4000, "idle_min": 3})
+                                          "min_damage": 4000, "idle_min": 3,
+                                          "version": "1.26", "version_v": 2})   # тестові реплеї — 1.26 (вручну)
         self.bot = FakeBot(self.settings)
         self.rb = replays_bot.ReplaysBot(self.bot)
 
@@ -73,7 +74,7 @@ class ReplaysBotTest(unittest.TestCase):
         self.rb.show()
         text, markup = self.bot.sent[-1]
         self.assertIn("рівень 8, 9, 10", text)   # типовий фільтр
-        self.assertIn("версія: 1.26", text)
+        self.assertIn("версія: 1.26 (вибрано)", text)
         url = next(b["url"] for b in buttons(markup) if "url" in b)
         self.assertEqual(url, "https://wot-record.com/replays/date/desc?tier=8,9,10&version=1.26&mastery=4")
         msg = {"message_id": 5}
@@ -120,7 +121,8 @@ class ReplaysBotTest(unittest.TestCase):
         self.assertFalse(self.rb.on_text("123"))                            # питання вже знято
 
     def test_newest_version_without_game(self):
-        replay_state.save(self.settings, {**replay_state.load(self.settings), "game_dir": str(self.d / "nogame")})
+        replay_state.save(self.settings, {**replay_state.load(self.settings), "game_dir": str(self.d / "nogame"),
+                                          "version": ""})
         self.rb.show()
         text, markup = self.bot.sent[-1]
         newest = max((o["value"] for o in replays_bot.load_filters()["version"]),
@@ -171,21 +173,26 @@ class ReplaysBotTest(unittest.TestCase):
             self.rb.on_callback({"message": {"message_id": 6, "text": "📋 Бої"}}, "list:2")
         self.assertIn("Список не завантажився: сайт відмовив (429)", self.bot.sent[-1][0])
 
-    def test_unknown_game_version_not_in_url(self):
-        # гра 1.30 — такої версії немає у фільтрі сайту (сайт падає з 500) → у посиланні без версії + попередження
-        game = Path(replay_state.effective(self.settings)["game_dir"])
-        (game / "version.xml").write_text("<version.xml><version> v.1.30.0.0 #1</version></version.xml>")
+    def test_default_is_newest_site_version_with_game_warning(self):
+        replay_state.save(self.settings, {**replay_state.load(self.settings), "version": ""})   # авто
         self.rb.show()
         text, markup = self.bot.sent[-1]
+        newest = max((o["value"] for o in replays_bot.load_filters()["version"]),
+                     key=lambda v: tuple(map(int, v.split("."))))
+        self.assertIn(f"версія: {newest} (найновіша)", text)            # не версія гри (1.26)
         url = next(b["url"] for b in buttons(markup) if "url" in b)
-        self.assertNotIn("version=", url)
-        self.assertIn("⚠️ Ваша гра — 1.30, а на сайті такої версії немає", text)
-        # версія, яку сайт знає, — у посиланні є
-        replay_state.save(self.settings, {**replay_state.load(self.settings), "version": "2.4"})
+        self.assertIn(f"version={newest}", url)
+        self.assertIn(f"⚠️ Ваша гра — 1.26, а реплеї — {newest}", text)  # попередження про різницю
+        game = Path(replay_state.effective(self.settings)["game_dir"])
+        (game / "version.xml").write_text(f"<version> v.{newest}.1.1 #1</version>")
         self.rb.show()
-        url = next(b["url"] for b in buttons(self.bot.sent[-1][1]) if "url" in b)
-        self.assertIn("version=2.4", url)
-        self.assertNotIn("⚠️", self.bot.sent[-1][0])
+        self.assertNotIn("⚠️", self.bot.sent[-1][0])                    # гра оновлена — без попередження
+
+    def test_old_saved_version_is_ignored(self):
+        replay_state.save(self.settings, {**replay_state.load(self.settings), "version": "1.30", "version_v": 0})
+        self.assertEqual(replay_state.effective(self.settings)["version"], "")
+        self.rb.show()
+        self.assertIn("(найновіша)", self.bot.sent[-1][0])
 
     def test_parse_number(self):
         P = replays_bot.parse_number

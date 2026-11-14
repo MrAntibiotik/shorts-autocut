@@ -88,7 +88,8 @@ class ReplaysBot:
     def version_info(self, st: dict) -> tuple[str, tuple, str]:
         """(«2.4», кортеж для перевірки, звідки): вибрана → ваша гра → найновіша."""
         from shorts.replay_filter import effective_version
-        return effective_version(st.get("version") or "", self.client_version(st), replays_dir=st["replays_dir"])
+        # за замовчуванням — завжди найновіша версія з сайту (версія гри — лише для попередження)
+        return effective_version(st.get("version") or "", (), replays_dir=st["replays_dir"])
 
     def version(self, st: dict) -> str:
         return self.version_info(st)[0]
@@ -136,9 +137,12 @@ class ReplaysBot:
         from shorts.replay_filter import latest_version, site_knows
         src = self.version_info(st)[2]
         newest = latest_version(replays_dir=st["replays_dir"])
-        no_game = "" if src != "найновіша" else (
-            "ℹ️ Папку гри не знайдено — беру найновішу версію. Якщо ваша гра ще не оновилась, вкажіть папку гри "
-            "у вкладці «🎮 Реплеї» на ПК.\n")
+        no_game = ""
+        cv = self.client_version(st)
+        game_ver = f"{cv[0]}.{cv[1]}" if len(cv) >= 2 else ""
+        if game_ver and ver and game_ver != ver:
+            no_game += (f"⚠️ Ваша гра — {game_ver}, а реплеї — {ver}: реплеї іншої версії гра не відкриває. "
+                        "Оновіть гру (або виберіть свою версію у вкладці «🎮 Реплеї»).\n")
         if ver and src != "найновіша" and not site_knows(ver) and newest and newest != ver:
             no_game += (f"⚠️ {'Ваша гра' if src == 'ваша гра' else 'Вибрана версія'} — {ver}, а на сайті такої версії "
                         f"немає (найновіша там {newest}). Список показую без фільтра версії; реплеї з сайту у вашій грі "
