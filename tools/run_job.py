@@ -147,6 +147,11 @@ def gui(settings, log_file: Path):
         nb.add(build_bot_tab(nb, settings), text="  Telegram-бот  ")
     except Exception as e:  # вкладка бота не повинна ламати основне вікно
         logging.getLogger("run_job").warning("Вкладка Telegram-бота недоступна: %s", e)
+    try:
+        from replays_tab import build_replays_tab
+        nb.add(build_replays_tab(nb, settings), text="  🎮 Реплеї  ")
+    except Exception as e:  # так само: вкладка реплеїв не повинна ламати основне вікно
+        logging.getLogger("run_job").warning("Вкладка «Реплеї» недоступна: %s", e)
     tk.Label(setup, text="Автонарізка шортсів", font=("Segoe UI", 15, "bold")).pack(anchor="w", **pad)
 
     # папка зі стрімами OBS: звідси «Додати…», пошук перенесених записів і файлів вебки

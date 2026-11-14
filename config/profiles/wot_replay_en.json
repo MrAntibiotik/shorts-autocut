@@ -1,0 +1,357 @@
+{
+  "profile_version": 20,
+  "name": "World of Tanks — реплеї (англ. клієнт)",
+  "ready": true,
+  "modes": {
+    "_опис": "Режими гри (вибираються в майстрі для кожного запису). damage — моменти з ваших влучань; assist — з влучань і засвіту (для світляка): кожне зростання третього рядка блоку лічильників — теж момент.",
+    "damage": "Шкода — моменти з ваших влучань",
+    "assist": "Засвіт — влучання + шкода за вашим засвітом (світляк)"
+  },
+  "default_mode": "damage",
+  "_зони": "Рамки [x, y, ширина, висота] у частках кадру (0..1). Обводьте мишкою через extra\\pick_zones.bat (або кнопкою з вікна запуску). Прив'язка до 4 елементів: вебкамера, блок лічильників (шкода/заблоковано/допомога — число шкоди береться з його верхнього рядка), повідомлення про шкоду посередині екрана, таймер бою праворуч угорі. Значення нижче — з вашого скріна, перевірте на своєму записі.",
+  "zones_confirmed": false,
+  "zones": {
+    "counters_block": [
+      0.066,
+      0.845,
+      0.024,
+      0.052
+    ],
+    "hit_message": [
+      0.44,
+      0.715,
+      0.14,
+      0.06
+    ],
+    "battle_timer": [
+      0.972,
+      0.0,
+      0.028,
+      0.025
+    ],
+    "end_screen": [
+      0.3,
+      0.3,
+      0.4,
+      0.35
+    ]
+  },
+  "signals": {
+    "_опис": "Які джерела сигналів використовувати: екран (OCR), звук гри (зразки), мій голос.",
+    "vision": true,
+    "game_audio": true,
+    "voice": false
+  },
+  "vision": {
+    "sample_fps": 2,
+    "time_correction_s": -0.25,
+    "damage_counter": {
+      "_опис": "Число завданої шкоди: береться з верхнього рядка блоку лічильників (from_block — частина блоку: x, y, ширина, висота). Кожне зростання = влучання. max_jump — найбільший правдоподібний приріст; confirm_frames — скільки кадрів поспіль має бути нове значення.",
+      "enabled": true,
+      "max_jump": 3000,
+      "max_value": 30000,
+      "confirm_frames": 2,
+      "reset_confirm_frames": 4,
+      "resync_frames": 6,
+      "from_block": [
+        0.28,
+        0.0,
+        0.72,
+        0.36
+      ]
+    },
+    "other_counters": {
+      "_опис": "Другий і третій рядки блоку лічильників: заблокована шкода і засвіт (допомога). Використовуються для підсумку бою: назва папки бою — за більшою з величин «шкода» / «засвіт».",
+      "enabled": true,
+      "blocked_from_block": [
+        0.28,
+        0.32,
+        0.72,
+        0.36
+      ],
+      "assist_from_block": [
+        0.28,
+        0.64,
+        0.72,
+        0.36
+      ]
+    },
+    "hit_message": {
+      "_опис": "Повідомлення про шкоду посередині екрана («180 ✕ Damage Caused ▼ FV215b 183») — це і є моменти. Зелений рядок — ваша шкода; червоний — шкода по вас. reject_keywords — шматки слів, через які рядок НЕ є вашим пострілом (шкода за засвіт, заблоковано, критичні пошкодження, підказки гри).",
+      "enabled": true,
+      "keywords": [
+        "damage"
+      ],
+      "keyword_ratio": 0.7,
+      "min_value": 1,
+      "max_value": 5000,
+      "confirm_frames": 2,
+      "require_keyword": false,
+      "reject_colors": [
+        "red"
+      ],
+      "reject_keywords": [
+        "critical",
+        "spott",
+        "assist",
+        "block",
+        "track",
+        "stun",
+        "detected",
+        "repair",
+        "consumable",
+        "information",
+        "ally",
+        "allied",
+        "received",
+        "ricochet",
+        "no damage"
+      ],
+      "max_prefix_letters": 3
+    },
+    "battle_timer": {
+      "_опис": "Таймер бою праворуч угорі. Початок бою: таймер стоїть на цілій хвилині (15:00, 20:00, 10:00…) довше freeze_s секунд, АБО таймер з'явився і рахує вниз, почавши не далі ніж start_window_s секунд від 10:00 / 15:00 / 20:00 (bases_s). Кінець — таймер зник довше end_gap_s секунд (бій може закінчитися будь-коли).",
+      "enabled": true,
+      "check_every_s": 1.0,
+      "max_base_s": 1200,
+      "default_base_s": 900,
+      "min_base_s": 300,
+      "freeze_s": 5.0,
+      "end_gap_s": 30,
+      "resync_readings": 10,
+      "bases_s": [
+        600,
+        900,
+        1200
+      ],
+      "start_window_s": 60
+    },
+    "event_log": {
+      "_опис": "Зелені рядки — моя шкода (рядок зі словом зі списку kill_keywords = знищення ворога), червоні — отримана шкода.",
+      "enabled": false,
+      "kill_keywords": [
+        "destroyed"
+      ],
+      "keyword_ratio": 0.75,
+      "memory_s": 20,
+      "match_ratio": 0.75,
+      "min_chars": 3
+    },
+    "hp": {
+      "_опис": "Міцність: текст «1234 / 2000» (основне) і смужка (запасне). min_drop — мінімальне падіння міцності, яке вважається влучанням.",
+      "enabled": false,
+      "use_text": true,
+      "use_bar": true,
+      "min_drop": 30,
+      "bar_min_drop": 0.04,
+      "confirm_frames": 2
+    },
+    "end_screen": {
+      "_опис": "Написи екрану смерті / кінця бою. Перевіряється раз на check_every_s секунд.",
+      "enabled": true,
+      "check_every_s": 2.0,
+      "scale": 0.6,
+      "death_keywords": [
+        "rate the battle",
+        "switch camera"
+      ],
+      "battle_end_keywords": [
+        "victory",
+        "defeat",
+        "draw"
+      ],
+      "keyword_ratio": 0.8,
+      "cooldown_s": 60
+    },
+    "assist_counter": {
+      "_опис": "Лічильник засвіту (режим «Засвіт»): ті самі правила, що й для шкоди, з такими відмінностями.",
+      "max_jump": 5000
+    }
+  },
+  "battles": {
+    "_опис": "split_gap_s — пауза між подіями після смерті, яка означає новий бій.",
+    "split_gap_s": 45,
+    "merge_death_s": 20,
+    "log_match_s": 2.0
+  },
+  "game_audio": {
+    "_опис": "Зразки звуків лежать у samples/<гра>/<категорія>/*.wav. Тут — що означає кожна категорія (type: hit = влучання, kill = знищення ворога, damage_taken = отримав шкоду, game_sound = просто цікавий звук) і її вага. threshold — поріг схожості 0..1 (вищий = суворіше). Якщо звук не розділено, поріг множиться на mix_threshold_factor.",
+    "categories": {
+      "пробиття": {
+        "type": "hit",
+        "weight": 1.0
+      },
+      "попадання": {
+        "type": "hit",
+        "weight": 0.6
+      },
+      "ваншот": {
+        "type": "kill",
+        "weight": 2.0
+      },
+      "знищено": {
+        "type": "kill",
+        "weight": 1.5
+      },
+      "мене_пробили": {
+        "type": "damage_taken",
+        "weight": 0.8
+      }
+    },
+    "stems": [
+      "game",
+      "voice",
+      "mix"
+    ],
+    "threshold": 0.6,
+    "mix_threshold_factor": 0.85,
+    "min_gap_s": 0.6,
+    "level_tolerance_db": 20,
+    "loudness_spikes": {
+      "enabled": false,
+      "spike_db": 12,
+      "min_duration_s": 0.1,
+      "weight": 0.4
+    }
+  },
+  "voice": {
+    "_опис": "Ваш голос. spike_db — на скільки дБ гучніше за ваш звичайний рівень = сплеск (по міксу — mix_spike_db). Крик: + scream_min_db і тон від scream_min_hz Гц. Сміх: ритмічні поштовхи.",
+    "spike_db": 10,
+    "mix_spike_db": 14,
+    "min_duration_s": 0.15,
+    "scream_min_db": 12,
+    "scream_min_hz": 300,
+    "scream_min_duration_s": 0.3,
+    "baseline_window_s": 60,
+    "merge_s": 1.5,
+    "laugh": {
+      "enabled": true,
+      "window_s": 1.5,
+      "min_db": 3,
+      "min_periodicity": 0.4,
+      "min_bursts": 3,
+      "max_irregularity": 0.35,
+      "min_hz": 170
+    }
+  },
+  "scoring": {
+    "_опис": "Сила моменту. base — базові бали за тип; влучання + шкода/hit_damage_scale; підтвердження звуком у ±sound_confirm_window_s с множить на sound_confirm_mult; ваша реакція протягом emotion_window_s с після події додає emotion_bonus × інтенсивність. audio_only_moments / voice_only_moments — чи бути моментами звукам і реакціям без події на екрані (для ігор без зорових сигналів).",
+    "base": {
+      "hit": 1.0,
+      "kill": 3.0,
+      "death": 2.5,
+      "damage_taken": 0.5,
+      "game_sound": 1.0,
+      "voice": 0.8,
+      "assist": 0.9
+    },
+    "hit_damage_scale": 500,
+    "hit_damage_cap": 3.0,
+    "sound_confirm_window_s": 1.0,
+    "sound_confirm_mult": 1.3,
+    "emotion_window_s": [
+      0,
+      3
+    ],
+    "emotion_bonus": 0.0,
+    "audio_only_moments": false,
+    "voice_only_moments": false,
+    "small_hit_damage": 100,
+    "small_hit_base": 0.3,
+    "assist_damage_scale": 500
+  },
+  "selection": {
+    "_опис": "Відбір: один бій = один шортс до max_duration_s с. Момент — повідомлення про вашу шкоду: pre_s до (3 с) і post_s після (6 с). Якщо ви ще говорите/реагуєте — кінець подовжується до паузи у вашій мові, не більше ніж на snap_after_max_s (6 с); початок — до snap_max_s (1,5 с). merge_gap_s — близькі шматки зливаються. min_score — мінімальна сила моменту; min_battle_score — бій без вартих моментів пропускається. min_hits — бій без жодного вашого влучання шортсу не отримує. Якщо всі ваші постріли з повним запасом у max_duration_s не влазять — запас зменшується до compact_pre_s / compact_post_s, щоб влізло якомога більше пострілів. confirmed_first — спершу постріли, підтверджені лічильником шкоди, потім решта.",
+    "max_duration_s": 60,
+    "pre_s": [
+      3.0,
+      3.0
+    ],
+    "post_s": [
+      6.0,
+      6.0
+    ],
+    "merge_gap_s": 4.0,
+    "min_score": 1.0,
+    "min_battle_score": 2.0,
+    "speech_snap": false,
+    "snap_max_s": 1.5,
+    "max_shorts": 0,
+    "snap_after_max_s": 6.0,
+    "min_hits": 1,
+    "compact_pre_s": 1.5,
+    "compact_post_s": 3.5,
+    "confirmed_first": true
+  },
+  "layout": {
+    "_опис": "Макет шортсу 1080×1920. preset: overlay — гра на весь кадр, вебкамера поверх неї зверху; split — вебкамера смугою зверху, гра під нею. webcam_fit: contain — вебкамера ціла, без обрізання (висота — за її пропорціями; webcam_height > 0 — найбільша висота), cover — заповнити рамку з обрізанням. game_below_webcam — зсунути сцену вниз, щоб приціл був посередині видимої частини під камерою. Числа — пікселі кадру 1080×1920. game_zoom — додаткове збільшення гри; game_offset_x/y — зсув центру гри (частка кадру запису). counters — блок лічильників (V3): anchor: left_middle — зліва посередині (margin — відступ від краю, offset_y — зсув вгору/вниз), right_middle — справа посередині, below_webcam — одразу під вебкамерою (align, gap), absolute — за x/y, height — висота блоку в шортсі. subtitles_y — висота центру субтитрів. cta_y — висота центру заклику (0 = як у settings.json).",
+    "preset": "overlay",
+    "output": {
+      "width": 1080,
+      "height": 1920,
+      "fps": 60
+    },
+    "split": {
+      "webcam_height": 550,
+      "game_zoom": 1.0,
+      "game_offset_x": 0.0,
+      "game_offset_y": 0.0,
+      "webcam_focus_y": 0.5,
+      "webcam_fit": "cover"
+    },
+    "overlay": {
+      "webcam_x": 220,
+      "webcam_y": 40,
+      "webcam_width": 640,
+      "webcam_height": 410,
+      "webcam_fit": "cover",
+      "game_below_webcam": false,
+      "game_zoom": 1.0,
+      "game_offset_x": 0.0,
+      "game_offset_y": 0.0,
+      "webcam_focus_y": 0.5
+    },
+    "counters": {
+      "enabled": true,
+      "anchor": "left_middle",
+      "margin": 16,
+      "offset_y": 0,
+      "align": "center",
+      "gap": 12,
+      "x": 0,
+      "y": 1250,
+      "width": 0,
+      "height": 170
+    },
+    "subtitles_y": 1620,
+    "avoid_webcam_in_game": false,
+    "cta_y": 1780
+  },
+  "highlights": {
+    "_опис": "Хайлайти 16:10 (галочка у вікні запуску): для боїв зі шкодою або засвітом від min_value — окреме горизонтальне відео target_min_s…target_max_s секунд (7–8 хв) з ключовими моментами, у папці highlights результату. Короткий бій — цілим. Кадр output: «auto» — рідна роздільність запису 16:10 (3440×1440 → 2304×1440), або {\"width\":…, \"height\":…}, вебкамера в куті (webcam_corner: top_left / top_right / bottom_left / bottom_right, ширина webcam_width), лічильники під нею.",
+    "enabled": true,
+    "min_value": 7000,
+    "target_min_s": 420,
+    "target_max_s": 480,
+    "base_pre_s": 8.0,
+    "base_post_s": 6.0,
+    "merge_gap_s": 20.0,
+    "include_start_s": 20.0,
+    "include_end_s": 10.0,
+    "output": "auto",
+    "webcam_width": 480,
+    "webcam_corner": "top_left",
+    "margin": 24,
+    "counters_height": 150,
+    "opener": {
+      "_опис": "Opener на початку хайлайту: moments (3–6) найяскравіших моментів бою в шаблоні templates/opener_16x10 (HOOK → … → ПІК → заставка MR_ANTIBIOTIK, 10–17,5 с). pre_s — скільки секунд до моменту брати; min_gap_s — мінімальна відстань між моментами. enabled=false — без opener'а. Для реплеїв вимкнено (заставка — ваш нік).",
+      "enabled": false,
+      "template_dir": "templates/opener_16x10",
+      "moments": 5,
+      "pre_s": 0.5,
+      "min_gap_s": 4.0
+    }
+  },
+  "_про_профіль": "Профіль для записів реплеїв на АНГЛІЙСЬКОМУ клієнті (вкладка «🎮 Реплеї»): без вебкамери й голосу, англійські написи (Damage Caused, Victory/Defeat/Draw), числа з комою (3,516). Звуки гри — ті самі зразки, що й у профілі wot (samples_id). Рамки обведіть на першому записі реплею (extra\\pick_zones.bat → цей профіль).",
+  "samples_id": "wot"
+}

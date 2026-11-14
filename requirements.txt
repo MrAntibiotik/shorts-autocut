@@ -7,3 +7,4 @@ demucs>=4.1.0
 librosa>=0.10
 soundfile>=0.12
 scipy>=1.11
+obsws-python>=1.7      # керування OBS для запису реплеїв (вкладка «🎮 Реплеї»)
