@@ -108,7 +108,28 @@ def cut_recording(settings: dict, recording: Path, cta_text: str, progress=None,
     st = copy.deepcopy(settings)
     jopts = JobOptions(recordings=[recording], profile_id=PROFILE_ID, cta_text=cta_text, render=True,
                        separation=False, subtitles=False, speech_ai=False, highlights=False)
-    res = Job(st, jopts, Progress(callback=progress, cancel_flag=cancel)).run()
+    import threading
+
+    from .resolve_export import write_status
+    info = {"stage": "Нарізка реплею", "percent": 0}
+    stop = threading.Event()
+
+    def beat():                       # «пульс» для «⏳ Статус» у боті: обробка жива, хоч етап і довгий
+        while not stop.wait(10):
+            try:
+                write_status(settings, stage=info["stage"], percent=info["percent"])
+            except Exception:  # noqa: BLE001
+                pass
+
+    def cb(stage, frac):
+        info["stage"], info["percent"] = stage, int(frac * 100)
+        if progress:
+            progress(stage, frac)
+    threading.Thread(target=beat, daemon=True, name="cut-heartbeat").start()
+    try:
+        res = Job(st, jopts, Progress(callback=cb, cancel_flag=cancel)).run()
+    finally:
+        stop.set()
     out = []
     for rec in res.get("recordings", []):
         for sh in rec.get("shorts", []):
