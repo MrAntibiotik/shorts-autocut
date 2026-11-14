@@ -161,7 +161,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
         if "map" in lists:
             out["map"] = [FL["map"][i]["value"] for i in lists["map"].curselection()]
         out["tank"] = sorted(chosen_tanks)
-        ver = v["version"].get().strip()
+        ver = v["version"].get().strip() or auto_version()[0]
         out["version"] = [ver] if ver else []
         return out
 
@@ -205,7 +205,8 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
     tk.Label(r, text="Версія", width=12, anchor="w").pack(side="left")
     ttk.Combobox(r, textvariable=v["version"], width=8,
                  values=[""] + [o["value"] for o in FL.get("version", [])]).pack(side="left")
-    tk.Label(r, text="(порожньо — будь-яка; ставиться за вашою грою)", fg="#666").pack(side="left", padx=4)
+    lbl_auto = tk.Label(r, text="", fg="#666")
+    lbl_auto.pack(side="left", padx=4)
     tk.Label(r, text="Сортування").pack(side="left", padx=(16, 2))
     sorts = FL.get("sorts", [{"value": "date", "label": "Нові"}])
     cb_sort = ttk.Combobox(r, width=12, state="readonly", values=[o["label"] for o in sorts])
@@ -355,15 +356,20 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
         if url:
             webbrowser.open(url)
 
+    def auto_version() -> tuple[str, tuple, str]:
+        from shorts.replay_filter import effective_version
+        from shorts.replay_record import client_version
+        return effective_version(v["version"].get(), client_version(Path(v["game_dir"].get())), FL or None,
+                                 v["replays_dir"].get())
+
     def refresh_version():
         from shorts.replay_record import client_version
-        from shorts.replay_filter import version_value
         ver = client_version(Path(v["game_dir"].get()))
-        if ver and not v["version"].get().strip():
-            v["version"].set(version_value(ver))
-        lbl_ver.config(text=(f"Версія гри: {'.'.join(map(str, ver))} — скачуватимуться лише реплеї цієї версії"
-                             if ver else "⚠️ version.xml не знайдено — перевірте папку гри (версію реплеїв не перевірятиму)"),
+        auto = auto_version()
+        lbl_ver.config(text=(f"Версія гри: {'.'.join(map(str, ver))} — беру лише реплеї цієї версії" if ver else
+                             f"ℹ️ version.xml не знайдено — беру найновішу версію {auto[0]} (перевірте папку гри)"),
                        fg="#2e7d32" if ver else "#a05a00")
+        lbl_auto.config(text=f"порожньо — авто: {auto[0]} ({auto[2]})" if auto[0] else "порожньо — будь-яка")
         on_filter_change(tanks=False)
 
     def check_obs():
@@ -386,9 +392,10 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
             from shorts.replay_record import RecordOptions, client_version
             from shorts.replay_download import Blocked, ImportOptions, import_folder
             from shorts.replay_job import pending_replays
+            from shorts.replay_filter import effective_version
             game_dir = Path(params["game_dir"])
-            ver = client_version(game_dir)
             replays_dir = Path(params["replays_dir"])
+            ver = effective_version(params["version"], client_version(game_dir), replays_dir=replays_dir)[1]
             if params["do_download"] and params["url"].strip():
                 try:
                     res = fetch(DownloadOptions(url=params["url"].strip(), dest=replays_dir,
