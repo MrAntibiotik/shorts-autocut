@@ -229,28 +229,59 @@ class Obs:
             log.warning("OBS: не вдалося повернути профіль/набір сцен: %s", e)
 
 
-def launch_obs(opts: RecordOptions) -> bool:
-    """Запускає OBS (згорнутим у трей) з профілем і набором сцен для реплеїв. True — запущено."""
-    exe = Path(opts.obs_exe or "")
-    if not exe.is_file():
+OBS_PROCESSES = ("obs64.exe", "obs32.exe", "obs.exe")
+
+
+def obs_running() -> bool:
+    """Чи вже працює OBS (будь-яка копія, зокрема згорнута в трей)."""
+    try:
+        if WIN:
+            r = subprocess.run(["tasklist", "/FO", "CSV", "/NH"], capture_output=True, text=True, errors="replace",
+                               timeout=20, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            names = {line.split('","')[0].strip('"').lower() for line in r.stdout.splitlines() if line}
+        else:
+            r = subprocess.run(["ps", "-A", "-o", "comm="], capture_output=True, text=True, timeout=20)
+            names = {Path(x.strip()).name.lower() for x in r.stdout.splitlines()}
+    except (OSError, subprocess.SubprocessError):
         return False
-    args = [str(exe), "--minimize-to-tray", "--disable-shutdown-check"]
+    return any(n in names for n in OBS_PROCESSES)
+
+
+def launch_obs(opts: RecordOptions) -> bool:
+    """Запускає OBS (згорнутим на панель задач, НЕ в трей) з профілем і набором сцен для реплеїв.
+    Якщо OBS уже працює — друга копія НЕ запускається (False)."""
+    exe = Path(opts.obs_exe or "")
+    if not exe.is_file() or obs_running():
+        return False
+    args = [str(exe), "--disable-shutdown-check"]
     if opts.obs_profile:
         args += ["--profile", opts.obs_profile]
     if opts.obs_collection:
         args += ["--collection", opts.obs_collection]
-    kw = {"creationflags": subprocess.DETACHED_PROCESS} if WIN else {"start_new_session": True}
+    kw: dict = {"start_new_session": True}
+    if WIN:
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 7                                   # SW_SHOWMINNOACTIVE: згорнуто, видно на панелі задач
+        kw = {"creationflags": subprocess.DETACHED_PROCESS, "startupinfo": si}
     subprocess.Popen(args, cwd=str(exe.parent), **kw)   # OBS шукає свої файли поруч із exe
     log.info("Запускаю OBS: %s", exe)
     return True
 
 
+WS_HELP = ("у OBS увімкніть Інструменти → Налаштування WebSocket-сервера (порт і пароль — як у вкладці "
+           "«🎮 Реплеї»)")
+
+
 def ensure_obs(opts: RecordOptions) -> "Obs":
-    """Зв'язок з OBS; якщо OBS не відкритий — запускає його й чекає, доки ввімкнеться WebSocket.
-    Перемикає профіль / набір сцен для реплеїв (після запису obs.restore() повертає попередні)."""
+    """Зв'язок з OBS. Якщо OBS закритий — запускає ОДНУ копію й чекає WebSocket; якщо OBS уже відкритий
+    (навіть у треї), нову копію не запускає. Перемикає профіль / набір сцен (obs.restore() повертає)."""
     try:
         obs = Obs(opts.obs_host, opts.obs_port, opts.obs_password)
     except RecordError as first:
+        if obs_running():
+            raise RecordError(f"OBS уже відкритий (можливо, згорнутий у трей), але WebSocket не відповідає — "
+                              f"{WS_HELP}. Другу копію OBS не запускаю.") from None
         if not launch_obs(opts):
             raise RecordError(f"{first} Шлях до OBS («{opts.obs_exe}») не знайдено — вкажіть obs64.exe у вкладці "
                               "«🎮 Реплеї», і програма запускатиме OBS сама.") from None
@@ -262,8 +293,7 @@ def ensure_obs(opts: RecordOptions) -> "Obs":
                 break
             except RecordError:
                 if time.time() > deadline:
-                    raise RecordError("OBS запустився, але WebSocket не відповідає — у OBS увімкніть "
-                                      "Інструменти → Налаштування WebSocket-сервера (порт і пароль — як у вкладці).") from None
+                    raise RecordError(f"OBS запустився, але WebSocket не відповідає — {WS_HELP}.") from None
         obs.launched = True
     obs.switch(opts.obs_profile, opts.obs_collection)
     return obs
@@ -410,7 +440,7 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
     return path
 
 
-__all__ = ["Cancelled", "Obs", "RecordError", "RecordOptions", "click_player_view", "click_times", "client_version",
+__all__ = ["Cancelled", "Obs", "RecordError", "RecordOptions", "obs_running", "click_player_view", "click_times", "client_version",
            "ensure_obs", "find_game_dir",
            "game_exe", "kill_game",
            "launch_obs",
