@@ -494,6 +494,27 @@ class EndOfBattleTest(unittest.TestCase):
         self.assertIsNone(d.ended(object()))
 
 
+class MinimapLayoutTest(unittest.TestCase):
+    def test_minimap_instead_of_webcam_top_center(self):
+        import json
+        from shorts.layout import compute_layout
+        prof = json.loads((ROOT / "config" / "profiles" / "wot_replay_en.json").read_text(encoding="utf-8"))
+        self.assertEqual(prof["layout"]["top_zone"], "minimap")
+        L = compute_layout(prof, 3440, 1440)
+        top = next(l for l in L.layers if l.name == "webcam")
+        mm = prof["zones"]["minimap"]
+        self.assertAlmostEqual(top.src.x / 3440, mm[0], places=2)            # джерело — міні-мапа, не вебка
+        box = prof["layout"]["overlay"]
+        self.assertLessEqual(top.dst.w, box["webcam_width"])                  # не більше за місце вебки
+        self.assertLessEqual(top.dst.h, box["webcam_height"])
+        self.assertAlmostEqual(top.dst.x + top.dst.w / 2, 540, delta=1)       # по центру
+        self.assertEqual(top.dst.y, box["webcam_y"])                          # угорі
+        self.assertTrue(any(l.name == "counters" for l in L.layers))          # лічильники — як раніше
+        # звичайний профіль стрімів не змінився — там і далі вебка
+        wot = json.loads((ROOT / "config" / "profiles" / "wot.json").read_text(encoding="utf-8-sig"))
+        self.assertNotIn("top_zone", wot["layout"])
+
+
 class ImportSeenTest(unittest.TestCase):
     def test_unsuitable_checked_once(self):
         with tempfile.TemporaryDirectory() as t:

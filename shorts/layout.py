@@ -108,6 +108,11 @@ def compute_layout(profile: dict, rec_w: int, rec_h: int, webcam_file: dict | No
     fit = p.get("webcam_fit", "cover")          # cover — заповнити рамку (з обрізанням), contain — уся камера
     cam_full: Rect | None = None
     cam_source, cam_sw, cam_sh = "recording", rec_w, rec_h
+    # що ставити нагору шортсу: вебкамеру (стріми) або іншу зону кадру — напр. міні-мапу (реплеї)
+    top = str(lay.get("top_zone") or "webcam")
+    if top != "webcam":
+        webcam_file = None
+        zones = {**zones, "webcam": zones.get(top)} if zones.get(top) else {k: v for k, v in zones.items() if k != "webcam"}
     if webcam_file is not None:
         cam_sw, cam_sh = int(webcam_file["width"]), int(webcam_file["height"])
         cam_full, cam_source = Rect(0, 0, cam_sw, cam_sh), "webcam_file"

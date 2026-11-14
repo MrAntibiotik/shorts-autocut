@@ -2,7 +2,7 @@
 
 Запуск: python merge_profiles.py <нові_профілі> <ваші_профілі>
 Якщо у новому профілі profile_version більший, ніж у вашому — беремо новий,
-але переносимо з вашого: zones, zones_confirmed і власні категорії game_audio.
+але переносимо з вашого: zones (нові зони з нового профілю додаються), zones_confirmed і власні категорії game_audio.
 Стара версія зберігається поруч як .json.bak. Лише стандартна бібліотека Python.
 """
 
@@ -29,9 +29,10 @@ def main():
             continue
         if int(new.get("profile_version", 1)) <= int(old.get("profile_version", 1)):
             continue
-        for key in ("zones", "zones_confirmed"):
-            if key in old:
-                new[key] = old[key]
+        if isinstance(old.get("zones"), dict):          # ваші рамки + нові зони, яких у вас ще не було
+            new["zones"] = {**(new.get("zones") or {}), **old["zones"]}
+        if "zones_confirmed" in old:
+            new["zones_confirmed"] = old["zones_confirmed"]
         old_cats = (old.get("game_audio") or {}).get("categories") or {}
         new_cats = new.setdefault("game_audio", {}).setdefault("categories", {})
         for k, v in old_cats.items():
