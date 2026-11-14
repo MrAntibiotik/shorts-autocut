@@ -53,17 +53,58 @@ class RecordOptions:
     max_s: float = 1500
 
 
+STEAM_ROOTS = [r"C:\Program Files (x86)\Steam", r"C:\Program Files\Steam"]
+KNOWN_DIRS = [r"C:\Games\World_of_Tanks_EU", r"C:\Games\World_of_Tanks", r"C:\Games\World_of_Tanks_NA",
+              r"D:\Games\World_of_Tanks_EU", r"D:\Games\World_of_Tanks", r"C:\Wargaming.net\World_of_Tanks_EU"]
+
+
+def is_game_dir(d) -> bool:
+    try:
+        return bool(d) and any((Path(d) / x).is_file() for x in ["version.xml", *GAME_EXES])
+    except OSError:
+        return False
+
+
+def steam_dirs(roots=None) -> list[Path]:
+    """«World of Tanks» у всіх бібліотеках Steam (libraryfolders.vdf), на будь-якому диску."""
+    out = []
+    for root in roots or STEAM_ROOTS:
+        libs = [Path(root)]
+        vdf = Path(root) / "steamapps" / "libraryfolders.vdf"
+        try:
+            libs += [Path(m.replace("\\\\", "\\")) for m in
+                     re.findall(r'"path"\s+"([^"]+)"', vdf.read_text(encoding="utf-8", errors="replace"))]
+        except OSError:
+            pass
+        out += [lib / "steamapps" / "common" / "World of Tanks" for lib in libs]
+    return out
+
+
+def find_game_dir(preferred="") -> Path:
+    """Папка гри: вказана у вкладці → Steam (усі бібліотеки) → стандартні папки Wargaming Game Center.
+    Нічого не знайдено — повертає вказану (помилка буде зрозумілою)."""
+    cands = [preferred] if str(preferred or "").strip() else []
+    cands += steam_dirs() + KNOWN_DIRS
+    for c in cands:
+        if is_game_dir(c):
+            return Path(c)
+    return Path(preferred or KNOWN_DIRS[0])
+
+
 def game_exe(game_dir: Path) -> Path:
+    game_dir = find_game_dir(game_dir)
     for rel in GAME_EXES:
         p = Path(game_dir) / rel
         if p.exists():
             return p
-    raise RecordError(f"У папці {game_dir} не знайдено WorldOfTanks.exe — вкажіть папку, куди встановлено гру "
-                      "(напр. C:\\Games\\World_of_Tanks_EU)")
+    raise RecordError(f"Не знайдено WorldOfTanks.exe (шукав у {game_dir}, у Steam і стандартних папках) — "
+                      "вкажіть у вкладці «🎮 Реплеї» папку, куди встановлено гру, напр. "
+                      "C:\\Program Files (x86)\\Steam\\steamapps\\common\\World of Tanks")
 
 
 def client_version(game_dir: Path) -> tuple:
     """Версія встановленої гри з version.xml: «v.1.26.0.1 #1234» → (1, 26, 0, 1)."""
+    game_dir = find_game_dir(game_dir)
     try:
         text = (Path(game_dir) / "version.xml").read_text(encoding="utf-8", errors="replace")
     except OSError:
@@ -236,6 +277,7 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
     return path
 
 
-__all__ = ["Cancelled", "Obs", "RecordError", "RecordOptions", "client_version", "ensure_obs", "game_exe", "kill_game",
+__all__ = ["Cancelled", "Obs", "RecordError", "RecordOptions", "client_version", "ensure_obs", "find_game_dir",
+           "game_exe", "kill_game",
            "launch_obs",
            "record_one", "record_seconds"]

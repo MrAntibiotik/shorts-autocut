@@ -16,7 +16,7 @@ DEFAULT_CTA = "Day {day} · Ukrainian veteran on the road to 1000 subs — subsc
 DEFAULTS = {
     "downloads_dir": str(Path.home() / "Downloads"),
     "min_damage": 4000, "min_kills": 0, "min_assist": 0,
-    "game_dir": r"C:\Games\World_of_Tanks_EU",
+    "game_dir": "",              # порожньо — знайти саму (Steam, Game Center)
     "publish_dir": "",
     "obs_host": "localhost", "obs_port": 4455, "obs_password": "",
     "obs_exe": r"C:\Program Files\obs-studio\bin\64bit\obs64.exe", "obs_profile": "", "obs_collection": "",
