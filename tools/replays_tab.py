@@ -72,7 +72,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
         "min_kills": tk.IntVar(value=int(st.get("min_kills", 0))),
         "min_assist": tk.IntVar(value=int(st.get("min_assist", 0))),
         "pause": tk.DoubleVar(value=float(st.get("pause", 3))),
-        "game_dir": tk.StringVar(value=st.get("game_dir", r"C:\Games\World_of_Tanks_EU")),
+        "game_dir": tk.StringVar(value=st.get("game_dir", "")),     # порожньо — знайти саму (Steam, Game Center)
         "replays_dir": tk.StringVar(value=st.get("replays_dir", replays_default)),
         "publish_dir": tk.StringVar(value=st.get("publish_dir", "")),
         "obs_host": tk.StringVar(value=st.get("obs_host", "localhost")),
@@ -386,9 +386,11 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
 
     def refresh_version():
         from shorts.replay_record import client_version
+        from shorts.replay_record import find_game_dir
         ver = client_version(Path(v["game_dir"].get()))
         auto = auto_version()
-        lbl_ver.config(text=(f"Версія гри: {'.'.join(map(str, ver))} — беру лише реплеї цієї версії" if ver else
+        where = find_game_dir(v["game_dir"].get())
+        lbl_ver.config(text=(f"Гра: {where} · версія {'.'.join(map(str, ver))} — беру лише реплеї цієї версії" if ver else
                              f"ℹ️ version.xml не знайдено — беру найновішу версію {auto[0]} (перевірте папку гри)"),
                        fg="#2e7d32" if ver else "#a05a00")
         lbl_auto.config(text=f"порожньо — авто: {auto[0]} ({auto[2]})" if auto[0] else "порожньо — будь-яка")

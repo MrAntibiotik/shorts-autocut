@@ -302,6 +302,31 @@ class ObsLaunchTest(unittest.TestCase):
         self.assertIn("вкажіть obs64.exe", str(cm.exception))
 
 
+class FindGameTest(unittest.TestCase):
+    def test_steam_and_preferred(self):
+        from unittest import mock
+        from shorts import replay_record as rr
+        with tempfile.TemporaryDirectory() as t:
+            steam = Path(t) / "Steam"
+            game = steam / "steamapps" / "common" / "World of Tanks"
+            game.mkdir(parents=True)
+            (game / "version.xml").write_text("<version.xml><version> v.2.4.1.1 #1</version></version.xml>")
+            (game / "WorldOfTanks.exe").write_text("x")
+            with mock.patch.object(rr, "STEAM_ROOTS", [str(steam)]), mock.patch.object(rr, "KNOWN_DIRS", [str(Path(t) / "no")]):
+                self.assertEqual(rr.find_game_dir(""), game)                     # знайдено в Steam
+                self.assertEqual(rr.find_game_dir(str(Path(t) / "wrong")), game)  # вказана папка без гри
+                self.assertEqual(rr.client_version(Path("")), (2, 4, 1, 1))
+                self.assertEqual(rr.game_exe(Path("")), game / "WorldOfTanks.exe")
+                other = Path(t) / "Games" / "WoT"
+                other.mkdir(parents=True)
+                (other / "version.xml").write_text("<version>v.2.4.0.0</version>")
+                self.assertEqual(rr.find_game_dir(str(other)), other)            # вказана — у пріоритеті
+            with mock.patch.object(rr, "STEAM_ROOTS", []), mock.patch.object(rr, "KNOWN_DIRS", [str(Path(t) / "no")]):
+                with self.assertRaises(rr.RecordError) as cm:
+                    rr.game_exe(Path(""))
+                self.assertIn("Steam", str(cm.exception))
+
+
 class ImportSeenTest(unittest.TestCase):
     def test_unsuitable_checked_once(self):
         with tempfile.TemporaryDirectory() as t:
