@@ -73,7 +73,7 @@ class ReplaysBot:
         self.hold_until = 0.0                # після помилки — пауза автозапуску черги (щоб не засипати помилками)
         self.user_stopped = False            # натиснули «⏹» — автозапуск лише після «🎬» або нового реплею
         self.listing: dict = {}              # останній список боїв: {"page", "items", "url", "hidden"}
-        self.got: set[str] = set()           # номери реплеїв, уже скачаних зі списку
+        self.got: set[str] = set()           # номери реплеїв, скачаних зі списку (перевіряється за файлами)
         from replay_cards import Cards
         self.cards = Cards(bot)              # живі картки: етапи від скачування до публікації
 
@@ -306,7 +306,10 @@ class ReplaysBot:
             if st.get("instant", True) and not ((self.thread and self.thread.is_alive()) or busy(replays_dir)):
                 self.start(manual=False)
             return True
-        if target.exists() or target.with_suffix(".recorded").exists():
+        if not target.exists():                 # реплей видалили — службові залишки теж прибрати
+            for ext in (".recorded", ".failed", ".json", ".part"):
+                target.with_suffix(ext).unlink(missing_ok=True)
+        if target.exists():
             self.bot.send(f"«{name}» уже є в черзі або записаний.")
             return True
         tmp = replays_dir / f"{stem}.part"
@@ -357,6 +360,14 @@ class ReplaysBot:
     def list_url(self, st: dict) -> str:
         return build_url(self.selection(st), sort=st.get("sort") or "date")
 
+    def has(self, rid: str) -> bool:
+        """Чи є реплей у папці реплеїв зараз (видалили файл — можна скачати знову)."""
+        d = Path(self.state()["replays_dir"])
+        found = any(d.glob(f"wr_{rid}_*.wotreplay")) if d.is_dir() else False
+        if not found:
+            self.got.discard(rid)
+        return found
+
     def list_text(self) -> str:
         L = self.listing
         from shorts.replay_site import line
@@ -365,7 +376,7 @@ class ReplaysBot:
             lines.append(f"(сховано слабших за пороги: {L['hidden']})")
         lines.append("")
         for n, it in enumerate(L["items"], 1):
-            mark = "✅" if it["id"] in self.got else f"{n}."
+            mark = "✅" if self.has(it["id"]) else f"{n}."
             title = f" — «{it['title'][:40]}»" if it["title"] else ""
             lines.append(f"{mark} {line(it)}{title}")
         if not L["items"]:
@@ -375,7 +386,7 @@ class ReplaysBot:
 
     def list_markup(self) -> dict:
         L = self.listing
-        btns = [{"text": ("✅" if it["id"] in self.got else "⬇") + str(n), "callback_data": f"F|dl:{it['id']}"}
+        btns = [{"text": ("✅" if self.has(it["id"]) else "⬇") + str(n), "callback_data": f"F|dl:{it['id']}"}
                 for n, it in enumerate(L["items"], 1)]
         rows = [btns[i:i + 5] for i in range(0, len(btns), 5)]
         nav = []
@@ -415,7 +426,7 @@ class ReplaysBot:
     def download(self, rid: str, msg: dict) -> str:
         """Один реплей зі списку (один запит) → перевірка → черга на запис."""
         from shorts.replay_site import SiteError, download
-        if rid in self.got:
+        if self.has(rid):
             return "✅ Уже скачано"
         if not rid.isdigit():
             return "?"
