@@ -96,6 +96,29 @@ def _close_gaps(mask: np.ndarray, max_gap: int) -> np.ndarray:
 
 # ====================================================================== моделі
 
+SHORT_MAX_S = 59.5        # YouTube Shorts: шортс НЕ довший за 59,5 с (жорстко, незалежно від профілю)
+
+
+def shorts_limit(cfg: dict) -> float:
+    return min(float(cfg.get("max_duration_s") or SHORT_MAX_S), SHORT_MAX_S)
+
+
+def cap_segments(segments: list, limit: float = SHORT_MAX_S) -> list:
+    """Обрізає шматки з кінця, щоб сума тривалостей була не більша за limit (зайве — з останніх шматків)."""
+    total = sum(s.duration for s in segments)
+    if total <= limit + 1e-6:
+        return segments
+    out, left = [], limit
+    for s in segments:
+        if left <= 0.05:
+            break
+        if s.duration > left:
+            s = Segment(s.start, s.start + left, [e for e in s.events if e.t <= s.start + left])
+        out.append(s)
+        left -= s.duration
+    return out
+
+
 @dataclass
 class Segment:
     start: float
@@ -220,7 +243,7 @@ def select_battle(battle: dict, cfg: dict, rec_start: float, rec_end: float,
     if final is not None:
         order = [final] + [e for e in order if e is not final]
 
-    limit = float(cfg["max_duration_s"])
+    limit = shorts_limit(cfg)
     gap = float(cfg["merge_gap_s"])
     chosen = _pack(order, cfg, max_score, rec_start, rec_end, limit, gap, compact=False)
     shots = [e for e in order if _confirmed(e)] or [e for e in order if e.type == E.HIT]
@@ -303,6 +326,8 @@ def select_shorts(battles: list[dict], profile: dict, rec_start: float, rec_end:
         sh.name = f"Шортс {i:02d} — {sh.title}"
     for idx, why in skipped:
         log.info("  Бій %d пропущено: %s", idx, why)
+    for sh in shorts:                         # жорстко: не довше 59,5 с
+        sh.segments = cap_segments(sh.segments, SHORT_MAX_S)
     return shorts
 
 
