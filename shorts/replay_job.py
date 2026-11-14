@@ -28,7 +28,7 @@ class ReplayJobOptions:
     replays_dir: Path
     publish_dir: Path | None            # папка готових шортсів EN-каналу Poster; None — лише output
     cta_text: str = ""
-    credit_author: bool = True          # «Replay by <нік> via wotreplays» в описі
+    credit_author: bool = True          # «Replay by <нік>» в описі
     footer: str = ""                    # додатковий рядок в описі (Poster EN-каналу і так додає свій підпис)
     record: bool = True
     cut: bool = True
@@ -36,8 +36,9 @@ class ReplayJobOptions:
 
 
 def pending_replays(replays_dir: Path) -> list[Path]:
-    """Реплеї в папці, які ще не записано (поруч немає <id>.recorded)."""
-    return sorted(p for p in Path(replays_dir).glob("*.wotreplay") if not p.with_suffix(".recorded").exists())
+    """Реплеї в папці, які ще не оброблено (поруч немає <id>.recorded чи <id>.failed)."""
+    return sorted(p for p in Path(replays_dir).glob("*.wotreplay")
+                  if not p.with_suffix(".recorded").exists() and not p.with_suffix(".failed").exists())
 
 
 def info_of(replay: Path) -> ReplayInfo | None:
@@ -58,7 +59,7 @@ def poster_json(info: ReplayInfo | None, opts: ReplayJobOptions) -> dict:
         if info.won is not None:
             lines[0] += " Victory!" if info.won else ""
         if opts.credit_author and info.player:
-            lines.append(f"Replay by {info.player} via wotreplays.")
+            lines.append(f"Replay by {info.player}.")
         if opts.footer.strip():
             lines.append(opts.footer.strip())
         desc = "\n".join(lines)
@@ -150,6 +151,8 @@ def run(settings: dict, opts: ReplayJobOptions, rec_opts=None, progress=None, ca
                 raise
             log.error("%s: %s", rp.name, e)
             summary["errors"].append(f"{rp.name}: {e}")
+            if not marker.exists():   # не записався — не пробувати знову щоразу (видаліть .failed, щоб повторити)
+                rp.with_suffix(".failed").write_text(str(e), encoding="utf-8")
     return summary
 
 

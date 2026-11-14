@@ -199,7 +199,7 @@ class PosterHandoffTest(unittest.TestCase):
         js = poster_json(info, opts)
         self.assertEqual(js["status"], "ready_to_post")
         self.assertEqual(js["youtube"]["title"], "Leopard1 — 7,412 damage on Prokhorovka 🔥")
-        self.assertIn("Replay by SomePlayer via wotreplays.", js["youtube"]["description"])
+        self.assertIn("Replay by SomePlayer.", js["youtube"]["description"])
         self.assertIn("Victory!", js["youtube"]["description"])
         no_credit = poster_json(info, ReplayJobOptions(replays_dir=self.d, publish_dir=None, credit_author=False))
         self.assertNotIn("SomePlayer", no_credit["youtube"]["description"])
@@ -216,6 +216,37 @@ class PosterHandoffTest(unittest.TestCase):
         make_replay(self.d / "2.wotreplay")
         a.with_suffix(".recorded").write_text("x")
         self.assertEqual([p.name for p in pending_replays(self.d)], ["2.wotreplay"])
+
+
+class FilterTest(unittest.TestCase):
+    def test_build_url(self):
+        from shorts.replay_filter import build_url, load_filters, tanks_for, version_value
+        u = build_url({"tier": ["10"], "type": ["2", "3"], "version": ["2.4"], "map": ["11_murovanka"],
+                       "nation": [], "tank": ["2865"]}, sort="view")
+        self.assertEqual(u, "https://wot-record.com/replays/view/desc?tier=10&type=2,3&tank=2865&version=2.4"
+                            "&map=11_murovanka")
+        self.assertEqual(build_url({}), "https://wot-record.com/replays/date/desc")
+        f = load_filters()
+        self.assertGreater(len(f["tank"]), 500)
+        self.assertEqual(len(f["nation"]), 11)
+        polish10 = tanks_for([9], [10], [], filters=f)
+        self.assertIn("60TP Lewandowskiego", [t["label"] for t in polish10])
+        self.assertTrue(all(t["tier"] == 10 and t["nation"] == 9 for t in polish10))
+        self.assertEqual([t["label"] for t in tanks_for(search="leopard 1", filters=f)][:1], ["Leopard 1"])
+        self.assertEqual(version_value((2, 4, 1, 1)), "2.4")
+
+
+class ImportSeenTest(unittest.TestCase):
+    def test_unsuitable_checked_once(self):
+        with tempfile.TemporaryDirectory() as t:
+            d = Path(t)
+            (d / "dl").mkdir()
+            make_replay(d / "dl" / "weak.wotreplay")
+            seen = set()
+            opts = rd.ImportOptions(src=d / "dl", dest=d / "r", min_damage=9000, min_age_s=0, seen=seen)
+            self.assertEqual(rd.import_folder(opts).skipped, {"шкода менша за 9000": 1})
+            self.assertEqual(rd.import_folder(opts).skipped, {})      # вдруге не перевіряється
+            self.assertTrue((d / "dl" / "weak.wotreplay").exists())
 
 
 if __name__ == "__main__":

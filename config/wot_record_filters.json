@@ -1,0 +1,7822 @@
+{
+ "_опис": "Значення фільтрів сайту wot-record.com (для кнопки «Відкрити підбірку»). Зібрано 14.11.2026; нові танки/карти/версії можна дописати вручну (value — як на сайті).",
+ "site": "https://wot-record.com",
+ "sorts": [
+  {
+   "value": "date",
+   "label": "Нові"
+  },
+  {
+   "value": "view",
+   "label": "Перегляди"
+  },
+  {
+   "value": "like",
+   "label": "Лайки"
+  },
+  {
+   "value": "download",
+   "label": "Скачування"
+  }
+ ],
+ "nation": [
+  {
+   "value": "0",
+   "label": "U.S.S.R."
+  },
+  {
+   "value": "1",
+   "label": "Germany"
+  },
+  {
+   "value": "2",
+   "label": "U.S.A."
+  },
+  {
+   "value": "3",
+   "label": "China"
+  },
+  {
+   "value": "4",
+   "label": "France"
+  },
+  {
+   "value": "5",
+   "label": "U.K."
+  },
+  {
+   "value": "6",
+   "label": "Japan"
+  },
+  {
+   "value": "7",
+   "label": "Czechoslovakia"
+  },
+  {
+   "value": "8",
+   "label": "Sweden"
+  },
+  {
+   "value": "9",
+   "label": "Poland"
+  },
+  {
+   "value": "10",
+   "label": "Italy"
+  }
+ ],
+ "tier": [
+  {
+   "value": "1",
+   "label": "1"
+  },
+  {
+   "value": "2",
+   "label": "2"
+  },
+  {
+   "value": "3",
+   "label": "3"
+  },
+  {
+   "value": "4",
+   "label": "4"
+  },
+  {
+   "value": "5",
+   "label": "5"
+  },
+  {
+   "value": "6",
+   "label": "6"
+  },
+  {
+   "value": "7",
+   "label": "7"
+  },
+  {
+   "value": "8",
+   "label": "8"
+  },
+  {
+   "value": "9",
+   "label": "9"
+  },
+  {
+   "value": "10",
+   "label": "10"
+  },
+  {
+   "value": "11",
+   "label": "11"
+  }
+ ],
+ "type": [
+  {
+   "value": "1",
+   "label": "Light Tank"
+  },
+  {
+   "value": "2",
+   "label": "Medium Tank"
+  },
+  {
+   "value": "3",
+   "label": "Heavy Tank"
+  },
+  {
+   "value": "4",
+   "label": "Tank Destroyer"
+  },
+  {
+   "value": "5",
+   "label": "SPG"
+  }
+ ],
+ "mastery": [
+  {
+   "value": "4",
+   "label": "Ace Tanker"
+  },
+  {
+   "value": "3",
+   "label": "Class I"
+  },
+  {
+   "value": "2",
+   "label": "Class II"
+  },
+  {
+   "value": "1",
+   "label": "Class III"
+  }
+ ],
+ "version": [
+  {
+   "value": "2.4",
+   "label": "2.4"
+  },
+  {
+   "value": "2.3",
+   "label": "2.3"
+  },
+  {
+   "value": "2.2",
+   "label": "2.2"
+  },
+  {
+   "value": "2.1",
+   "label": "2.1"
+  },
+  {
+   "value": "2.0",
+   "label": "2.0"
+  },
+  {
+   "value": "1.29",
+   "label": "1.29"
+  },
+  {
+   "value": "1.28",
+   "label": "1.28"
+  },
+  {
+   "value": "1.27",
+   "label": "1.27"
+  },
+  {
+   "value": "1.26",
+   "label": "1.26"
+  },
+  {
+   "value": "1.25",
+   "label": "1.25"
+  },
+  {
+   "value": "1.24",
+   "label": "1.24"
+  },
+  {
+   "value": "1.23",
+   "label": "1.23"
+  },
+  {
+   "value": "1.22",
+   "label": "1.22"
+  },
+  {
+   "value": "1.21",
+   "label": "1.21"
+  },
+  {
+   "value": "1.20",
+   "label": "1.20"
+  },
+  {
+   "value": "1.19",
+   "label": "1.19"
+  },
+  {
+   "value": "1.18",
+   "label": "1.18"
+  },
+  {
+   "value": "1.17",
+   "label": "1.17"
+  },
+  {
+   "value": "1.16",
+   "label": "1.16"
+  },
+  {
+   "value": "1.15",
+   "label": "1.15"
+  },
+  {
+   "value": "1.14",
+   "label": "1.14"
+  },
+  {
+   "value": "1.13",
+   "label": "1.13"
+  },
+  {
+   "value": "1.12",
+   "label": "1.12"
+  },
+  {
+   "value": "1.11",
+   "label": "1.11"
+  },
+  {
+   "value": "1.10",
+   "label": "1.10"
+  },
+  {
+   "value": "1.9",
+   "label": "1.9"
+  },
+  {
+   "value": "1.8",
+   "label": "1.8"
+  },
+  {
+   "value": "1.7",
+   "label": "1.7"
+  },
+  {
+   "value": "1.6",
+   "label": "1.6"
+  },
+  {
+   "value": "1.5",
+   "label": "1.5"
+  },
+  {
+   "value": "1.4",
+   "label": "1.4"
+  },
+  {
+   "value": "1.3",
+   "label": "1.3"
+  },
+  {
+   "value": "1.2",
+   "label": "1.2"
+  },
+  {
+   "value": "1.1",
+   "label": "1.1"
+  },
+  {
+   "value": "1.0",
+   "label": "1.0"
+  },
+  {
+   "value": "0.9.22",
+   "label": "0.9.22"
+  },
+  {
+   "value": "0.9.21",
+   "label": "0.9.21"
+  },
+  {
+   "value": "0.9.20",
+   "label": "0.9.20"
+  },
+  {
+   "value": "0.9.19",
+   "label": "0.9.19"
+  },
+  {
+   "value": "0.9.18",
+   "label": "0.9.18"
+  },
+  {
+   "value": "0.9.17",
+   "label": "0.9.17"
+  },
+  {
+   "value": "0.9.16",
+   "label": "0.9.16"
+  },
+  {
+   "value": "0.9.15",
+   "label": "0.9.15"
+  },
+  {
+   "value": "0.9.14",
+   "label": "0.9.14"
+  },
+  {
+   "value": "0.9.13",
+   "label": "0.9.13"
+  }
+ ],
+ "game": [
+  {
+   "value": "ctf",
+   "label": "Standard Battle"
+  },
+  {
+   "value": "domination",
+   "label": "Encounter Battle"
+  },
+  {
+   "value": "assault",
+   "label": "Assault"
+  },
+  {
+   "value": "ctf30x30",
+   "label": "Grand Battle"
+  },
+  {
+   "value": "epic",
+   "label": "Frontline"
+  },
+  {
+   "value": "comp7",
+   "label": "Onslaught"
+  }
+ ],
+ "map": [
+  {
+   "value": "19_monastery",
+   "label": "Abbey"
+  },
+  {
+   "value": "31_airfield",
+   "label": "Airfield"
+  },
+  {
+   "value": "251_br_battle_city3",
+   "label": "Arzagir 4.04"
+  },
+  {
+   "value": "105_germany",
+   "label": "Berlin"
+  },
+  {
+   "value": "142_road_to_dash",
+   "label": "Brawl School"
+  },
+  {
+   "value": "18_cliff",
+   "label": "Cliff"
+  },
+  {
+   "value": "250_br_battle_city2-1",
+   "label": "Dreamland"
+  },
+  {
+   "value": "29_el_hallouf",
+   "label": "El Halluf"
+  },
+  {
+   "value": "59_asia_great_wall",
+   "label": "Empire's Border"
+  },
+  {
+   "value": "06_ensk",
+   "label": "Ensk"
+  },
+  {
+   "value": "06_ensk_big",
+   "label": "Ensk Region"
+  },
+  {
+   "value": "13_erlenberg",
+   "label": "Erlenberg"
+  },
+  {
+   "value": "105_germany_sm24",
+   "label": "Fallenstadt"
+  },
+  {
+   "value": "210_bf_epic_desert",
+   "label": "Fata Morgana"
+  },
+  {
+   "value": "252_br_battle_city4",
+   "label": "Firnulfir"
+  },
+  {
+   "value": "36_fishing_bay",
+   "label": "Fisherman's Bay"
+  },
+  {
+   "value": "33_fjord",
+   "label": "Fjords"
+  },
+  {
+   "value": "95_lost_city_ctf",
+   "label": "Ghost Town"
+  },
+  {
+   "value": "115_sweden",
+   "label": "Glacier"
+  },
+  {
+   "value": "115_sweden_comp7_nb",
+   "label": "Glacier: Night"
+  },
+  {
+   "value": "45_north_america",
+   "label": "Highway"
+  },
+  {
+   "value": "04_himmelsdorf",
+   "label": "Himmelsdorf"
+  },
+  {
+   "value": "01_karelia",
+   "label": "Karelia"
+  },
+  {
+   "value": "217_er_alaska",
+   "label": "Klondike"
+  },
+  {
+   "value": "209_wg_epic_suburbia",
+   "label": "Kraftwerk"
+  },
+  {
+   "value": "07_lakeville",
+   "label": "Lakeville"
+  },
+  {
+   "value": "251_br_battle_city3_ls25",
+   "label": "Last Stand"
+  },
+  {
+   "value": "08_ruinberg_sm24",
+   "label": "Lauerberg"
+  },
+  {
+   "value": "44_north_america",
+   "label": "Live Oaks"
+  },
+  {
+   "value": "02_malinovka",
+   "label": "Malinovka"
+  },
+  {
+   "value": "38_mannerheim_line",
+   "label": "Mannerheim Line"
+  },
+  {
+   "value": "10_hills",
+   "label": "Mines"
+  },
+  {
+   "value": "37_caucasus",
+   "label": "Mountain Pass"
+  },
+  {
+   "value": "11_murovanka",
+   "label": "Murovanka"
+  },
+  {
+   "value": "212_epic_random_valley_sm25",
+   "label": "Nebelburg"
+  },
+  {
+   "value": "141_dash_to_go",
+   "label": "New School"
+  },
+  {
+   "value": "120_graf_zeppelin_scc",
+   "label": "Nordskar"
+  },
+  {
+   "value": "120_graf_zeppelin",
+   "label": "Nordskar"
+  },
+  {
+   "value": "208_bf_epic_normandy",
+   "label": "Normandie"
+  },
+  {
+   "value": "108_normandy_nom",
+   "label": "Oder"
+  },
+  {
+   "value": "140_fall_tanks",
+   "label": "Old School"
+  },
+  {
+   "value": "101_dday_sm24",
+   "label": "Omaha Beach"
+  },
+  {
+   "value": "128_last_frontier_v",
+   "label": "Outpost"
+  },
+  {
+   "value": "128_last_frontier_v_comp7_nb",
+   "label": "Outpost: Night"
+  },
+  {
+   "value": "101_dday",
+   "label": "Overlord"
+  },
+  {
+   "value": "121_lost_paradise_v",
+   "label": "Oyster Bay"
+  },
+  {
+   "value": "112_eiffel_tower_ctf",
+   "label": "Paris"
+  },
+  {
+   "value": "60_asia_miao",
+   "label": "Pearl River"
+  },
+  {
+   "value": "114_czech",
+   "label": "Pilsen"
+  },
+  {
+   "value": "05_prohorovka",
+   "label": "Prokhorovka"
+  },
+  {
+   "value": "03_campania_big",
+   "label": "Province"
+  },
+  {
+   "value": "34_redshire",
+   "label": "Redshire"
+  },
+  {
+   "value": "08_ruinberg",
+   "label": "Ruinberg"
+  },
+  {
+   "value": "127_japort",
+   "label": "Safe Haven"
+  },
+  {
+   "value": "28_desert",
+   "label": "Sand River"
+  },
+  {
+   "value": "28_desert_comp7_nb",
+   "label": "Sand River: Night"
+  },
+  {
+   "value": "47_canada_a",
+   "label": "Serene Coast"
+  },
+  {
+   "value": "14_siegfried_line",
+   "label": "Siegfried Line"
+  },
+  {
+   "value": "35_steppes",
+   "label": "Steppes"
+  },
+  {
+   "value": "35_steppes_comp7_nb",
+   "label": "Steppes: Night"
+  },
+  {
+   "value": "99_poland",
+   "label": "Studzianki"
+  },
+  {
+   "value": "63_tundra",
+   "label": "Tundra"
+  },
+  {
+   "value": "23_westfeld",
+   "label": "Westfield"
+  },
+  {
+   "value": "14_siegfried_line_nom",
+   "label": "Westwall"
+  },
+  {
+   "value": "17_munchen",
+   "label": "Widepark"
+  }
+ ],
+ "tank": [
+  {
+   "value": "2113",
+   "label": "105 leFH18B2",
+   "nation": 4,
+   "tier": 5,
+   "type": 5
+  },
+  {
+   "value": "1681",
+   "label": "10TP",
+   "nation": 9,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "2865",
+   "label": "110",
+   "nation": 3,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "64561",
+   "label": "112",
+   "nation": 3,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "61745",
+   "label": "112 FL",
+   "nation": 3,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "5425",
+   "label": "113",
+   "nation": 3,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "62513",
+   "label": "113 Beijing Opera",
+   "nation": 3,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "60977",
+   "label": "114 SP2",
+   "nation": 3,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "59441",
+   "label": "116-F3",
+   "nation": 3,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "4145",
+   "label": "121",
+   "nation": 3,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "63537",
+   "label": "121B",
+   "nation": 3,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "65329",
+   "label": "122 TM",
+   "nation": 3,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "1937",
+   "label": "14TP",
+   "nation": 9,
+   "tier": 4,
+   "type": 1
+  },
+  {
+   "value": "8449",
+   "label": "212A",
+   "nation": 0,
+   "tier": 9,
+   "type": 5
+  },
+  {
+   "value": "2193",
+   "label": "25TP KSUST II",
+   "nation": 9,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "2449",
+   "label": "40TP Habicha",
+   "nation": 9,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "63505",
+   "label": "43 M. Toldi III",
+   "nation": 1,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "2705",
+   "label": "45TP Habicha",
+   "nation": 9,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "1169",
+   "label": "4TP",
+   "nation": 9,
+   "tier": 1,
+   "type": 1
+  },
+  {
+   "value": "52113",
+   "label": "50TP Resilient",
+   "nation": 9,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "3217",
+   "label": "50TP Tyszkiewicza",
+   "nation": 9,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "913",
+   "label": "50TP prototyp",
+   "nation": 9,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "2961",
+   "label": "53TP Markowskiego",
+   "nation": 9,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "50833",
+   "label": "56TP",
+   "nation": 9,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "4913",
+   "label": "59-16",
+   "nation": 3,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "63793",
+   "label": "59-Patton",
+   "nation": 3,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "7217",
+   "label": "60G FT",
+   "nation": 3,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "3473",
+   "label": "60TP Lewandowskiego",
+   "nation": 9,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "1425",
+   "label": "7TP",
+   "nation": 9,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "55313",
+   "label": "8,8 cm Pak 43 Jagdtiger",
+   "nation": 1,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "2049",
+   "label": "A-20",
+   "nation": 0,
+   "tier": 5,
+   "type": 1
+  },
+  {
+   "value": "52993",
+   "label": "A-32",
+   "nation": 0,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "12289",
+   "label": "A-43",
+   "nation": 0,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "12545",
+   "label": "A-44",
+   "nation": 0,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "61009",
+   "label": "A25 Harry Hopkins I",
+   "nation": 5,
+   "tier": 4,
+   "type": 1
+  },
+  {
+   "value": "59217",
+   "label": "A43 BP prototype",
+   "nation": 5,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "55377",
+   "label": "A46",
+   "nation": 5,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "61777",
+   "label": "A7E3",
+   "nation": 5,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "53281",
+   "label": "AAT60",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "52817",
+   "label": "AC 1 Sentinel",
+   "nation": 5,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "56145",
+   "label": "AC 4 Experimental",
+   "nation": 5,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "61729",
+   "label": "AE Phase I",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "20049",
+   "label": "AEC Armoured Car",
+   "nation": 5,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "68641",
+   "label": "AHT-7",
+   "nation": 2,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "43329",
+   "label": "AM 39 Gendron-Somua",
+   "nation": 4,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "34081",
+   "label": "AMBT",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "43841",
+   "label": "AMR 35",
+   "nation": 4,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "65857",
+   "label": "AMR P.103",
+   "nation": 4,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "14657",
+   "label": "AMX 105 AM mle. 47",
+   "nation": 4,
+   "tier": 4,
+   "type": 5
+  },
+  {
+   "value": "6465",
+   "label": "AMX 12 t",
+   "nation": 4,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "58945",
+   "label": "AMX 13 (FL 11)",
+   "nation": 4,
+   "tier": 5,
+   "type": 1
+  },
+  {
+   "value": "17217",
+   "label": "AMX 13 105",
+   "nation": 4,
+   "tier": 10,
+   "type": 1
+  },
+  {
+   "value": "4161",
+   "label": "AMX 13 105 AM mle. 50",
+   "nation": 4,
+   "tier": 5,
+   "type": 5
+  },
+  {
+   "value": "63809",
+   "label": "AMX 13 57",
+   "nation": 4,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "63297",
+   "label": "AMX 13 57 GF",
+   "nation": 4,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "5185",
+   "label": "AMX 13 75",
+   "nation": 4,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "4929",
+   "label": "AMX 13 90",
+   "nation": 4,
+   "tier": 9,
+   "type": 1
+  },
+  {
+   "value": "4673",
+   "label": "AMX 13 F3 AM",
+   "nation": 4,
+   "tier": 6,
+   "type": 5
+  },
+  {
+   "value": "15681",
+   "label": "AMX 30 1er prototype",
+   "nation": 4,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "15425",
+   "label": "AMX 30 B",
+   "nation": 4,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "5953",
+   "label": "AMX 38",
+   "nation": 4,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "2881",
+   "label": "AMX 40",
+   "nation": 4,
+   "tier": 4,
+   "type": 1
+  },
+  {
+   "value": "3137",
+   "label": "AMX 50 100",
+   "nation": 4,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "3905",
+   "label": "AMX 50 120",
+   "nation": 4,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "6209",
+   "label": "AMX 50 B",
+   "nation": 4,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "11073",
+   "label": "AMX 50 Foch",
+   "nation": 4,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "13889",
+   "label": "AMX 50 Foch (155)",
+   "nation": 4,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "17729",
+   "label": "AMX 50 Foch B",
+   "nation": 4,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "16449",
+   "label": "AMX 65 t",
+   "nation": 4,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "33345",
+   "label": "AMX 67 Imbattable",
+   "nation": 4,
+   "tier": 11,
+   "type": 3
+  },
+  {
+   "value": "10817",
+   "label": "AMX AC mle. 46",
+   "nation": 4,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "12097",
+   "label": "AMX AC mle. 48",
+   "nation": 4,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "59713",
+   "label": "AMX AC mle. 48 FL",
+   "nation": 4,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "61761",
+   "label": "AMX Canon d'assaut 105",
+   "nation": 4,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "63553",
+   "label": "AMX Chasseur de chars",
+   "nation": 4,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "57153",
+   "label": "AMX ELC 901",
+   "nation": 4,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "14145",
+   "label": "AMX ELC bis",
+   "nation": 4,
+   "tier": 5,
+   "type": 1
+  },
+  {
+   "value": "6977",
+   "label": "AMX M4 mle. 45",
+   "nation": 4,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "62785",
+   "label": "AMX M4 mle. 49",
+   "nation": 4,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "65345",
+   "label": "AMX M4 mle. 49 FL",
+   "nation": 4,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "62017",
+   "label": "AMX M4 mle. 49 Liberté",
+   "nation": 4,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "16705",
+   "label": "AMX M4 mle. 51",
+   "nation": 4,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "64321",
+   "label": "AMX M4 mle. 51 FL",
+   "nation": 4,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "16961",
+   "label": "AMX M4 mle. 54",
+   "nation": 4,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "2625",
+   "label": "ARL 44",
+   "nation": 4,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "11585",
+   "label": "ARL V39",
+   "nation": 4,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "35617",
+   "label": "ARMT",
+   "nation": 2,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "33089",
+   "label": "AS-XX 40 t",
+   "nation": 4,
+   "tier": 11,
+   "type": 2
+  },
+  {
+   "value": "35105",
+   "label": "ASTRON Rex 105 mm",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "8529",
+   "label": "AT 15",
+   "nation": 5,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "54097",
+   "label": "AT 15A",
+   "nation": 5,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "8785",
+   "label": "AT 2",
+   "nation": 5,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "10065",
+   "label": "AT 7",
+   "nation": 5,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "9553",
+   "label": "AT 8",
+   "nation": 5,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "5121",
+   "label": "AT-1",
+   "nation": 0,
+   "tier": 2,
+   "type": 4
+  },
+  {
+   "value": "24401",
+   "label": "AT-FV230 Breaker",
+   "nation": 5,
+   "tier": 11,
+   "type": 4
+  },
+  {
+   "value": "14417",
+   "label": "Achilles",
+   "nation": 5,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "9041",
+   "label": "Alecto",
+   "nation": 5,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "53025",
+   "label": "Alembic",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "32065",
+   "label": "AltProto AMX 30",
+   "nation": 4,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "55937",
+   "label": "Ambassador",
+   "nation": 8,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "13393",
+   "label": "Archer",
+   "nation": 5,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "23073",
+   "label": "Ares 75",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "36129",
+   "label": "Ares 85",
+   "nation": 2,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "22049",
+   "label": "Ares 90",
+   "nation": 2,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "22305",
+   "label": "Ares 90 C",
+   "nation": 2,
+   "tier": 11,
+   "type": 2
+  },
+  {
+   "value": "69921",
+   "label": "Ares MTB",
+   "nation": 2,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "53393",
+   "label": "Ashbringer",
+   "nation": 9,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "55905",
+   "label": "Ashigaru",
+   "nation": 6,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "14353",
+   "label": "Aufklärungspanzer Panther",
+   "nation": 1,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "3985",
+   "label": "B.U.G.I.",
+   "nation": 9,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "1089",
+   "label": "B1",
+   "nation": 4,
+   "tier": 4,
+   "type": 3
+  },
+  {
+   "value": "6721",
+   "label": "BDR G1 B",
+   "nation": 4,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "1025",
+   "label": "BT-2",
+   "nation": 0,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "27665",
+   "label": "BT-42 Jatkosota HS",
+   "nation": 1,
+   "tier": 5,
+   "type": 1
+  },
+  {
+   "value": "23041",
+   "label": "BT-5",
+   "nation": 0,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "769",
+   "label": "BT-7",
+   "nation": 0,
+   "tier": 4,
+   "type": 1
+  },
+  {
+   "value": "60929",
+   "label": "BT-7 artillery",
+   "nation": 0,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "52225",
+   "label": "BT-SV",
+   "nation": 0,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "6273",
+   "label": "BV-111",
+   "nation": 8,
+   "tier": 11,
+   "type": 2
+  },
+  {
+   "value": "9521",
+   "label": "BZ-166",
+   "nation": 3,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "60209",
+   "label": "BZ-176",
+   "nation": 3,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "9777",
+   "label": "BZ-58",
+   "nation": 3,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "10289",
+   "label": "BZ-58-2",
+   "nation": 3,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "9265",
+   "label": "BZ-68",
+   "nation": 3,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "58417",
+   "label": "BZ-72-1",
+   "nation": 3,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "59185",
+   "label": "BZ-74-1",
+   "nation": 3,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "9009",
+   "label": "BZ-75",
+   "nation": 3,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "10801",
+   "label": "BZ-79",
+   "nation": 3,
+   "tier": 11,
+   "type": 3
+  },
+  {
+   "value": "10545",
+   "label": "BZT-70",
+   "nation": 3,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "17473",
+   "label": "Bat.-Châtillon 12 t",
+   "nation": 4,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "14401",
+   "label": "Bat.-Châtillon 155 55",
+   "nation": 4,
+   "tier": 9,
+   "type": 5
+  },
+  {
+   "value": "11841",
+   "label": "Bat.-Châtillon 155 58",
+   "nation": 4,
+   "tier": 10,
+   "type": 5
+  },
+  {
+   "value": "3649",
+   "label": "Bat.-Châtillon 25 t",
+   "nation": 4,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "5697",
+   "label": "Bat.-Châtillon 25 t AP",
+   "nation": 4,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "60225",
+   "label": "Bat.-Châtillon Bourrasque",
+   "nation": 4,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "10833",
+   "label": "Birch Gun",
+   "nation": 5,
+   "tier": 4,
+   "type": 5
+  },
+  {
+   "value": "11089",
+   "label": "Bishop",
+   "nation": 5,
+   "tier": 5,
+   "type": 5
+  },
+  {
+   "value": "51105",
+   "label": "Bisonte C45",
+   "nation": 10,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "3153",
+   "label": "Black Prince",
+   "nation": 5,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "25169",
+   "label": "Black Prince II",
+   "nation": 5,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "67361",
+   "label": "Black Rock",
+   "nation": 2,
+   "tier": 11,
+   "type": 3
+  },
+  {
+   "value": "54657",
+   "label": "Bofors Tornvagn",
+   "nation": 8,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "66881",
+   "label": "Brennos",
+   "nation": 4,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "60737",
+   "label": "Bretagne Panther",
+   "nation": 4,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "67377",
+   "label": "Bull Demon King",
+   "nation": 3,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "69377",
+   "label": "Buryan",
+   "nation": 0,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "6817",
+   "label": "CAV mod. 71",
+   "nation": 10,
+   "tier": 11,
+   "type": 2
+  },
+  {
+   "value": "6289",
+   "label": "CC-46 Pancernik",
+   "nation": 9,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "4241",
+   "label": "CS-44",
+   "nation": 9,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "50577",
+   "label": "CS-52 C",
+   "nation": 9,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "51089",
+   "label": "CS-52 LIS",
+   "nation": 9,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "4497",
+   "label": "CS-53",
+   "nation": 9,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "52881",
+   "label": "CS-53/56 Wojtek",
+   "nation": 9,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "8081",
+   "label": "CS-59",
+   "nation": 9,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "5265",
+   "label": "CS-63",
+   "nation": 9,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "7825",
+   "label": "CS-67 Szakal",
+   "nation": 9,
+   "tier": 11,
+   "type": 2
+  },
+  {
+   "value": "3921",
+   "label": "Caernarvon",
+   "nation": 5,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "56657",
+   "label": "Caernarvon Action X",
+   "nation": 5,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "51537",
+   "label": "Caliban",
+   "nation": 5,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "3233",
+   "label": "Carro d'assalto P.88",
+   "nation": 10,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "50849",
+   "label": "Carro da Combattimento 45 t",
+   "nation": 10,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "16209",
+   "label": "Cavalier",
+   "nation": 5,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "7249",
+   "label": "Centurion Action X",
+   "nation": 5,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "56913",
+   "label": "Centurion Mk. 5/1 RAAC",
+   "nation": 5,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "5713",
+   "label": "Centurion Mk. 7/1",
+   "nation": 5,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "5969",
+   "label": "Centurion Mk. I",
+   "nation": 5,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "22609",
+   "label": "Centurion St. Gloriana",
+   "nation": 5,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "67105",
+   "label": "Chaffee Camouflaged",
+   "nation": 2,
+   "tier": 5,
+   "type": 1
+  },
+  {
+   "value": "14161",
+   "label": "Challenger",
+   "nation": 5,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "60481",
+   "label": "Char Futur 4",
+   "nation": 4,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "32321",
+   "label": "Char Mle. 75",
+   "nation": 4,
+   "tier": 9,
+   "type": 1
+  },
+  {
+   "value": "32577",
+   "label": "Char Murat",
+   "nation": 4,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "56897",
+   "label": "Char de transition",
+   "nation": 4,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "14673",
+   "label": "Charioteer",
+   "nation": 5,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "62545",
+   "label": "Charioteer Nomad",
+   "nation": 5,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "52049",
+   "label": "Charlemagne",
+   "nation": 5,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "67857",
+   "label": "Chi-Go",
+   "nation": 1,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "353",
+   "label": "Chi-Ni",
+   "nation": 6,
+   "tier": 2,
+   "type": 2
+  },
+  {
+   "value": "53857",
+   "label": "Chi-Se",
+   "nation": 6,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "6241",
+   "label": "Chi-To SP",
+   "nation": 6,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "15185",
+   "label": "Chieftain Mk. 6",
+   "nation": 5,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "15441",
+   "label": "Chieftain/T95",
+   "nation": 5,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "57425",
+   "label": "Chimera",
+   "nation": 5,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "60193",
+   "label": "Chrysler K",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "58657",
+   "label": "Chrysler K GF",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "54305",
+   "label": "Chrysler MTC 2TC",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "62801",
+   "label": "Churchill Crocodile",
+   "nation": 5,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "9809",
+   "label": "Churchill Gun Carrier",
+   "nation": 5,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "2897",
+   "label": "Churchill I",
+   "nation": 5,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "51713",
+   "label": "Churchill III",
+   "nation": 0,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "23633",
+   "label": "Churchill St. Gloriana",
+   "nation": 5,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "4689",
+   "label": "Churchill VII",
+   "nation": 5,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "60497",
+   "label": "Cobra",
+   "nation": 5,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "6305",
+   "label": "Coccodrillo",
+   "nation": 10,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "5457",
+   "label": "Comet",
+   "nation": 5,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "62753",
+   "label": "Concept 1B",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "19281",
+   "label": "Concept No. 5",
+   "nation": 5,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "4433",
+   "label": "Conqueror",
+   "nation": 5,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "53329",
+   "label": "Conqueror FL",
+   "nation": 5,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "12369",
+   "label": "Conqueror Gun Carriage",
+   "nation": 5,
+   "tier": 10,
+   "type": 5
+  },
+  {
+   "value": "5537",
+   "label": "Controcarro 1 Mk. 2",
+   "nation": 10,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "5281",
+   "label": "Controcarro 3 Minotauro",
+   "nation": 10,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "34593",
+   "label": "Convert. Medium Tank T3",
+   "nation": 2,
+   "tier": 3,
+   "type": 2
+  },
+  {
+   "value": "6481",
+   "label": "Covenanter",
+   "nation": 5,
+   "tier": 5,
+   "type": 1
+  },
+  {
+   "value": "1105",
+   "label": "Cromwell",
+   "nation": 5,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "21329",
+   "label": "Cromwell Applique",
+   "nation": 5,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "55889",
+   "label": "Cromwell B",
+   "nation": 5,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "5201",
+   "label": "Cruiser Mk. I",
+   "nation": 5,
+   "tier": 1,
+   "type": 1
+  },
+  {
+   "value": "6993",
+   "label": "Cruiser Mk. II",
+   "nation": 5,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "7761",
+   "label": "Cruiser Mk. III",
+   "nation": 5,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "7505",
+   "label": "Cruiser Mk. IV",
+   "nation": 5,
+   "tier": 4,
+   "type": 1
+  },
+  {
+   "value": "2129",
+   "label": "Crusader",
+   "nation": 5,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "11345",
+   "label": "Crusader 5.5-in. SP",
+   "nation": 5,
+   "tier": 7,
+   "type": 5
+  },
+  {
+   "value": "62289",
+   "label": "Crusher",
+   "nation": 5,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "1601",
+   "label": "D1",
+   "nation": 4,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "321",
+   "label": "D2",
+   "nation": 4,
+   "tier": 3,
+   "type": 2
+  },
+  {
+   "value": "6513",
+   "label": "DBV-152",
+   "nation": 7,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "3729",
+   "label": "DS PZInż",
+   "nation": 9,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "65585",
+   "label": "DZT-159",
+   "nation": 3,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "66353",
+   "label": "DZT-159 Dragon's Soul",
+   "nation": 3,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "57105",
+   "label": "Dicker Max",
+   "nation": 1,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "57649",
+   "label": "Divine Valor",
+   "nation": 3,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "13329",
+   "label": "Durchbruchswagen 2",
+   "nation": 1,
+   "tier": 4,
+   "type": 3
+  },
+  {
+   "value": "68929",
+   "label": "Durendal",
+   "nation": 4,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "9489",
+   "label": "E 100",
+   "nation": 1,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "55569",
+   "label": "E 25",
+   "nation": 1,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "10257",
+   "label": "E 50",
+   "nation": 1,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "12305",
+   "label": "E 50 Ausf. M",
+   "nation": 1,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "56593",
+   "label": "E 50 FL",
+   "nation": 1,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "30481",
+   "label": "E 65 Zwilling",
+   "nation": 1,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "9745",
+   "label": "E 75",
+   "nation": 1,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "46865",
+   "label": "E 75 TS",
+   "nation": 1,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "37649",
+   "label": "E 77",
+   "nation": 1,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "61505",
+   "label": "ELC EVEN 90",
+   "nation": 4,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "59969",
+   "label": "ELC EVEN 90 FL",
+   "nation": 4,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "52865",
+   "label": "EMIL 1951",
+   "nation": 8,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "32833",
+   "label": "ERAC 105 Proto",
+   "nation": 4,
+   "tier": 9,
+   "type": 1
+  },
+  {
+   "value": "1921",
+   "label": "Emil I",
+   "nation": 8,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "2177",
+   "label": "Emil II",
+   "nation": 8,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "68401",
+   "label": "Erlang Shen",
+   "nation": 3,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "57681",
+   "label": "Excalibur",
+   "nation": 5,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "54353",
+   "label": "Excelsior",
+   "nation": 5,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "26705",
+   "label": "Executor",
+   "nation": 5,
+   "tier": 11,
+   "type": 2
+  },
+  {
+   "value": "58433",
+   "label": "FCM 2C",
+   "nation": 4,
+   "tier": 3,
+   "type": 3
+  },
+  {
+   "value": "15169",
+   "label": "FCM 36",
+   "nation": 4,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "2369",
+   "label": "FCM 36 Pak 40",
+   "nation": 4,
+   "tier": 3,
+   "type": 4
+  },
+  {
+   "value": "64065",
+   "label": "FCM 50 t",
+   "nation": 4,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "20561",
+   "label": "FSV Scheme A",
+   "nation": 5,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "58449",
+   "label": "FV1066 Senlac",
+   "nation": 5,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "55121",
+   "label": "FV201 (A45)",
+   "nation": 5,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "12113",
+   "label": "FV207",
+   "nation": 5,
+   "tier": 8,
+   "type": 5
+  },
+  {
+   "value": "6225",
+   "label": "FV215b",
+   "nation": 5,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "9297",
+   "label": "FV215b (183)",
+   "nation": 5,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "15953",
+   "label": "FV217 Badger",
+   "nation": 5,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "22865",
+   "label": "FV224 Chopper",
+   "nation": 5,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "22353",
+   "label": "FV225 Collector",
+   "nation": 5,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "63825",
+   "label": "FV226 Contradictious",
+   "nation": 5,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "23121",
+   "label": "FV227 Conceiver",
+   "nation": 5,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "23377",
+   "label": "FV229 Contender",
+   "nation": 5,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "21841",
+   "label": "FV230 Canopener",
+   "nation": 5,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "11857",
+   "label": "FV304",
+   "nation": 5,
+   "tier": 6,
+   "type": 5
+  },
+  {
+   "value": "11601",
+   "label": "FV3805",
+   "nation": 5,
+   "tier": 9,
+   "type": 5
+  },
+  {
+   "value": "13137",
+   "label": "FV4004 Conway",
+   "nation": 5,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "13905",
+   "label": "FV4005 Stage II",
+   "nation": 5,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "23889",
+   "label": "FV4025 Contriver",
+   "nation": 5,
+   "tier": 11,
+   "type": 3
+  },
+  {
+   "value": "51793",
+   "label": "FV4201 Chieftain Proto",
+   "nation": 5,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "55633",
+   "label": "FV4202",
+   "nation": 5,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "58193",
+   "label": "FV4202 FL",
+   "nation": 5,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "19793",
+   "label": "FV601 Saladin",
+   "nation": 5,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "67905",
+   "label": "Fantôme",
+   "nation": 4,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "69185",
+   "label": "Fauteur",
+   "nation": 4,
+   "tier": 11,
+   "type": 3
+  },
+  {
+   "value": "6049",
+   "label": "Felice",
+   "nation": 10,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "7697",
+   "label": "Ferdinand",
+   "nation": 1,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "55825",
+   "label": "Ferdinand FL",
+   "nation": 1,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "161",
+   "label": "Fiat 3000",
+   "nation": 10,
+   "tier": 1,
+   "type": 1
+  },
+  {
+   "value": "68145",
+   "label": "Fireborn",
+   "nation": 3,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "27905",
+   "label": "Forest Spirit",
+   "nation": 0,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "66577",
+   "label": "Fossa VM 68",
+   "nation": 1,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "15121",
+   "label": "G.Pz. Mk. VI (e)",
+   "nation": 1,
+   "tier": 2,
+   "type": 5
+  },
+  {
+   "value": "9233",
+   "label": "G.W. E 100",
+   "nation": 1,
+   "tier": 10,
+   "type": 5
+  },
+  {
+   "value": "8977",
+   "label": "G.W. Panther",
+   "nation": 1,
+   "tier": 7,
+   "type": 5
+  },
+  {
+   "value": "8721",
+   "label": "G.W. Tiger",
+   "nation": 1,
+   "tier": 9,
+   "type": 5
+  },
+  {
+   "value": "15377",
+   "label": "G.W. Tiger (P)",
+   "nation": 1,
+   "tier": 8,
+   "type": 5
+  },
+  {
+   "value": "19537",
+   "label": "GSOR 1006 Scheme 7",
+   "nation": 5,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "52305",
+   "label": "GSOR 1008",
+   "nation": 5,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "61265",
+   "label": "GSOR 1010 FB",
+   "nation": 5,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "58705",
+   "label": "GSOR 3301 AVR FS",
+   "nation": 5,
+   "tier": 9,
+   "type": 1
+  },
+  {
+   "value": "21585",
+   "label": "GSOR the TANK",
+   "nation": 5,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "59729",
+   "label": "GSR 3301 Setter",
+   "nation": 5,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "21073",
+   "label": "Gabler’s Destroyer",
+   "nation": 5,
+   "tier": 5,
+   "type": 1
+  },
+  {
+   "value": "60753",
+   "label": "Gonsalo",
+   "nation": 5,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "23329",
+   "label": "Gorilla",
+   "nation": 2,
+   "tier": 11,
+   "type": 4
+  },
+  {
+   "value": "1617",
+   "label": "Grant",
+   "nation": 5,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "5649",
+   "label": "Grille",
+   "nation": 1,
+   "tier": 5,
+   "type": 5
+  },
+  {
+   "value": "19217",
+   "label": "Grille 15",
+   "nation": 1,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "59665",
+   "label": "Großtraktor - Krupp",
+   "nation": 1,
+   "tier": 3,
+   "type": 2
+  },
+  {
+   "value": "63057",
+   "label": "Gryphon",
+   "nation": 5,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "42273",
+   "label": "H3",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "20241",
+   "label": "HWK 12",
+   "nation": 1,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "47377",
+   "label": "HWK 30",
+   "nation": 1,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "25681",
+   "label": "Headshaker",
+   "nation": 5,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "52321",
+   "label": "Heavy Tank No. VI",
+   "nation": 6,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "40977",
+   "label": "Hirschkäfer",
+   "nation": 1,
+   "tier": 11,
+   "type": 4
+  },
+  {
+   "value": "6753",
+   "label": "Ho-Ri 1",
+   "nation": 6,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "6497",
+   "label": "Ho-Ri 2",
+   "nation": 6,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "8289",
+   "label": "Ho-Ri 3",
+   "nation": 6,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "9825",
+   "label": "Ho-Ri Shugo",
+   "nation": 6,
+   "tier": 11,
+   "type": 4
+  },
+  {
+   "value": "18241",
+   "label": "Hotchkiss EBR",
+   "nation": 4,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "1345",
+   "label": "Hotchkiss H35",
+   "nation": 4,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "273",
+   "label": "Hummel",
+   "nation": 1,
+   "tier": 6,
+   "type": 5
+  },
+  {
+   "value": "52625",
+   "label": "Hurricane",
+   "nation": 9,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "53905",
+   "label": "Husarz",
+   "nation": 9,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "66337",
+   "label": "IMT",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "513",
+   "label": "IS",
+   "nation": 0,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "3633",
+   "label": "IS-2",
+   "nation": 3,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "59137",
+   "label": "IS-2",
+   "nation": 0,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "31233",
+   "label": "IS-2 shielded",
+   "nation": 0,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "22785",
+   "label": "IS-2-II",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "46593",
+   "label": "IS-2M",
+   "nation": 0,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "5377",
+   "label": "IS-3",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "22529",
+   "label": "IS-3-II",
+   "nation": 0,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "60417",
+   "label": "IS-3A",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "56065",
+   "label": "IS-3A Peregrine",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "6145",
+   "label": "IS-4",
+   "nation": 0,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "58881",
+   "label": "IS-5 (Object 730)",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "9217",
+   "label": "IS-6",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "49409",
+   "label": "IS-6 B",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "43521",
+   "label": "IS-6 FL",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "7169",
+   "label": "IS-7",
+   "nation": 0,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "20481",
+   "label": "IS-M",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "36097",
+   "label": "ISU-122-2",
+   "nation": 0,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "59649",
+   "label": "ISU-122S",
+   "nation": 0,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "58625",
+   "label": "ISU-130",
+   "nation": 0,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "7425",
+   "label": "ISU-152",
+   "nation": 0,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "31745",
+   "label": "ISU-152K",
+   "nation": 0,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "40961",
+   "label": "IT-3",
+   "nation": 0,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "3457",
+   "label": "Ikv 103",
+   "nation": 8,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "3713",
+   "label": "Ikv 65 Alt II",
+   "nation": 8,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "2945",
+   "label": "Ikv 72",
+   "nation": 8,
+   "tier": 3,
+   "type": 4
+  },
+  {
+   "value": "3969",
+   "label": "Ikv 90 Typ B",
+   "nation": 8,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "13841",
+   "label": "Indien-Panzer",
+   "nation": 1,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "43809",
+   "label": "Ironclad Guardian",
+   "nation": 2,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "26193",
+   "label": "Jade Coil",
+   "nation": 5,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "3857",
+   "label": "Jagdpanther",
+   "nation": 1,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "11537",
+   "label": "Jagdpanther II",
+   "nation": 1,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "1809",
+   "label": "Jagdpanzer 38(t) Hetzer",
+   "nation": 1,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "12049",
+   "label": "Jagdpanzer E 100",
+   "nation": 1,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "32785",
+   "label": "Jagdpanzer E 90",
+   "nation": 1,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "1553",
+   "label": "Jagdpanzer IV",
+   "nation": 1,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "7953",
+   "label": "Jagdtiger",
+   "nation": 1,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "56337",
+   "label": "Jagdtiger FL",
+   "nation": 1,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "49425",
+   "label": "Jagdtiger Prototype",
+   "nation": 1,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "34561",
+   "label": "K-2",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "21761",
+   "label": "K-91",
+   "nation": 0,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "30977",
+   "label": "K-91 Version II",
+   "nation": 0,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "32769",
+   "label": "K-91-PT",
+   "nation": 0,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "69121",
+   "label": "KB-52",
+   "nation": 0,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "33041",
+   "label": "KJPZ TIII Jäger",
+   "nation": 1,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "25873",
+   "label": "KPz 3 Projekt 07 HK",
+   "nation": 1,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "67585",
+   "label": "KR-1",
+   "nation": 0,
+   "tier": 11,
+   "type": 3
+  },
+  {
+   "value": "11777",
+   "label": "KV-1",
+   "nation": 0,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "33025",
+   "label": "KV-1 shielded",
+   "nation": 0,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "49921",
+   "label": "KV-122",
+   "nation": 0,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "8961",
+   "label": "KV-13",
+   "nation": 0,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "18689",
+   "label": "KV-1S",
+   "nation": 0,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "37889",
+   "label": "KV-1SA",
+   "nation": 0,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "10497",
+   "label": "KV-2",
+   "nation": 0,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "64769",
+   "label": "KV-2 (R)",
+   "nation": 0,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "54017",
+   "label": "KV-220-2",
+   "nation": 0,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "51201",
+   "label": "KV-220-2 Beta Test",
+   "nation": 0,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "5889",
+   "label": "KV-3",
+   "nation": 0,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "11009",
+   "label": "KV-4",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "62209",
+   "label": "KV-4 KTTS",
+   "nation": 0,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "63233",
+   "label": "KV-4 Kreslavskiy",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "29697",
+   "label": "KV-4 Turchaninov",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "53249",
+   "label": "KV-5",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "2817",
+   "label": "KV-85",
+   "nation": 0,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "55137",
+   "label": "Kame",
+   "nation": 6,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "22801",
+   "label": "Kampfpanzer 07 P(E)",
+   "nation": 1,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "45841",
+   "label": "Kampfpanzer 07 RH",
+   "nation": 1,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "47121",
+   "label": "Kampfpanzer 50 t",
+   "nation": 1,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "32017",
+   "label": "Kampfpanzer 67",
+   "nation": 1,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "61969",
+   "label": "Kanonenjagdpanzer",
+   "nation": 1,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "48401",
+   "label": "Kanonenjagdpanzer 105",
+   "nation": 1,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "29713",
+   "label": "Kanonenjagdpanzer 2",
+   "nation": 1,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "61473",
+   "label": "King Tiger (Captured)",
+   "nation": 2,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "62721",
+   "label": "Kirovets-1",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "113",
+   "label": "Kolohousenka",
+   "nation": 7,
+   "tier": 1,
+   "type": 1
+  },
+  {
+   "value": "1649",
+   "label": "Konštrukta T-34/100",
+   "nation": 7,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "29969",
+   "label": "Kpz. 3 GST Turm",
+   "nation": 1,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "26641",
+   "label": "Kpz. Erich Konzept I",
+   "nation": 1,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "2433",
+   "label": "Kranvagn",
+   "nation": 8,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "54161",
+   "label": "Krazownik",
+   "nation": 9,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "61713",
+   "label": "Krupp-Steyr Waffenträger",
+   "nation": 1,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "46353",
+   "label": "Kunze Panzer",
+   "nation": 1,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "51841",
+   "label": "L-60",
+   "nation": 8,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "417",
+   "label": "L6/40",
+   "nation": 10,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "59473",
+   "label": "LHMTV",
+   "nation": 5,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "6257",
+   "label": "LPT-67 Šelma",
+   "nation": 7,
+   "tier": 9,
+   "type": 1
+  },
+  {
+   "value": "369",
+   "label": "LT vz. 35",
+   "nation": 7,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "625",
+   "label": "LT vz. 38",
+   "nation": 7,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "45569",
+   "label": "LT-432",
+   "nation": 0,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "21793",
+   "label": "LTC II",
+   "nation": 2,
+   "tier": 9,
+   "type": 1
+  },
+  {
+   "value": "19457",
+   "label": "LTG",
+   "nation": 0,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "56577",
+   "label": "LTP",
+   "nation": 0,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "29953",
+   "label": "LTS-85",
+   "nation": 0,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "18433",
+   "label": "LTTB",
+   "nation": 0,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "897",
+   "label": "Lago",
+   "nation": 8,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "50817",
+   "label": "Lago M38",
+   "nation": 8,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "53121",
+   "label": "Lansen C",
+   "nation": 8,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "26129",
+   "label": "Leichter Kpz. 70 (K)",
+   "nation": 1,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "3089",
+   "label": "Leichttraktor",
+   "nation": 1,
+   "tier": 1,
+   "type": 1
+  },
+  {
+   "value": "1665",
+   "label": "Leo",
+   "nation": 8,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "14609",
+   "label": "Leopard 1",
+   "nation": 1,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "41489",
+   "label": "Leopard 120 Verbessert",
+   "nation": 1,
+   "tier": 11,
+   "type": 2
+  },
+  {
+   "value": "14865",
+   "label": "Leopard Prototyp A",
+   "nation": 1,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "68673",
+   "label": "Leox",
+   "nation": 4,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "54865",
+   "label": "Light Mk. VIC",
+   "nation": 5,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "50593",
+   "label": "Lion",
+   "nation": 10,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "67137",
+   "label": "Lorraine 120 Alby",
+   "nation": 4,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "7233",
+   "label": "Lorraine 155 mle. 50",
+   "nation": 4,
+   "tier": 7,
+   "type": 5
+  },
+  {
+   "value": "7489",
+   "label": "Lorraine 155 mle. 51",
+   "nation": 4,
+   "tier": 8,
+   "type": 5
+  },
+  {
+   "value": "3393",
+   "label": "Lorraine 39L AM",
+   "nation": 4,
+   "tier": 3,
+   "type": 5
+  },
+  {
+   "value": "62529",
+   "label": "Lorraine 40 t",
+   "nation": 4,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "43073",
+   "label": "Lorraine 50 t",
+   "nation": 4,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "10577",
+   "label": "Loyd Gun Carriage",
+   "nation": 5,
+   "tier": 2,
+   "type": 5
+  },
+  {
+   "value": "48129",
+   "label": "Loza's M4-A2 Sherman",
+   "nation": 0,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "51329",
+   "label": "Lätt Stridsfordon 120",
+   "nation": 8,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "54289",
+   "label": "Löwe",
+   "nation": 1,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "20769",
+   "label": "M-II-Y",
+   "nation": 2,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "21025",
+   "label": "M-III-Y",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "43553",
+   "label": "M-IV-Y",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "21537",
+   "label": "M-V-Y",
+   "nation": 2,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "21281",
+   "label": "M-VI-Y",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "68129",
+   "label": "M-VI-Y (120)",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "67617",
+   "label": "M-VII-Y",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "61249",
+   "label": "M10 RBFM",
+   "nation": 4,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "6945",
+   "label": "M10 Wolverine",
+   "nation": 2,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "9505",
+   "label": "M103",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "66081",
+   "label": "M103M",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "7969",
+   "label": "M12",
+   "nation": 2,
+   "tier": 7,
+   "type": 5
+  },
+  {
+   "value": "673",
+   "label": "M14/41",
+   "nation": 10,
+   "tier": 2,
+   "type": 2
+  },
+  {
+   "value": "929",
+   "label": "M15/42",
+   "nation": 10,
+   "tier": 3,
+   "type": 2
+  },
+  {
+   "value": "52385",
+   "label": "M16/43 Sahariano",
+   "nation": 10,
+   "tier": 3,
+   "type": 2
+  },
+  {
+   "value": "11553",
+   "label": "M18 Hellcat",
+   "nation": 2,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "593",
+   "label": "M2",
+   "nation": 5,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "1825",
+   "label": "M2 Light",
+   "nation": 2,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "4897",
+   "label": "M2 Medium Tank",
+   "nation": 2,
+   "tier": 3,
+   "type": 2
+  },
+  {
+   "value": "52769",
+   "label": "M22 Locust",
+   "nation": 2,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "9761",
+   "label": "M24 Chaffee",
+   "nation": 2,
+   "tier": 5,
+   "type": 1
+  },
+  {
+   "value": "50209",
+   "label": "M24 Chaffee No. 594",
+   "nation": 2,
+   "tier": 5,
+   "type": 1
+  },
+  {
+   "value": "50977",
+   "label": "M24E2 Super Chaffee",
+   "nation": 2,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "5921",
+   "label": "M26 Pershing",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "3105",
+   "label": "M3 Lee",
+   "nation": 2,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "52737",
+   "label": "M3 Light",
+   "nation": 0,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "289",
+   "label": "M3 Stuart",
+   "nation": 2,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "7201",
+   "label": "M36 Jackson",
+   "nation": 2,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "4641",
+   "label": "M37",
+   "nation": 2,
+   "tier": 4,
+   "type": 5
+  },
+  {
+   "value": "65825",
+   "label": "M3A3 Stuart",
+   "nation": 2,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "6705",
+   "label": "M3G FT",
+   "nation": 3,
+   "tier": 3,
+   "type": 4
+  },
+  {
+   "value": "12577",
+   "label": "M4 Improved",
+   "nation": 2,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "34305",
+   "label": "M4-85",
+   "nation": 0,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "7457",
+   "label": "M40/M43",
+   "nation": 2,
+   "tier": 8,
+   "type": 5
+  },
+  {
+   "value": "4129",
+   "label": "M41",
+   "nation": 2,
+   "tier": 5,
+   "type": 5
+  },
+  {
+   "value": "17953",
+   "label": "M41 Walker Bulldog",
+   "nation": 2,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "64033",
+   "label": "M41 Walker Bulldog FL",
+   "nation": 2,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "62001",
+   "label": "M41D",
+   "nation": 3,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "16417",
+   "label": "M44",
+   "nation": 2,
+   "tier": 6,
+   "type": 5
+  },
+  {
+   "value": "8993",
+   "label": "M46 Patton",
+   "nation": 2,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "58401",
+   "label": "M46 Patton FL",
+   "nation": 2,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "57121",
+   "label": "M46 Patton KR",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "69441",
+   "label": "M47 Chevalier",
+   "nation": 4,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "33057",
+   "label": "M47 Iron Arnie",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "32801",
+   "label": "M47 Patton Improved",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "46609",
+   "label": "M48A2 Räumpanzer",
+   "nation": 1,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "14113",
+   "label": "M48A5 Patton",
+   "nation": 2,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "60993",
+   "label": "M4A1 FL 10",
+   "nation": 4,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "63041",
+   "label": "M4A1 Revalorisé",
+   "nation": 4,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "64577",
+   "label": "M4A1 Revalorisé FL",
+   "nation": 4,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "1057",
+   "label": "M4A1 Sherman",
+   "nation": 2,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "52257",
+   "label": "M4A2E4 Sherman",
+   "nation": 2,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "49697",
+   "label": "M4A3(76)W Sherman",
+   "nation": 2,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "10017",
+   "label": "M4A3E2 Sherman Jumbo",
+   "nation": 2,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "56097",
+   "label": "M4A3E8 Fury",
+   "nation": 2,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "1313",
+   "label": "M4A3E8 Sherman",
+   "nation": 2,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "103713",
+   "label": "M4A3E8 Sherman",
+   "nation": 2,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "59681",
+   "label": "M4A3E8 Thunderbolt VII",
+   "nation": 2,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "5153",
+   "label": "M5 Stuart",
+   "nation": 2,
+   "tier": 4,
+   "type": 1
+  },
+  {
+   "value": "16161",
+   "label": "M53/M55",
+   "nation": 2,
+   "tier": 9,
+   "type": 5
+  },
+  {
+   "value": "61985",
+   "label": "M54 Renegade",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "56353",
+   "label": "M56 Scorpion",
+   "nation": 2,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "3121",
+   "label": "M5A1 Stuart",
+   "nation": 3,
+   "tier": 4,
+   "type": 1
+  },
+  {
+   "value": "801",
+   "label": "M6",
+   "nation": 2,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "15905",
+   "label": "M60",
+   "nation": 2,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "52513",
+   "label": "M6A2E1",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "5409",
+   "label": "M7",
+   "nation": 2,
+   "tier": 5,
+   "type": 1
+  },
+  {
+   "value": "3617",
+   "label": "M7 Priest",
+   "nation": 2,
+   "tier": 3,
+   "type": 5
+  },
+  {
+   "value": "10273",
+   "label": "M8A1",
+   "nation": 2,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "33825",
+   "label": "MBT-B",
+   "nation": 2,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "47633",
+   "label": "MKA",
+   "nation": 1,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "3329",
+   "label": "MS-1",
+   "nation": 0,
+   "tier": 1,
+   "type": 1
+  },
+  {
+   "value": "16641",
+   "label": "MT-25",
+   "nation": 0,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "52001",
+   "label": "MTLS-1G14",
+   "nation": 2,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "58961",
+   "label": "Manticore",
+   "nation": 5,
+   "tier": 10,
+   "type": 1
+  },
+  {
+   "value": "11281",
+   "label": "Marder 38T",
+   "nation": 1,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "6673",
+   "label": "Marder II",
+   "nation": 1,
+   "tier": 3,
+   "type": 4
+  },
+  {
+   "value": "52129",
+   "label": "Mars",
+   "nation": 10,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "849",
+   "label": "Matilda",
+   "nation": 5,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "53585",
+   "label": "Matilda Black Prince",
+   "nation": 5,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "51457",
+   "label": "Matilda IV",
+   "nation": 0,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "51281",
+   "label": "Matilda LVT",
+   "nation": 5,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "6929",
+   "label": "Maus",
+   "nation": 1,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "57409",
+   "label": "Miel",
+   "nation": 4,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "8033",
+   "label": "Mitsu 108",
+   "nation": 6,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "37393",
+   "label": "Mittlerer Kpz. Pr. 68 (P)",
+   "nation": 1,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "58673",
+   "label": "Monkey King",
+   "nation": 3,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "18705",
+   "label": "Mäuschen",
+   "nation": 1,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "7057",
+   "label": "NC 70 Błyskawica",
+   "nation": 9,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "11793",
+   "label": "Nashorn",
+   "nation": 1,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "61521",
+   "label": "Nemesis",
+   "nation": 5,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "64081",
+   "label": "Nergal",
+   "nation": 5,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "4961",
+   "label": "O-Ho",
+   "nation": 6,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "5473",
+   "label": "O-I",
+   "nation": 6,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "5729",
+   "label": "O-I Experimental",
+   "nation": 6,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "5217",
+   "label": "O-Ni",
+   "nation": 6,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "68385",
+   "label": "OCP Peacekeeper",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "16897",
+   "label": "Object 140",
+   "nation": 0,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "34049",
+   "label": "Object 140 CL",
+   "nation": 0,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "56321",
+   "label": "Object 168 German",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "60161",
+   "label": "Object 244",
+   "nation": 0,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "49665",
+   "label": "Object 252U",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "48641",
+   "label": "Object 252U Defender",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "19713",
+   "label": "Object 257",
+   "nation": 0,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "33537",
+   "label": "Object 259A",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "58369",
+   "label": "Object 260",
+   "nation": 0,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "8705",
+   "label": "Object 261",
+   "nation": 0,
+   "tier": 10,
+   "type": 5
+  },
+  {
+   "value": "21249",
+   "label": "Object 263",
+   "nation": 0,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "66305",
+   "label": "Object 265T",
+   "nation": 0,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "13569",
+   "label": "Object 268",
+   "nation": 0,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "20225",
+   "label": "Object 268 Version 4",
+   "nation": 0,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "50689",
+   "label": "Object 268 Version V",
+   "nation": 0,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "32257",
+   "label": "Object 274a",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "22017",
+   "label": "Object 277",
+   "nation": 0,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "46849",
+   "label": "Object 279 early",
+   "nation": 0,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "34817",
+   "label": "Object 283",
+   "nation": 0,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "13313",
+   "label": "Object 416",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "21505",
+   "label": "Object 430",
+   "nation": 0,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "17665",
+   "label": "Object 430 Version II",
+   "nation": 0,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "19969",
+   "label": "Object 430U",
+   "nation": 0,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "36609",
+   "label": "Object 432U",
+   "nation": 0,
+   "tier": 11,
+   "type": 2
+  },
+  {
+   "value": "55809",
+   "label": "Object 452K",
+   "nation": 0,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "33793",
+   "label": "Object 590",
+   "nation": 0,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "65537",
+   "label": "Object 701",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "44289",
+   "label": "Object 703 Version II",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "8193",
+   "label": "Object 704",
+   "nation": 0,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "20737",
+   "label": "Object 705",
+   "nation": 0,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "20993",
+   "label": "Object 705A",
+   "nation": 0,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "30465",
+   "label": "Object 752",
+   "nation": 0,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "44545",
+   "label": "Object 777 Version II",
+   "nation": 0,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "32001",
+   "label": "Object 780",
+   "nation": 0,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "15617",
+   "label": "Object 907",
+   "nation": 0,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "65793",
+   "label": "Object Kust",
+   "nation": 0,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "37377",
+   "label": "Obsidian",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "1441",
+   "label": "P.43",
+   "nation": 10,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "1697",
+   "label": "P.43 bis",
+   "nation": 10,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "1953",
+   "label": "P.43 ter",
+   "nation": 10,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "2209",
+   "label": "P.44 Pantera",
+   "nation": 10,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "1185",
+   "label": "P26/40",
+   "nation": 10,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "66609",
+   "label": "PGZ-70",
+   "nation": 3,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "11057",
+   "label": "PTZ-78",
+   "nation": 3,
+   "tier": 11,
+   "type": 4
+  },
+  {
+   "value": "17985",
+   "label": "Panhard AMD 178B",
+   "nation": 4,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "18497",
+   "label": "Panhard AML Lynx 6x6",
+   "nation": 4,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "19009",
+   "label": "Panhard EBR 105",
+   "nation": 4,
+   "tier": 10,
+   "type": 1
+  },
+  {
+   "value": "43585",
+   "label": "Panhard EBR 75 (FL 10)",
+   "nation": 4,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "18753",
+   "label": "Panhard EBR 90",
+   "nation": 4,
+   "tier": 9,
+   "type": 1
+  },
+  {
+   "value": "1297",
+   "label": "Panther",
+   "nation": 1,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "8465",
+   "label": "Panther II",
+   "nation": 1,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "60177",
+   "label": "Panther mit 8,8 cm L/71",
+   "nation": 1,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "57617",
+   "label": "Panther/M10",
+   "nation": 1,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "63761",
+   "label": "Panzer 58",
+   "nation": 1,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "56849",
+   "label": "Panzer 58 FL",
+   "nation": 1,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "64273",
+   "label": "Panzer 58 Mutz",
+   "nation": 1,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "3601",
+   "label": "Panzerjäger I",
+   "nation": 1,
+   "tier": 2,
+   "type": 4
+  },
+  {
+   "value": "5745",
+   "label": "Panzerwagen 39",
+   "nation": 7,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "50465",
+   "label": "Patton the Tank",
+   "nation": 2,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "20513",
+   "label": "Pawlack Tank",
+   "nation": 2,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "68609",
+   "label": "Peerless",
+   "nation": 0,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "26449",
+   "label": "Pike",
+   "nation": 5,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "54177",
+   "label": "Predatore",
+   "nation": 10,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "52609",
+   "label": "Primo Victoria",
+   "nation": 8,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "3489",
+   "label": "Progetto C50 mod. 66",
+   "nation": 10,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "3745",
+   "label": "Progetto CC55 mod. 54",
+   "nation": 10,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "51361",
+   "label": "Progetto M35 mod. 46",
+   "nation": 10,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "2721",
+   "label": "Progetto M40 mod. 65",
+   "nation": 10,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "7025",
+   "label": "Projekt ION",
+   "nation": 7,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "59201",
+   "label": "Projet Louis",
+   "nation": 4,
+   "tier": 9,
+   "type": 1
+  },
+  {
+   "value": "53409",
+   "label": "Prototipo 6",
+   "nation": 10,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "2465",
+   "label": "Prototipo Standard B",
+   "nation": 10,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "145",
+   "label": "Pudel",
+   "nation": 9,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "2689",
+   "label": "Pvlvv fm/42",
+   "nation": 8,
+   "tier": 2,
+   "type": 4
+  },
+  {
+   "value": "785",
+   "label": "Pz.Kpfw. 35 (t)",
+   "nation": 1,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "43281",
+   "label": "Pz.Kpfw. 35 R",
+   "nation": 1,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "29201",
+   "label": "Pz.Kpfw. 38 (K)",
+   "nation": 1,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "3345",
+   "label": "Pz.Kpfw. 38 (t)",
+   "nation": 1,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "8209",
+   "label": "Pz.Kpfw. 38 (t) n.A.",
+   "nation": 1,
+   "tier": 4,
+   "type": 1
+  },
+  {
+   "value": "52497",
+   "label": "Pz.Kpfw. 38H 735 (f)",
+   "nation": 1,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "32273",
+   "label": "Pz.Kpfw. 55",
+   "nation": 1,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "52241",
+   "label": "Pz.Kpfw. B2 740 (f)",
+   "nation": 1,
+   "tier": 4,
+   "type": 3
+  },
+  {
+   "value": "12817",
+   "label": "Pz.Kpfw. I",
+   "nation": 1,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "12561",
+   "label": "Pz.Kpfw. I Ausf. C",
+   "nation": 1,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "2065",
+   "label": "Pz.Kpfw. II",
+   "nation": 1,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "60433",
+   "label": "Pz.Kpfw. II Ausf. D",
+   "nation": 1,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "13073",
+   "label": "Pz.Kpfw. II Ausf. G",
+   "nation": 1,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "51729",
+   "label": "Pz.Kpfw. II Ausf. J",
+   "nation": 1,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "6161",
+   "label": "Pz.Kpfw. II Luchs",
+   "nation": 1,
+   "tier": 4,
+   "type": 1
+  },
+  {
+   "value": "4881",
+   "label": "Pz.Kpfw. III Ausf. E",
+   "nation": 1,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "4369",
+   "label": "Pz.Kpfw. III Ausf. J",
+   "nation": 1,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "61457",
+   "label": "Pz.Kpfw. III Ausf. K",
+   "nation": 1,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "6417",
+   "label": "Pz.Kpfw. III/IV",
+   "nation": 1,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "17169",
+   "label": "Pz.Kpfw. IV Ausf. A",
+   "nation": 1,
+   "tier": 3,
+   "type": 2
+  },
+  {
+   "value": "17425",
+   "label": "Pz.Kpfw. IV Ausf. D",
+   "nation": 1,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "27921",
+   "label": "Pz.Kpfw. IV Ausf. F2",
+   "nation": 1,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "18193",
+   "label": "Pz.Kpfw. IV Ausf. H",
+   "nation": 1,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "45585",
+   "label": "Pz.Kpfw. IV Ausf. H Ankou",
+   "nation": 1,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "57361",
+   "label": "Pz.Kpfw. IV Schmalturm",
+   "nation": 1,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "55057",
+   "label": "Pz.Kpfw. IV hydrostat.",
+   "nation": 1,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "59153",
+   "label": "Pz.Kpfw. KW I (r)",
+   "nation": 1,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "43537",
+   "label": "Pz.Kpfw. M 15",
+   "nation": 1,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "32529",
+   "label": "Pz.Kpfw. Neu",
+   "nation": 1,
+   "tier": 11,
+   "type": 3
+  },
+  {
+   "value": "51985",
+   "label": "Pz.Kpfw. S35 739 (f)",
+   "nation": 1,
+   "tier": 3,
+   "type": 2
+  },
+  {
+   "value": "54801",
+   "label": "Pz.Kpfw. T 15",
+   "nation": 1,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "54545",
+   "label": "Pz.Kpfw. T 25",
+   "nation": 1,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "51473",
+   "label": "Pz.Kpfw. V/IV",
+   "nation": 1,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "54033",
+   "label": "Pz.Kpfw. V/IV Alpha",
+   "nation": 1,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "19473",
+   "label": "Pz.Kpfw. VII",
+   "nation": 1,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "46097",
+   "label": "Pz.Sfl. IC",
+   "nation": 1,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "15633",
+   "label": "Pz.Sfl. IVb",
+   "nation": 1,
+   "tier": 4,
+   "type": 5
+  },
+  {
+   "value": "16145",
+   "label": "Pz.Sfl. IVc",
+   "nation": 1,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "51745",
+   "label": "Ram II",
+   "nation": 2,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "66849",
+   "label": "Rambo",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "577",
+   "label": "Renault FT",
+   "nation": 4,
+   "tier": 1,
+   "type": 1
+  },
+  {
+   "value": "833",
+   "label": "Renault FT 75 BS",
+   "nation": 4,
+   "tier": 2,
+   "type": 5
+  },
+  {
+   "value": "7745",
+   "label": "Renault FT AC",
+   "nation": 4,
+   "tier": 2,
+   "type": 4
+  },
+  {
+   "value": "4417",
+   "label": "Renault G1",
+   "nation": 4,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "1329",
+   "label": "Renault NC-31",
+   "nation": 3,
+   "tier": 1,
+   "type": 1
+  },
+  {
+   "value": "609",
+   "label": "Renault Otsu",
+   "nation": 6,
+   "tier": 1,
+   "type": 1
+  },
+  {
+   "value": "15937",
+   "label": "Renault R35",
+   "nation": 4,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "67649",
+   "label": "Renault R35/FCM 36",
+   "nation": 4,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "8257",
+   "label": "Renault UE 57",
+   "nation": 4,
+   "tier": 3,
+   "type": 4
+  },
+  {
+   "value": "29457",
+   "label": "Rheinmetall Begleitwagen",
+   "nation": 1,
+   "tier": 3,
+   "type": 2
+  },
+  {
+   "value": "19985",
+   "label": "Rheinmetall Panzerwagen",
+   "nation": 1,
+   "tier": 10,
+   "type": 1
+  },
+  {
+   "value": "62481",
+   "label": "Rheinmetall Skorpion",
+   "nation": 1,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "50193",
+   "label": "Rheinmetall Skorpion G",
+   "nation": 1,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "16657",
+   "label": "Rhm.-Borsig Waffenträger",
+   "nation": 1,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "2977",
+   "label": "Rinoceronte",
+   "nation": 10,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "1793",
+   "label": "S-51",
+   "nation": 0,
+   "tier": 7,
+   "type": 5
+  },
+  {
+   "value": "10049",
+   "label": "S35 CA",
+   "nation": 4,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "14913",
+   "label": "SARL 42",
+   "nation": 4,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "6801",
+   "label": "SDP 40 Zadymka",
+   "nation": 9,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "6545",
+   "label": "SDP 44 Burza",
+   "nation": 9,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "7569",
+   "label": "SDP 57 Gowika",
+   "nation": 9,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "7313",
+   "label": "SDP 58 Kilana",
+   "nation": 9,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "6033",
+   "label": "SDP 60 Gonkiewicza",
+   "nation": 9,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "51857",
+   "label": "SDP wz 66 Grom",
+   "nation": 9,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "7537",
+   "label": "SDT-58 Vlkodav",
+   "nation": 7,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "65601",
+   "label": "SFAC 105",
+   "nation": 4,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "4513",
+   "label": "SMV CC-56",
+   "nation": 10,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "50337",
+   "label": "SMV CC-64 Vipera",
+   "nation": 10,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "4769",
+   "label": "SMV CC-67",
+   "nation": 10,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "67873",
+   "label": "SPHT",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "881",
+   "label": "ST vz. 39",
+   "nation": 7,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "35329",
+   "label": "ST-62 Version 2",
+   "nation": 0,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "32513",
+   "label": "ST-66",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "10753",
+   "label": "ST-I",
+   "nation": 0,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "22273",
+   "label": "ST-II",
+   "nation": 0,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "2657",
+   "label": "STA-1",
+   "nation": 6,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "52065",
+   "label": "STA-2",
+   "nation": 6,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "3681",
+   "label": "STB-1",
+   "nation": 6,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "47617",
+   "label": "STG",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "47361",
+   "label": "STG Guard",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "9569",
+   "label": "STK-2",
+   "nation": 6,
+   "tier": 11,
+   "type": 3
+  },
+  {
+   "value": "3585",
+   "label": "SU-100",
+   "nation": 0,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "66561",
+   "label": "SU-100I",
+   "nation": 0,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "10241",
+   "label": "SU-100M1",
+   "nation": 0,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "54785",
+   "label": "SU-100Y",
+   "nation": 0,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "9985",
+   "label": "SU-101",
+   "nation": 0,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "55297",
+   "label": "SU-122-44",
+   "nation": 0,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "16385",
+   "label": "SU-122A",
+   "nation": 0,
+   "tier": 5,
+   "type": 5
+  },
+  {
+   "value": "30209",
+   "label": "SU-122V",
+   "nation": 0,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "45057",
+   "label": "SU-130PM",
+   "nation": 0,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "16129",
+   "label": "SU-14-1",
+   "nation": 0,
+   "tier": 7,
+   "type": 5
+  },
+  {
+   "value": "4097",
+   "label": "SU-14-2",
+   "nation": 0,
+   "tier": 8,
+   "type": 5
+  },
+  {
+   "value": "2305",
+   "label": "SU-152",
+   "nation": 0,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "3841",
+   "label": "SU-18",
+   "nation": 0,
+   "tier": 2,
+   "type": 5
+  },
+  {
+   "value": "29441",
+   "label": "SU-2-122",
+   "nation": 0,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "7681",
+   "label": "SU-26",
+   "nation": 0,
+   "tier": 3,
+   "type": 5
+  },
+  {
+   "value": "4865",
+   "label": "SU-5",
+   "nation": 0,
+   "tier": 4,
+   "type": 5
+  },
+  {
+   "value": "6961",
+   "label": "SU-76G FT",
+   "nation": 3,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "54273",
+   "label": "SU-76I",
+   "nation": 0,
+   "tier": 3,
+   "type": 4
+  },
+  {
+   "value": "6401",
+   "label": "SU-76M",
+   "nation": 0,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "5633",
+   "label": "SU-8",
+   "nation": 0,
+   "tier": 6,
+   "type": 5
+  },
+  {
+   "value": "257",
+   "label": "SU-85",
+   "nation": 0,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "6913",
+   "label": "SU-85B",
+   "nation": 0,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "53761",
+   "label": "SU-85I",
+   "nation": 0,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "5233",
+   "label": "SZDV Vz. 50",
+   "nation": 7,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "55393",
+   "label": "Saryuda",
+   "nation": 6,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "3201",
+   "label": "Sav m/43",
+   "nation": 8,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "49937",
+   "label": "Schwarzpanzer 58",
+   "nation": 1,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "31249",
+   "label": "Schwertwal",
+   "nation": 1,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "5793",
+   "label": "Semovente M41",
+   "nation": 10,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "4257",
+   "label": "Semovente M43 Bassotto",
+   "nation": 10,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "66113",
+   "label": "Sentinelle",
+   "nation": 4,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "53665",
+   "label": "Serpente",
+   "nation": 10,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "54609",
+   "label": "Sexton I",
+   "nation": 5,
+   "tier": 3,
+   "type": 5
+  },
+  {
+   "value": "3409",
+   "label": "Sexton II",
+   "nation": 5,
+   "tier": 3,
+   "type": 5
+  },
+  {
+   "value": "60529",
+   "label": "ShPTK-TVP 100",
+   "nation": 7,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "3665",
+   "label": "Sherman Firefly",
+   "nation": 5,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "69409",
+   "label": "Sherman Firefly Saunders",
+   "nation": 2,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "12881",
+   "label": "Sherman III",
+   "nation": 5,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "57169",
+   "label": "Sherman VC Firefly",
+   "nation": 5,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "13121",
+   "label": "Somua S35",
+   "nation": 4,
+   "tier": 3,
+   "type": 2
+  },
+  {
+   "value": "9793",
+   "label": "Somua SAu 40",
+   "nation": 4,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "62273",
+   "label": "Somua SM",
+   "nation": 4,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "18449",
+   "label": "Spähpanzer Ru 251",
+   "nation": 1,
+   "tier": 9,
+   "type": 1
+  },
+  {
+   "value": "18961",
+   "label": "Spähpanzer SP I C",
+   "nation": 1,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "20305",
+   "label": "Staghound Mk. III",
+   "nation": 5,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "65569",
+   "label": "Stinger",
+   "nation": 2,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "56161",
+   "label": "Stitch",
+   "nation": 6,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "52897",
+   "label": "Stone Sentinel",
+   "nation": 10,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "65553",
+   "label": "Straussler V–4/40",
+   "nation": 1,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "55425",
+   "label": "Stridsyxa",
+   "nation": 8,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "4481",
+   "label": "Strv 103-0",
+   "nation": 8,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "54401",
+   "label": "Strv 103-0 FL",
+   "nation": 8,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "4737",
+   "label": "Strv 103B",
+   "nation": 8,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "6017",
+   "label": "Strv 107-12",
+   "nation": 8,
+   "tier": 11,
+   "type": 4
+  },
+  {
+   "value": "1409",
+   "label": "Strv 74",
+   "nation": 8,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "52353",
+   "label": "Strv 81",
+   "nation": 8,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "54145",
+   "label": "Strv K",
+   "nation": 8,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "52097",
+   "label": "Strv S1",
+   "nation": 8,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "53633",
+   "label": "Strv S1 FL",
+   "nation": 8,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "129",
+   "label": "Strv fm/21",
+   "nation": 8,
+   "tier": 1,
+   "type": 1
+  },
+  {
+   "value": "6785",
+   "label": "Strv m/31",
+   "nation": 8,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "385",
+   "label": "Strv m/38",
+   "nation": 8,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "641",
+   "label": "Strv m/40L",
+   "nation": 8,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "1153",
+   "label": "Strv m/42",
+   "nation": 8,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "51585",
+   "label": "Strv m/42-57 Alt A.2",
+   "nation": 8,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "17937",
+   "label": "StuG III Ausf. B",
+   "nation": 1,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "66065",
+   "label": "StuG III Ausf. F Kabasan",
+   "nation": 1,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "1041",
+   "label": "StuG III Ausf. G",
+   "nation": 1,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "60689",
+   "label": "StuG IV",
+   "nation": 1,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "1361",
+   "label": "Stuart I-IV",
+   "nation": 5,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "11025",
+   "label": "Sturer Emil",
+   "nation": 1,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "2833",
+   "label": "Sturmpanzer I Bison",
+   "nation": 1,
+   "tier": 3,
+   "type": 5
+  },
+  {
+   "value": "4625",
+   "label": "Sturmpanzer II",
+   "nation": 1,
+   "tier": 4,
+   "type": 5
+  },
+  {
+   "value": "15697",
+   "label": "Super Conqueror",
+   "nation": 5,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "62497",
+   "label": "Super Hellcat",
+   "nation": 2,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "27153",
+   "label": "T 54D",
+   "nation": 1,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "60945",
+   "label": "T 55A",
+   "nation": 1,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "11521",
+   "label": "T-10",
+   "nation": 0,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "19201",
+   "label": "T-100 LT",
+   "nation": 0,
+   "tier": 10,
+   "type": 1
+  },
+  {
+   "value": "48385",
+   "label": "T-103",
+   "nation": 0,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "66049",
+   "label": "T-115",
+   "nation": 0,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "44801",
+   "label": "T-116",
+   "nation": 0,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "53505",
+   "label": "T-127",
+   "nation": 0,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "70145",
+   "label": "T-13",
+   "nation": 0,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "11265",
+   "label": "T-150",
+   "nation": 0,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "61697",
+   "label": "T-22 medium",
+   "nation": 0,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "4609",
+   "label": "T-26",
+   "nation": 0,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "6449",
+   "label": "T-26G FT",
+   "nation": 3,
+   "tier": 2,
+   "type": 4
+  },
+  {
+   "value": "1537",
+   "label": "T-28",
+   "nation": 0,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "61441",
+   "label": "T-28E with F-30",
+   "nation": 0,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "47873",
+   "label": "T-29",
+   "nation": 0,
+   "tier": 3,
+   "type": 2
+  },
+  {
+   "value": "1",
+   "label": "T-34",
+   "nation": 0,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "47105",
+   "label": "T-34 shielded",
+   "nation": 0,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "33281",
+   "label": "T-34 with L-11",
+   "nation": 0,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "1073",
+   "label": "T-34-1",
+   "nation": 3,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "1585",
+   "label": "T-34-2",
+   "nation": 3,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "7729",
+   "label": "T-34-2G FT",
+   "nation": 3,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "64049",
+   "label": "T-34-3",
+   "nation": 3,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "2561",
+   "label": "T-34-85",
+   "nation": 0,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "59393",
+   "label": "T-34-85 Rudy",
+   "nation": 0,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "51345",
+   "label": "T-34-85 Rudy",
+   "nation": 9,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "58113",
+   "label": "T-34-85M",
+   "nation": 0,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "6657",
+   "label": "T-43",
+   "nation": 0,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "4353",
+   "label": "T-44",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "44033",
+   "label": "T-44 FL",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "61953",
+   "label": "T-44-100",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "38401",
+   "label": "T-44-100 Igrovoy",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "50945",
+   "label": "T-45",
+   "nation": 0,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "3073",
+   "label": "T-46",
+   "nation": 0,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "9473",
+   "label": "T-50",
+   "nation": 0,
+   "tier": 5,
+   "type": 1
+  },
+  {
+   "value": "45313",
+   "label": "T-50-2",
+   "nation": 0,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "7937",
+   "label": "T-54",
+   "nation": 0,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "57601",
+   "label": "T-54 FL",
+   "nation": 0,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "59905",
+   "label": "T-54 first prototype",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "43777",
+   "label": "T-54 first prototype FL",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "18177",
+   "label": "T-54 ltwt.",
+   "nation": 0,
+   "tier": 9,
+   "type": 1
+  },
+  {
+   "value": "15361",
+   "label": "T-60",
+   "nation": 0,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "13825",
+   "label": "T-62A",
+   "nation": 0,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "15105",
+   "label": "T-70",
+   "nation": 0,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "15873",
+   "label": "T-80",
+   "nation": 0,
+   "tier": 4,
+   "type": 1
+  },
+  {
+   "value": "43297",
+   "label": "T-832",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "545",
+   "label": "T1 Cunningham",
+   "nation": 2,
+   "tier": 1,
+   "type": 1
+  },
+  {
+   "value": "2081",
+   "label": "T1 HMC",
+   "nation": 2,
+   "tier": 2,
+   "type": 5
+  },
+  {
+   "value": "3361",
+   "label": "T1 Heavy",
+   "nation": 2,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "13857",
+   "label": "T110E3",
+   "nation": 2,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "13089",
+   "label": "T110E4",
+   "nation": 2,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "10785",
+   "label": "T110E5",
+   "nation": 2,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "35361",
+   "label": "T110E5 CL",
+   "nation": 2,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "33",
+   "label": "T14",
+   "nation": 2,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "18465",
+   "label": "T18 HMC",
+   "nation": 2,
+   "tier": 3,
+   "type": 5
+  },
+  {
+   "value": "53537",
+   "label": "T1E6",
+   "nation": 2,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "51489",
+   "label": "T2 Light Tank",
+   "nation": 2,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "5665",
+   "label": "T2 Medium Tank",
+   "nation": 2,
+   "tier": 2,
+   "type": 2
+  },
+  {
+   "value": "1569",
+   "label": "T20",
+   "nation": 2,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "15137",
+   "label": "T21",
+   "nation": 2,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "11809",
+   "label": "T23E3",
+   "nation": 2,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "9249",
+   "label": "T25 AT",
+   "nation": 2,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "57377",
+   "label": "T25 Pilot Number 1",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "11041",
+   "label": "T25/2",
+   "nation": 2,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "59937",
+   "label": "T26E3 Eagle 7",
+   "nation": 2,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "13345",
+   "label": "T26E4 SuperPershing",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "60961",
+   "label": "T26E4 SuperPershing FL",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "58913",
+   "label": "T26E5",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "63009",
+   "label": "T26E5 FL",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "59169",
+   "label": "T26E5 Patriot",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "8225",
+   "label": "T28",
+   "nation": 2,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "56609",
+   "label": "T28 Concept",
+   "nation": 2,
+   "tier": 7,
+   "type": 4
+  },
+  {
+   "value": "11297",
+   "label": "T28 Prototype",
+   "nation": 2,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "3873",
+   "label": "T29",
+   "nation": 2,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "6177",
+   "label": "T3 HMC",
+   "nation": 2,
+   "tier": 2,
+   "type": 4
+  },
+  {
+   "value": "2593",
+   "label": "T30",
+   "nation": 2,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "58145",
+   "label": "T30 FL",
+   "nation": 2,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "4385",
+   "label": "T32",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "63265",
+   "label": "T32 FL",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "2849",
+   "label": "T34",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "59425",
+   "label": "T34 B",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "60705",
+   "label": "T34 FL",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "16673",
+   "label": "T37",
+   "nation": 2,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "32289",
+   "label": "T3E2 Medium Tank",
+   "nation": 2,
+   "tier": 3,
+   "type": 2
+  },
+  {
+   "value": "7713",
+   "label": "T40",
+   "nation": 2,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "50721",
+   "label": "T42",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "18209",
+   "label": "T49",
+   "nation": 2,
+   "tier": 9,
+   "type": 1
+  },
+  {
+   "value": "33313",
+   "label": "T54 Heavy Tank",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "15393",
+   "label": "T54E1",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "6433",
+   "label": "T56 GMC",
+   "nation": 2,
+   "tier": 3,
+   "type": 4
+  },
+  {
+   "value": "14881",
+   "label": "T57 Heavy",
+   "nation": 2,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "20257",
+   "label": "T6 Medium",
+   "nation": 2,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "10529",
+   "label": "T67",
+   "nation": 2,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "14625",
+   "label": "T69",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "55073",
+   "label": "T7 Combat Car",
+   "nation": 2,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "19745",
+   "label": "T71 CMCD",
+   "nation": 2,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "57633",
+   "label": "T71 CMCD P",
+   "nation": 2,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "15649",
+   "label": "T71 DA",
+   "nation": 2,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "51233",
+   "label": "T77",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "61217",
+   "label": "T78",
+   "nation": 2,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "69153",
+   "label": "T803",
+   "nation": 2,
+   "tier": 11,
+   "type": 3
+  },
+  {
+   "value": "18721",
+   "label": "T82 HMC",
+   "nation": 2,
+   "tier": 4,
+   "type": 5
+  },
+  {
+   "value": "57889",
+   "label": "T92",
+   "nation": 2,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "8481",
+   "label": "T92 HMC",
+   "nation": 2,
+   "tier": 10,
+   "type": 5
+  },
+  {
+   "value": "8737",
+   "label": "T95",
+   "nation": 2,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "57937",
+   "label": "T95/FV4201 Chieftain",
+   "nation": 5,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "53793",
+   "label": "T95E2",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "55841",
+   "label": "T95E6",
+   "nation": 2,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "52593",
+   "label": "TBT",
+   "nation": 7,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "35841",
+   "label": "TITT Rozanov",
+   "nation": 0,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "401",
+   "label": "TKS z n.k.m. 20 mm",
+   "nation": 9,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "62241",
+   "label": "TL-1 LPC",
+   "nation": 2,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "34337",
+   "label": "TL-7",
+   "nation": 2,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "3441",
+   "label": "TNH 105/1000",
+   "nation": 7,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "3185",
+   "label": "TNH T Vz. 51",
+   "nation": 7,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "53841",
+   "label": "TOG II*",
+   "nation": 5,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "60449",
+   "label": "TS-5",
+   "nation": 2,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "34849",
+   "label": "TS-54",
+   "nation": 2,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "49953",
+   "label": "TS-6",
+   "nation": 2,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "33569",
+   "label": "TS-60",
+   "nation": 2,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "60785",
+   "label": "TT-130M",
+   "nation": 7,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "2417",
+   "label": "TVP T 50/51",
+   "nation": 7,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "1905",
+   "label": "TVP VTU Koncept",
+   "nation": 7,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "41745",
+   "label": "Taschenratte",
+   "nation": 1,
+   "tier": 11,
+   "type": 3
+  },
+  {
+   "value": "68161",
+   "label": "Terrifiant",
+   "nation": 4,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "54529",
+   "label": "Tetrarch",
+   "nation": 0,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "10769",
+   "label": "Tiger (P)",
+   "nation": 1,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "49169",
+   "label": "Tiger 131",
+   "nation": 1,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "529",
+   "label": "Tiger I",
+   "nation": 1,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "5137",
+   "label": "Tiger II",
+   "nation": 1,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "58897",
+   "label": "Tiger II FL",
+   "nation": 1,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "27409",
+   "label": "Tiger II Kuromorimine",
+   "nation": 1,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "23057",
+   "label": "Tiger-Maus",
+   "nation": 1,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "53153",
+   "label": "Toro",
+   "nation": 10,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "52561",
+   "label": "Tortoise",
+   "nation": 5,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "25937",
+   "label": "Triumphant",
+   "nation": 5,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "59985",
+   "label": "Turtle Mk. I",
+   "nation": 5,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "63249",
+   "label": "Turán III prototípus",
+   "nation": 1,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "26961",
+   "label": "Twin Guardians",
+   "nation": 5,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "1633",
+   "label": "Type 1 Chi-He",
+   "nation": 6,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "54881",
+   "label": "Type 1 Ho-Ni II",
+   "nation": 6,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "4401",
+   "label": "Type 2597 Chi-Ha",
+   "nation": 3,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "1377",
+   "label": "Type 3 Chi-Nu",
+   "nation": 6,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "51553",
+   "label": "Type 3 Chi-Nu Kai",
+   "nation": 6,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "7009",
+   "label": "Type 3 Ho-Ni III",
+   "nation": 6,
+   "tier": 5,
+   "type": 4
+  },
+  {
+   "value": "7777",
+   "label": "Type 3 Ju-Nu",
+   "nation": 6,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "1889",
+   "label": "Type 4 Chi-To",
+   "nation": 6,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "4193",
+   "label": "Type 4 Heavy",
+   "nation": 6,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "9057",
+   "label": "Type 4 Ju-To",
+   "nation": 6,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "1121",
+   "label": "Type 5 Chi-Ri",
+   "nation": 6,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "3937",
+   "label": "Type 5 Heavy",
+   "nation": 6,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "53345",
+   "label": "Type 5 Ka-Ri",
+   "nation": 6,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "2913",
+   "label": "Type 5 Ke-Ho",
+   "nation": 6,
+   "tier": 4,
+   "type": 1
+  },
+  {
+   "value": "9313",
+   "label": "Type 57",
+   "nation": 6,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "5169",
+   "label": "Type 58",
+   "nation": 3,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "49",
+   "label": "Type 59",
+   "nation": 3,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "65841",
+   "label": "Type 59 First Warrior",
+   "nation": 3,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "561",
+   "label": "Type 59 G",
+   "nation": 3,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "3425",
+   "label": "Type 61",
+   "nation": 6,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "305",
+   "label": "Type 62",
+   "nation": 3,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "53601",
+   "label": "Type 63",
+   "nation": 6,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "64817",
+   "label": "Type 64",
+   "nation": 3,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "8801",
+   "label": "Type 68",
+   "nation": 6,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "8545",
+   "label": "Type 71",
+   "nation": 6,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "5985",
+   "label": "Type 89 I-Go/Chi-Ro",
+   "nation": 6,
+   "tier": 2,
+   "type": 2
+  },
+  {
+   "value": "4705",
+   "label": "Type 91 Heavy",
+   "nation": 6,
+   "tier": 3,
+   "type": 3
+  },
+  {
+   "value": "865",
+   "label": "Type 95 Ha-Go",
+   "nation": 6,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "4449",
+   "label": "Type 95 Heavy",
+   "nation": 6,
+   "tier": 4,
+   "type": 3
+  },
+  {
+   "value": "7265",
+   "label": "Type 95 Ji-Ro",
+   "nation": 6,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "2145",
+   "label": "Type 97 Chi-Ha",
+   "nation": 6,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "3169",
+   "label": "Type 97 Te-Ke",
+   "nation": 6,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "2401",
+   "label": "Type 98 Ke-Ni",
+   "nation": 6,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "4657",
+   "label": "Type T-34",
+   "nation": 3,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "4225",
+   "label": "UDES 03",
+   "nation": 8,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "53377",
+   "label": "UDES 03 Alt 3",
+   "nation": 8,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "4993",
+   "label": "UDES 14 Alt 5",
+   "nation": 8,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "5505",
+   "label": "UDES 15/16",
+   "nation": 8,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "5249",
+   "label": "UDES 16",
+   "nation": 8,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "64001",
+   "label": "Udarniy",
+   "nation": 0,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "8273",
+   "label": "Universal Carrier 2-pdr",
+   "nation": 5,
+   "tier": 2,
+   "type": 4
+  },
+  {
+   "value": "66625",
+   "label": "VCS 6x6 TS 90",
+   "nation": 4,
+   "tier": 9,
+   "type": 1
+  },
+  {
+   "value": "19729",
+   "label": "VK 100.01 (P)",
+   "nation": 1,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "5393",
+   "label": "VK 16.02 Leopard",
+   "nation": 1,
+   "tier": 5,
+   "type": 1
+  },
+  {
+   "value": "48913",
+   "label": "VK 168.01 (P)",
+   "nation": 1,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "48145",
+   "label": "VK 168.01 Mauerbrecher",
+   "nation": 1,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "13585",
+   "label": "VK 20.01 (D)",
+   "nation": 1,
+   "tier": 4,
+   "type": 2
+  },
+  {
+   "value": "10001",
+   "label": "VK 28.01",
+   "nation": 1,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "25617",
+   "label": "VK 28.01 mit 10,5 cm L/28",
+   "nation": 1,
+   "tier": 6,
+   "type": 1
+  },
+  {
+   "value": "14097",
+   "label": "VK 30.01 (D)",
+   "nation": 1,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "2577",
+   "label": "VK 30.01 (H)",
+   "nation": 1,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "7185",
+   "label": "VK 30.01 (P)",
+   "nation": 1,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "4113",
+   "label": "VK 30.02 (D)",
+   "nation": 1,
+   "tier": 7,
+   "type": 2
+  },
+  {
+   "value": "15889",
+   "label": "VK 30.02 (M)",
+   "nation": 1,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "2321",
+   "label": "VK 36.01 (H)",
+   "nation": 1,
+   "tier": 6,
+   "type": 3
+  },
+  {
+   "value": "10513",
+   "label": "VK 45.02 (P) Ausf. A",
+   "nation": 1,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "7441",
+   "label": "VK 45.02 (P) Ausf. B",
+   "nation": 1,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "62993",
+   "label": "VK 45.03",
+   "nation": 1,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "59409",
+   "label": "VK 65.01 (H)",
+   "nation": 1,
+   "tier": 5,
+   "type": 3
+  },
+  {
+   "value": "58641",
+   "label": "VK 72.01 (K)",
+   "nation": 1,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "56081",
+   "label": "VK 75.01 (K)",
+   "nation": 1,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "4945",
+   "label": "Valentine",
+   "nation": 5,
+   "tier": 3,
+   "type": 1
+  },
+  {
+   "value": "8017",
+   "label": "Valentine AT",
+   "nation": 5,
+   "tier": 4,
+   "type": 4
+  },
+  {
+   "value": "52481",
+   "label": "Valentine II",
+   "nation": 0,
+   "tier": 4,
+   "type": 1
+  },
+  {
+   "value": "60241",
+   "label": "Valiant",
+   "nation": 5,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "66369",
+   "label": "Vercingétorix",
+   "nation": 4,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "38417",
+   "label": "Versuchspanzer 57",
+   "nation": 1,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "57905",
+   "label": "Vickers 6 ton",
+   "nation": 3,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "51025",
+   "label": "Vickers MBT Mk. 3",
+   "nation": 5,
+   "tier": 10,
+   "type": 2
+  },
+  {
+   "value": "81",
+   "label": "Vickers Medium Mk. I",
+   "nation": 5,
+   "tier": 1,
+   "type": 2
+  },
+  {
+   "value": "337",
+   "label": "Vickers Medium Mk. II",
+   "nation": 5,
+   "tier": 2,
+   "type": 2
+  },
+  {
+   "value": "2385",
+   "label": "Vickers Medium Mk. III",
+   "nation": 5,
+   "tier": 3,
+   "type": 2
+  },
+  {
+   "value": "2353",
+   "label": "Vickers Mk. E Type B",
+   "nation": 3,
+   "tier": 2,
+   "type": 1
+  },
+  {
+   "value": "3697",
+   "label": "Vz. 44-1",
+   "nation": 7,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "2929",
+   "label": "Vz. 55",
+   "nation": 7,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "52081",
+   "label": "Vz. 55 Gothic Warrior",
+   "nation": 7,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "53105",
+   "label": "Vz. 58 Medvěd",
+   "nation": 7,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "7281",
+   "label": "Vz. 60S Dravec",
+   "nation": 7,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "53873",
+   "label": "Vz. 62 Jasan",
+   "nation": 7,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "8049",
+   "label": "Vz. 63P",
+   "nation": 7,
+   "tier": 11,
+   "type": 3
+  },
+  {
+   "value": "4721",
+   "label": "Vz. 64 Blesk",
+   "nation": 7,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "53361",
+   "label": "Vz. 68 Squall",
+   "nation": 7,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "6769",
+   "label": "Vz. 71 Tesák",
+   "nation": 7,
+   "tier": 10,
+   "type": 1
+  },
+  {
+   "value": "30737",
+   "label": "WT auf E 100 Phönix",
+   "nation": 1,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "817",
+   "label": "WZ-111",
+   "nation": 3,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "65073",
+   "label": "WZ-111 Alpine Tiger",
+   "nation": 3,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "62257",
+   "label": "WZ-111 Qilin",
+   "nation": 3,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "2097",
+   "label": "WZ-111 model 1-4",
+   "nation": 3,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "56369",
+   "label": "WZ-111 model 1-4 FL",
+   "nation": 3,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "6193",
+   "label": "WZ-111 model 5A",
+   "nation": 3,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "58929",
+   "label": "WZ-111 model 6",
+   "nation": 3,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "7985",
+   "label": "WZ-111-1G FT",
+   "nation": 3,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "8241",
+   "label": "WZ-111G FT",
+   "nation": 3,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "60721",
+   "label": "WZ-113-II",
+   "nation": 3,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "8497",
+   "label": "WZ-113G FT",
+   "nation": 3,
+   "tier": 10,
+   "type": 4
+  },
+  {
+   "value": "60465",
+   "label": "WZ-114",
+   "nation": 3,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "1841",
+   "label": "WZ-120",
+   "nation": 3,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "63281",
+   "label": "WZ-120-1G FT",
+   "nation": 3,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "61489",
+   "label": "WZ-120-1G FT FL",
+   "nation": 3,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "63025",
+   "label": "WZ-120G FT",
+   "nation": 3,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "3377",
+   "label": "WZ-131",
+   "nation": 3,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "7473",
+   "label": "WZ-131G FT",
+   "nation": 3,
+   "tier": 6,
+   "type": 4
+  },
+  {
+   "value": "3889",
+   "label": "WZ-132",
+   "nation": 3,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "59697",
+   "label": "WZ-132 FL",
+   "nation": 3,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "5937",
+   "label": "WZ-132-1",
+   "nation": 3,
+   "tier": 10,
+   "type": 1
+  },
+  {
+   "value": "5681",
+   "label": "WZ-132A",
+   "nation": 3,
+   "tier": 9,
+   "type": 1
+  },
+  {
+   "value": "11313",
+   "label": "WZ-219",
+   "nation": 3,
+   "tier": 11,
+   "type": 1
+  },
+  {
+   "value": "16401",
+   "label": "Waffenträger auf Pz. IV",
+   "nation": 1,
+   "tier": 9,
+   "type": 4
+  },
+  {
+   "value": "5905",
+   "label": "Wespe",
+   "nation": 1,
+   "tier": 3,
+   "type": 5
+  },
+  {
+   "value": "30225",
+   "label": "White Dragon",
+   "nation": 1,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "30993",
+   "label": "Windhund",
+   "nation": 1,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "53649",
+   "label": "Wz. 64GC Bzyg",
+   "nation": 9,
+   "tier": 10,
+   "type": 3
+  },
+  {
+   "value": "19489",
+   "label": "XM551 Sheridan",
+   "nation": 2,
+   "tier": 10,
+   "type": 1
+  },
+  {
+   "value": "42017",
+   "label": "XM57",
+   "nation": 2,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "32545",
+   "label": "XM66F",
+   "nation": 2,
+   "tier": 8,
+   "type": 4
+  },
+  {
+   "value": "35873",
+   "label": "XM69 Hacker",
+   "nation": 2,
+   "tier": 11,
+   "type": 2
+  },
+  {
+   "value": "66097",
+   "label": "Yong Bing",
+   "nation": 3,
+   "tier": 9,
+   "type": 3
+  },
+  {
+   "value": "67121",
+   "label": "Ziqiang",
+   "nation": 3,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "8305",
+   "label": "ZŤS Vz.63-1 Ogar",
+   "nation": 7,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "41233",
+   "label": "leKpz Borkenkäfer",
+   "nation": 1,
+   "tier": 11,
+   "type": 1
+  },
+  {
+   "value": "64017",
+   "label": "leKpz M 41 90 mm",
+   "nation": 1,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "50961",
+   "label": "leKpz M 41 90 mm GF",
+   "nation": 1,
+   "tier": 8,
+   "type": 1
+  },
+  {
+   "value": "5489",
+   "label": "Škoda T 15A",
+   "nation": 7,
+   "tier": 4,
+   "type": 1
+  },
+  {
+   "value": "4977",
+   "label": "Škoda T 17",
+   "nation": 7,
+   "tier": 7,
+   "type": 1
+  },
+  {
+   "value": "1137",
+   "label": "Škoda T 24",
+   "nation": 7,
+   "tier": 5,
+   "type": 2
+  },
+  {
+   "value": "1393",
+   "label": "Škoda T 25",
+   "nation": 7,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "51825",
+   "label": "Škoda T 27",
+   "nation": 7,
+   "tier": 8,
+   "type": 2
+  },
+  {
+   "value": "51569",
+   "label": "Škoda T 40",
+   "nation": 7,
+   "tier": 6,
+   "type": 2
+  },
+  {
+   "value": "51313",
+   "label": "Škoda T 45",
+   "nation": 7,
+   "tier": 7,
+   "type": 3
+  },
+  {
+   "value": "2161",
+   "label": "Škoda T 50",
+   "nation": 7,
+   "tier": 9,
+   "type": 2
+  },
+  {
+   "value": "51057",
+   "label": "Škoda T 56",
+   "nation": 7,
+   "tier": 8,
+   "type": 3
+  },
+  {
+   "value": "60273",
+   "label": "Šotek",
+   "nation": 7,
+   "tier": 8,
+   "type": 4
+  }
+ ]
+}
