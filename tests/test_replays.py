@@ -272,12 +272,12 @@ class ObsLaunchTest(unittest.TestCase):
                 if tries["n"] < 3:
                     raise rr.RecordError("немає зв'язку")
                 self.cl = cl
-            with mock.patch.object(rr.Obs, "__init__", fake_init), \
+            with mock.patch.object(rr.Obs, "__init__", fake_init), mock.patch.object(rr, "obs_running", return_value=False), \
                     mock.patch.object(rr.subprocess, "Popen") as po, mock.patch.object(rr.time, "sleep"):
                 obs = rr.ensure_obs(opts)
             args = po.call_args[0][0]
             self.assertEqual(args[0], str(exe))
-            self.assertIn("--minimize-to-tray", args)
+            self.assertNotIn("--minimize-to-tray", args)                  # не в трей — видно на панелі задач
             self.assertEqual(args[args.index("--profile") + 1], "WoT Replays")
             self.assertEqual(po.call_args[1]["cwd"], str(exe.parent))
             self.assertTrue(obs.launched)
@@ -296,10 +296,29 @@ class ObsLaunchTest(unittest.TestCase):
 
         def fail(self, *a, **k):
             raise rr.RecordError("Немає зв'язку з OBS.")
-        with mock.patch.object(rr.Obs, "__init__", fail):
+        with mock.patch.object(rr.Obs, "__init__", fail), mock.patch.object(rr, "obs_running", return_value=False):
             with self.assertRaises(rr.RecordError) as cm:
                 rr.ensure_obs(opts)
         self.assertIn("вкажіть obs64.exe", str(cm.exception))
+
+    def test_no_second_copy_when_obs_already_running(self):
+        from unittest import mock
+        from shorts import replay_record as rr
+        with tempfile.TemporaryDirectory() as t:
+            exe = Path(t) / "obs64.exe"
+            exe.write_text("x")
+            opts = rr.RecordOptions(game_dir=Path("."), obs_exe=str(exe))
+
+            def fail(self, *a, **k):
+                raise rr.RecordError("Немає зв'язку з OBS.")
+            with mock.patch.object(rr.Obs, "__init__", fail), mock.patch.object(rr, "obs_running", return_value=True), \
+                    mock.patch.object(rr.subprocess, "Popen") as po:
+                with self.assertRaises(rr.RecordError) as cm:
+                    rr.ensure_obs(opts)
+                self.assertFalse(rr.launch_obs(opts))
+            po.assert_not_called()                                         # другої копії немає
+            self.assertIn("OBS уже відкритий", str(cm.exception))
+            self.assertIn("Другу копію OBS не запускаю", str(cm.exception))
 
 
 class FindGameTest(unittest.TestCase):
