@@ -69,6 +69,8 @@ class ReplaysBot:
         self.thread: threading.Thread | None = None
         self.last_received = 0.0
         self.awaiting: str | None = None     # «min_damage» / «min_assist» — чекаємо число від вас
+        self.listing: dict = {}              # останній список боїв: {"page", "items", "url", "hidden"}
+        self.got: set[str] = set()           # номери реплеїв, уже скачаних зі списку
 
     # -------------------------------------------------------------- стан
     def state(self) -> dict:
@@ -171,7 +173,8 @@ class ReplaysBot:
             [b(f"🌍 Нації{f' ({n_nat})' if n_nat else ''}", "v:nation"), b(f"↕ {sort_label}", "s")],
             [b(f"💥 Шкода від {fmt_n(md) if md else '—'}", "ask:min_damage"),
              b(f"🔦 Засвіт від {fmt_n(ma) if ma else '—'}", "ask:min_assist")],
-            [{"text": "🌐 Відкрити підбірку", "url": build_url(self.selection(st), sort=st.get("sort") or "date")}],
+            [b("📋 Показати бої", "list:1"),
+             {"text": "🌐 На сайті", "url": build_url(self.selection(st), sort=st.get("sort") or "date")}],
             [b(f"🎬 Записати зібрані ({self.pending(st)})", "go"), b("🔄", "ref"), b("♻ Скинути", "r")],
         ]
         return {"inline_keyboard": rows}
@@ -227,6 +230,10 @@ class ReplaysBot:
                     self.bot.delete_msg(msg.get("message_id"))     # підказку прибираємо, показуємо меню знову
                     self.show()
                     return f"{LIMIT_NAMES[field].capitalize()} від {fmt_n(int(num))}" if int(num) else "Без порогу"
+        elif kind == "list":
+            return self.show_list(int(val or 1), msg if "📋 Бої" in (msg.get("text") or "") else None)
+        elif kind == "dl":
+            return self.download(val, msg)
         elif kind == "r":
             self.update(wr_sel={}, sort="date", min_damage=0, min_assist=0)
             toast = "♻ Фільтр скинуто"
@@ -260,18 +267,22 @@ class ReplaysBot:
             self.bot.send("Файл завеликий для Telegram-бота (понад 20 МБ). Скачайте його на ПК — "
                           "вкладка «🎮 Реплеї» забере з «Завантажень».")
             return
-        st = self.state()
-        replays_dir = Path(st["replays_dir"])
-        replays_dir.mkdir(parents=True, exist_ok=True)
         info_ = self.bot.api.call("getFile", file_id=doc["file_id"])
         url = self.bot.api.base.replace("/bot", "/file/bot", 1) + info_["file_path"]
         with urllib.request.urlopen(url, timeout=120) as r:  # noqa: S310 — адреса Telegram
             data = r.read()
+        self.accept(name, data)
+
+    def accept(self, name: str, data: bytes) -> bool:
+        """Перевіряє реплей (версія, дограно, пороги) і кладе в чергу. True — прийнято."""
+        st = self.state()
+        replays_dir = Path(st["replays_dir"])
+        replays_dir.mkdir(parents=True, exist_ok=True)
         stem = re.sub(r"[^\w\-]+", "_", Path(name).stem)[:80] or f"tg_{int(time.time())}"
         target = replays_dir / f"{stem}.wotreplay"
         if target.exists() or target.with_suffix(".recorded").exists():
             self.bot.send(f"«{name}» уже є в черзі або записаний.")
-            return
+            return True
         tmp = replays_dir / f"{stem}.part"
         tmp.write_bytes(data)
         from shorts.replay_download import ImportOptions, check_replay
@@ -282,7 +293,7 @@ class ReplaysBot:
         if why:
             tmp.unlink(missing_ok=True)
             self.bot.send(f"✖ {name}: не беру — {why}.")
-            return
+            return False
         tmp.replace(target)
         info.path = str(target)
         target.with_suffix(".json").write_text(json.dumps(info.to_dict(), ensure_ascii=False, indent=1),
@@ -294,6 +305,100 @@ class ReplaysBot:
                       f"У черзі на запис: {n}."
                       + (f" Запис почнеться сам через {idle} хв без нових реплеїв." if idle else ""),
                       {"inline_keyboard": [[{"text": f"🎬 Записати зібрані ({n})", "callback_data": "F|go"}]]})
+        return True
+
+    # -------------------------------------------------------------- список боїв з сайту (на ваше натискання)
+    def passes(self, it: dict, st: dict) -> bool:
+        """Пороги «шкода від X або засвіт від Y» — ті самі, що для файлів."""
+        md, ma = int(st.get("min_damage") or 0), int(st.get("min_assist") or 0)
+        if ma > 0:
+            return (md > 0 and it["damage"] >= md) or it["assist"] >= ma
+        return it["damage"] >= md
+
+    def list_url(self, st: dict) -> str:
+        return build_url(self.selection(st), sort=st.get("sort") or "date")
+
+    def list_text(self) -> str:
+        L = self.listing
+        from shorts.replay_site import line
+        lines = [f"📋 Бої з wot-record.com — сторінка {L['page']}"]
+        if L["hidden"]:
+            lines.append(f"(сховано слабших за пороги: {L['hidden']})")
+        lines.append("")
+        for n, it in enumerate(L["items"], 1):
+            mark = "✅" if it["id"] in self.got else f"{n}."
+            title = f" — «{it['title'][:40]}»" if it["title"] else ""
+            lines.append(f"{mark} {line(it)}{title}")
+        if not L["items"]:
+            lines.append("На цій сторінці немає боїв під ваші пороги — гляньте «➡ Далі».")
+        lines += ["", "⬇ N — скачати бій N і поставити в чергу на запис."]
+        return "\n".join(lines)
+
+    def list_markup(self) -> dict:
+        L = self.listing
+        btns = [{"text": ("✅" if it["id"] in self.got else "⬇") + str(n), "callback_data": f"F|dl:{it['id']}"}
+                for n, it in enumerate(L["items"], 1)]
+        rows = [btns[i:i + 5] for i in range(0, len(btns), 5)]
+        nav = []
+        if L["page"] > 1:
+            nav.append({"text": "⬅ Назад", "callback_data": f"F|list:{L['page'] - 1}"})
+        nav.append({"text": "➡ Далі", "callback_data": f"F|list:{L['page'] + 1}"})
+        rows.append(nav)
+        st = self.state()
+        rows.append([{"text": f"🎬 Записати зібрані ({self.pending(st)})", "callback_data": "F|go"},
+                     {"text": "🌐 На сайті", "url": self.list_url(st)}])
+        return {"inline_keyboard": rows}
+
+    def show_list(self, page: int, msg: dict | None) -> str | None:
+        """Одна сторінка списку з сайту — лише на ваше натискання (один запит)."""
+        from shorts.replay_site import SiteError, fetch_list
+        st = self.state()
+        url = self.list_url(st)
+        try:
+            items = fetch_list(url, page)
+        except SiteError as e:
+            self.bot.send(f"❌ Список не завантажився: {e}.")
+            return "Не вдалося"
+        good = [it for it in items if self.passes(it, st)]
+        self.listing = {"page": page, "items": good, "url": url, "hidden": len(items) - len(good)}
+        if msg:
+            try:
+                self.bot.api.call("editMessageText", chat_id=self.bot.owner, message_id=msg["message_id"],
+                                  text=self.list_text(), reply_markup=self.list_markup(),
+                                  disable_web_page_preview=True)
+                return f"Сторінка {page}"
+            except RuntimeError as e:
+                if "not modified" in str(e):
+                    return None
+        self.bot.send(self.list_text(), self.list_markup())
+        return f"Сторінка {page}"
+
+    def download(self, rid: str, msg: dict) -> str:
+        """Один реплей зі списку (один запит) → перевірка → черга на запис."""
+        from shorts.replay_site import SiteError, download
+        if rid in self.got:
+            return "✅ Уже скачано"
+        if not rid.isdigit():
+            return "?"
+        it = next((x for x in self.listing.get("items", []) if x["id"] == rid), {})
+        site = re.match(r"https?://[^/]+", self.listing.get("url") or self.list_url(self.state())).group(0)
+        try:
+            data = download(site, rid, referer=f"{site}/replay/{rid}/{it.get('slug', '')}")
+        except SiteError as e:
+            self.bot.send(f"❌ #{rid}: {e}.")
+            return "Не вдалося"
+        name = f"wr_{rid}_{it.get('tank', '')}_{it.get('map', '')}.wotreplay"
+        if self.accept(name, data):
+            self.got.add(rid)
+        if msg and self.listing:
+            try:
+                self.bot.api.call("editMessageText", chat_id=self.bot.owner, message_id=msg["message_id"],
+                                  text=self.list_text(), reply_markup=self.list_markup(),
+                                  disable_web_page_preview=True)
+            except RuntimeError as e:
+                if "not modified" not in str(e):
+                    log.warning("Список: %s", e)
+        return "⬇ Скачано" if rid in self.got else "✖ Не підходить"
 
     # -------------------------------------------------------------- запис і нарізка
     def tick(self) -> None:

@@ -138,6 +138,38 @@ class ReplaysBotTest(unittest.TestCase):
         self._doc(old, "old.wotreplay")
         self.assertIn("інша версія гри (1.26.0.1)", self.bot.sent[-1][0])
 
+    def test_site_list_and_download(self):
+        from shorts import replay_site
+        html = (ROOT / "tests" / "data" / "wot_record_list.html").read_text(encoding="utf-8")
+        items = replay_site.parse_list(html)
+        self.assertEqual([i["id"] for i in items], ["448004", "448003", "448002"])
+        self.assertEqual((items[0]["tank"], items[0]["map"], items[0]["damage"], items[0]["mastery"]),
+                         ("SMV CC-56", "Province", 5164, 4))
+        replay_state.save(self.settings, {**replay_state.load(self.settings), "min_damage": 5000, "min_assist": 0})
+        good = make_replay(self.d / "g.bin", first=dict(FIRST, clientVersionFromXml="1.26.0.1")).read_bytes()
+        with mock.patch.object(replay_site, "fetch_list", return_value=items) as fl:
+            self.rb.on_callback({"message": {"message_id": 5, "text": "🎮 Реплеї"}}, "list:1")
+        self.assertEqual(fl.call_args[0][1], 1)
+        text, markup = self.bot.sent[-1]
+        self.assertIn("сторінка 1", text)
+        self.assertIn("сховано слабших за пороги: 1", text)          # 2568 шкоди < 5000
+        self.assertIn("1. SMV CC-56 · Province · 💥5 164", text)
+        self.assertEqual([b.get("callback_data") for b in buttons(markup)][:2], ["F|dl:448004", "F|dl:448002"])
+        with mock.patch.object(replay_site, "download", return_value=good) as dl:
+            toast = self.rb.on_callback({"message": {"message_id": 6, "text": "📋 Бої"}}, "dl:448004")
+        self.assertEqual(toast, "⬇ Скачано")
+        self.assertEqual(dl.call_args[0][:2], ("https://wot-record.com", "448004"))
+        self.assertTrue(list((self.d / "replays").glob("wr_448004_*.wotreplay")))
+        edit = [c for c in self.bot.api.calls if c[0] == "editMessageText"][-1][1]
+        self.assertIn("✅ SMV CC-56", edit["text"])
+        self.assertEqual(buttons(edit["reply_markup"])[0]["text"], "✅1")
+        with mock.patch.object(replay_site, "download") as dl:          # вдруге — без запиту
+            self.assertEqual(self.rb.on_callback({"message": {}}, "dl:448004"), "✅ Уже скачано")
+        dl.assert_not_called()
+        with mock.patch.object(replay_site, "fetch_list", side_effect=replay_site.SiteError("сайт відмовив (429)")):
+            self.rb.on_callback({"message": {"message_id": 6, "text": "📋 Бої"}}, "list:2")
+        self.assertIn("Список не завантажився: сайт відмовив (429)", self.bot.sent[-1][0])
+
     def test_parse_number(self):
         P = replays_bot.parse_number
         self.assertEqual([P("5500"), P("5 500"), P("5.5k"), P("7к"), P("5.500"), P("0")],
