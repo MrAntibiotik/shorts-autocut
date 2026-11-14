@@ -1,5 +1,5 @@
 {
-  "profile_version": 21,
+  "profile_version": 22,
   "name": "World of Tanks — реплеї (англ. клієнт)",
   "ready": true,
   "modes": {
@@ -331,7 +331,7 @@
     },
     "subtitles_y": 1620,
     "avoid_webcam_in_game": false,
-    "cta_y": 1780,
+    "cta_y": 1684,
     "top_zone": "minimap",
     "_top_zone": "Що ставити нагору шортсу замість вебкамери: зона кадру «minimap» (міні-мапа). Вона вписується без обрізання в той самий прямокутник, де була вебка (overlay: webcam_x/y/width/height) — не більше за вебку, вгорі посередині."
   },
