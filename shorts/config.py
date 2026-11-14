@@ -30,6 +30,7 @@ DEFAULT_SETTINGS: dict = {
         "work_dir": "work",
         "output_dir": "output",
         "models_dir": "models",
+        "recordings_dir": "",          # папка зі стрімами (OBS); "" — Відео користувача (C:\\Users\\<ім'я>\\Videos)
     },
     "recording": {
         "mode": "mixed",
@@ -351,6 +352,24 @@ def resolve_path(p: str | Path) -> Path:
 def load_settings() -> dict:
     user = _read_json(SETTINGS_FILE) if SETTINGS_FILE.exists() else {}
     return deep_merge(DEFAULT_SETTINGS, strip_comments(user))
+
+
+def recordings_dir(settings: dict) -> Path:
+    """Папка з оригінальними записами стрімів (звідси «Додати…», пошук записів і вебки)."""
+    d = (settings.get("paths") or {}).get("recordings_dir") or ""
+    return resolve_path(d) if d else Path.home() / "Videos"
+
+
+def save_setting(keys: tuple[str, ...], value) -> None:
+    """Записати одне значення в config/settings.json (решту файлу, разом із коментарями, не чіпати)."""
+    data = _read_json(SETTINGS_FILE) if SETTINGS_FILE.exists() else {}
+    cur = data
+    for k in keys[:-1]:
+        cur = cur.setdefault(k, {})
+    cur[keys[-1]] = value
+    tmp = SETTINGS_FILE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(SETTINGS_FILE)
 
 
 def work_dir(settings: dict) -> Path:

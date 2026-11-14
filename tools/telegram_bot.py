@@ -268,6 +268,7 @@ class Bot:
         self.lock = None                       # сокет «один бот на ПК» (для перезапуску після оновлення)
         self.notified_sha = cfg.get("notified_sha")
         self.hl_busy = False
+        self.rec_choices: dict[str, tuple] = {}   # id кнопки -> (результат, шортс, файл запису)
         self.last_update_check = 0.0
 
     # -------------------------------------------------------------- відправка
@@ -292,7 +293,28 @@ class Bot:
     def delete_later(self, mid, delay: float = 6.0) -> None:
         threading.Timer(delay, self.delete_msg, args=(mid,)).start()
 
-    def start_highlight(self, job_dir: Path, s: dict):
+    def offer_recordings(self, job_dir: Path, s: dict, err: str):
+        """Запис не знайдено — кнопки з найновішими відео з папки стрімів."""
+        from shorts.config import recordings_dir
+        from shorts.recording import recent_videos
+        vids = recent_videos(self.settings, 6)
+        if not vids:
+            self.send(f"❌ Хайлайт не вийшов:\n{err}\n\nУ папці стрімів ({recordings_dir(self.settings)}) відео "
+                      f"немає. Змініть папку у вікні програми («Папка зі стрімами»).")
+            return
+        self.rec_choices.clear()
+        rows = []
+        for i, v in enumerate(vids):
+            cid = f"{i}{int(time.time()) % 100000}"
+            self.rec_choices[cid] = (job_dir, s, str(v))
+            mb = v.stat().st_size / 1024 ** 3
+            stamp = time.strftime("%d.%m %H:%M", time.localtime(v.stat().st_mtime))
+            rows.append([{"text": f"🎞 {v.name}  ({stamp}, {mb:.1f} ГБ)", "callback_data": f"P|{cid}"}])
+        rows.append([{"text": "✖ Скасувати", "callback_data": "X|"}])
+        self.send(f"🔎 {err}\n\nЯкий це запис? Ось найновіші з папки стрімів ({recordings_dir(self.settings)}):",
+                  markup={"inline_keyboard": rows})
+
+    def start_highlight(self, job_dir: Path, s: dict, rec: str | None = None):
         """Хайлайт 16:10 цього бою у фоні (tools/make_highlight.py); готовий — надіслати відео 480p."""
         if self.hl_busy:
             self.send("⏳ Уже роблю інший хайлайт — дочекайтесь, будь ласка.")
@@ -306,9 +328,10 @@ class Bot:
         def work():
             try:
                 exe = Path(sys.executable)
-                r = subprocess.run([str(exe), str(ROOT / "tools" / "make_highlight.py"), str(job_dir),
-                                    str(s["battle"]), "--json"], capture_output=True, cwd=str(ROOT),
-                                   creationflags=_NO_WINDOW)
+                cmd = [str(exe), str(ROOT / "tools" / "make_highlight.py"), str(job_dir), str(s["battle"]), "--json"]
+                if rec:
+                    cmd += ["--rec", rec]
+                r = subprocess.run(cmd, capture_output=True, cwd=str(ROOT), creationflags=_NO_WINDOW)
                 out = r.stdout.decode("utf-8", "replace")
                 line = next((ln for ln in out.splitlines() if ln.startswith("RESULT ")), None)
                 self.delete_msg(wait.get("message_id") if isinstance(wait, dict) else None)
@@ -316,6 +339,9 @@ class Bot:
                     txt = (out + r.stderr.decode("utf-8", "replace")).strip()
                     if "[ПОМИЛКА]" in txt:
                         txt = txt[txt.rindex("[ПОМИЛКА]") + 9:].strip()
+                    if "Не знайдено запис гри" in txt and not rec:
+                        self.offer_recordings(job_dir, s, txt.splitlines()[0])
+                        return
                     self.send(f"❌ Хайлайт не вийшов:\n{txt[-700:] or '?'}")
                     return
                 res = json.loads(line[7:])
@@ -604,7 +630,7 @@ class Bot:
             "🗑 Видалити — у output\\_видалені.")
 
     # -------------------------------------------------------------- кнопки
-    TOASTS = {"X": "🧹 Готово", "R": "♻ Відновлено", "H": "🎬 Роблю хайлайт — пришлю, коли буде готовий", "k": "✅ Підходить — перенесено в папку публікації", "u": "↩ Повернуто з папки публікації",
+    TOASTS = {"X": "🧹 Готово", "R": "♻ Відновлено", "H": "🎬 Роблю хайлайт — пришлю, коли буде готовий", "P": "🎬 Роблю хайлайт з цього запису", "k": "✅ Підходить — перенесено в папку публікації", "u": "↩ Повернуто з папки публікації",
               "D": "🗑 Видалено. Повернути — кнопка «🗑 Видалені» в меню", "n": "✅ Цей шортс уже в папці публікації", "c": "Скасовано",
               "v": "Готую відео…", "f": "Надсилаю оригінал…"}
 
@@ -617,7 +643,7 @@ class Bot:
     def on_callback(self, cq: dict):
         """Спливаюче повідомлення-підтвердження на кожну кнопку; довгі дії (відео, оновлення) — одразу."""
         act = cq.get("data", "").partition("|")[0]
-        if act in ("v", "f", "U", "j", "H"):
+        if act in ("v", "f", "U", "j", "H", "P"):
             self._answer(cq, self.TOASTS.get(act))
             self._on_callback(cq)
             return
@@ -645,6 +671,16 @@ class Bot:
             return
         if act == "U":
             self.do_update()
+            return
+        if act == "P":
+            msg = cq.get("message") or {}
+            ch = self.rec_choices.pop(key, None)
+            self.delete_msg(msg.get("message_id"))
+            if not ch:
+                self.send("Цей список уже застарів — натисніть «🎬 Хайлайт» ще раз.")
+                return
+            self.rec_choices.clear()
+            self.start_highlight(ch[0], ch[1], ch[2])
             return
         found = find_short(self.settings, key)
         if not found:

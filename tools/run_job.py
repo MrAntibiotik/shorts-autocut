@@ -149,6 +149,30 @@ def gui(settings, log_file: Path):
         logging.getLogger("run_job").warning("Вкладка Telegram-бота недоступна: %s", e)
     tk.Label(setup, text="Автонарізка шортсів", font=("Segoe UI", 15, "bold")).pack(anchor="w", **pad)
 
+    # папка зі стрімами OBS: звідси «Додати…», пошук перенесених записів і файлів вебки
+    from shorts.config import recordings_dir, save_setting
+    rd_row = tk.Frame(setup)
+    rd_row.pack(fill="x", **pad)
+    tk.Label(rd_row, text="Папка зі стрімами:", font=("Segoe UI", 10, "bold")).pack(side="left")
+    rd_var = tk.StringVar(value=str(recordings_dir(settings)))
+    tk.Entry(rd_row, textvariable=rd_var, state="readonly", font=("Segoe UI", 9)).pack(
+        side="left", fill="x", expand=True, padx=6)
+
+    def pick_rec_dir():
+        d = filedialog.askdirectory(title="Папка, куди OBS записує стріми", initialdir=rd_var.get())
+        if not d:
+            return
+        d = str(Path(d))
+        settings["paths"]["recordings_dir"] = d
+        rd_var.set(d)
+        try:
+            save_setting(("paths", "recordings_dir"), d)
+        except Exception as e:
+            messagebox.showerror("Помилка", f"Не вдалося зберегти в settings.json: {e}")
+
+    tk.Button(rd_row, text="Відкрити", command=lambda: open_folder(rd_var.get())).pack(side="right")
+    tk.Button(rd_row, text="Огляд…", command=pick_rec_dir).pack(side="right", padx=4)
+
     tk.Label(setup, text="Запис(и) стріму:", font=("Segoe UI", 10, "bold")).pack(anchor="w", **pad)
     lst_frame = tk.Frame(setup)
     lst_frame.pack(fill="x", **pad)
@@ -195,9 +219,8 @@ def gui(settings, log_file: Path):
 
     def add_files():
         sel = filedialog.askopenfilenames(title="Оберіть запис(и) стріму", filetypes=VIDEO_TYPES,
-                                          initialdir=state.get("last_dir") or str(Path.home()))
+                                          initialdir=rd_var.get())
         if sel:
-            state["last_dir"] = str(Path(sel[0]).parent)
             add_paths(list(sel))
 
     tk.Button(bcol, text="Додати…", width=12, command=add_files).pack(pady=2)

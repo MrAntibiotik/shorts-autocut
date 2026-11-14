@@ -61,7 +61,10 @@ def find_webcam_file(settings: dict, rec: Path) -> Path | None:
     що відрізняється не більше ніж на 3 с (два записи стартували на межі секунди)."""
     sep = settings["recording"]["separate"]
     suffix = sep.get("webcam_file_suffix", "_webcam")
+    from .config import recordings_dir
     dirs = [rec.parent] + [Path(d) for d in sep.get("webcam_search_dirs") or []]
+    if recordings_dir(settings) not in dirs:
+        dirs.append(recordings_dir(settings))
     exts = (".mkv", ".mp4", ".mov", ".flv")
     for d in dirs:
         for ext in exts:
@@ -121,3 +124,19 @@ def webcam_offset(settings: dict, rec_info, cam_info) -> tuple[float, str]:
         return round(off, 3), f"за звуком (збіг {conf:.1f})"
     except Exception as e:
         return stamp_off, f"за часом у назвах (звук не вдалося порівняти: {e})"
+
+
+VIDEO_EXT = (".mp4", ".mkv", ".mov", ".flv")
+
+
+def recent_videos(settings: dict, limit: int = 6) -> list[Path]:
+    """Найновіші записи гри з папки стрімів (без файлів вебки), новіші — першими."""
+    from .config import recordings_dir
+    d = recordings_dir(settings)
+    suffix = settings["recording"]["separate"].get("webcam_file_suffix", "_webcam").lower()
+    try:
+        vids = [p for p in d.iterdir() if p.is_file() and p.suffix.lower() in VIDEO_EXT
+                and suffix not in p.stem.lower()]
+    except OSError:
+        return []
+    return sorted(vids, key=lambda p: p.stat().st_mtime, reverse=True)[:limit]
