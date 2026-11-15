@@ -1,6 +1,7 @@
-"""Увесь відео-контент — в одній папці на робочому столі, розбитій по каналах:
+"""Увесь відео-контент — в одній папці, розбитій по каналах:
 
-  Робочий стіл\\Контент\\
+  Робочий стіл\\Контент\\   (якщо робочий стіл у OneDrive — «Відео»\\Контент + ярлик «Контент» на робочому столі,
+                          щоб гігабайти відео не синхронізувались у хмару)
     Мій канал\\   Нарізки (результати автонарізки: шортси, звіти; там же _видалені) · Хайлайти · До публікації
     EU-канал\\    Нарізки (шортси з реплеїв) · Записи реплеїв (OBS)
 
@@ -37,10 +38,61 @@ LEGACY_EU = ("", "output_replays_en")
 MIGRATED = ".перенесено_v1"
 
 
+def in_onedrive(p: Path) -> bool:
+    """Папка синхронізується з OneDrive (робочий стіл, перенесений у хмару) — відео туди класти не можна."""
+    return any(part.lower().startswith("onedrive") for part in Path(p).parts)
+
+
 def content_dir(settings: dict) -> Path:
+    """Робочий стіл\\Контент — якщо робочий стіл НЕ в OneDrive. Якщо в OneDrive — файли в «Відео»\\Контент
+    (поза хмарою, поруч зі стрімами), а на робочому столі — лише ярлик «Контент» (desktop_shortcut)."""
     from autocut.core.config import desktop_dir, resolve_path
     d = ((settings.get("paths") or {}).get("content_dir") or "").strip()
-    return resolve_path(d) if d else desktop_dir() / CONTENT
+    if d:
+        return resolve_path(d)
+    desk = desktop_dir()
+    if not in_onedrive(desk):
+        return desk / CONTENT
+    for base in (videos_dir(), Path.home()):
+        if not in_onedrive(base):
+            return base / CONTENT
+    return Path(Path.home().anchor or "C:\\") / CONTENT
+
+
+def videos_dir() -> Path:
+    """Справжня папка «Відео» (Windows може її перенести)."""
+    if os.name == "nt":
+        try:
+            import ctypes
+            buf = ctypes.create_unicode_buffer(260)
+            if ctypes.windll.shell32.SHGetFolderPathW(None, 0x0E, None, 0, buf) == 0 and buf.value:  # CSIDL_MYVIDEO
+                return Path(buf.value)
+        except Exception:  # noqa: BLE001
+            pass
+    return Path.home() / "Videos"
+
+
+def desktop_shortcut(settings: dict) -> Path | None:
+    """Ярлик «Контент» на робочому столі, якщо сама папка — не на ньому (робочий стіл у OneDrive)."""
+    from autocut.core.config import desktop_dir
+    target = content_dir(settings)
+    desk = desktop_dir()
+    if target.parent == desk or os.name != "nt":
+        return None
+    lnk = desk / f"{CONTENT}.lnk"
+    if lnk.exists():
+        return lnk
+    target.mkdir(parents=True, exist_ok=True)
+    import subprocess
+    ps = (f"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}');"
+          f"$s.TargetPath='{target}';$s.Description='Усе відео: Мій канал і EU-канал';$s.Save()")
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, timeout=30,
+                       creationflags=0x08000000)
+    except Exception as e:  # noqa: BLE001
+        log.warning("Ярлик «%s» на робочому столі не створено: %s", CONTENT, e)
+        return None
+    return lnk if lnk.exists() else None
 
 
 def folder(settings: dict, which: str, create: bool = True) -> Path:
@@ -146,6 +198,10 @@ def ensure_migrated(settings: dict, bot_cfg: dict | None = None, replays_dir: Pa
                     log_fn=None) -> list[tuple[Path, Path]]:
     """Безпечний запуск перенесення: не під час обробки, не двічі одночасно (бот і вікно). Помилка — у лог."""
     root = content_dir(settings)
+    try:
+        desktop_shortcut(settings)                         # робочий стіл у OneDrive — там лише ярлик
+    except Exception as e:  # noqa: BLE001
+        log.warning("Ярлик: %s", e)
     if (root / MIGRATED).exists():
         publish_for_poster(settings, bot_cfg)              # Poster завжди знає актуальні папки
         return []

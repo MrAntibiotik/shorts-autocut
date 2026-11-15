@@ -204,6 +204,11 @@ def gui(settings, log_file: Path):
         if not d:
             return
         d = str(Path(d))
+        from autocut.core.content import in_onedrive
+        if in_onedrive(Path(d)) and not messagebox.askyesno(
+                "Папка контенту — OneDrive", f"{d}\nсинхронізується з OneDrive: гігабайти відео підуть у хмару "
+                "(може закінчитись місце OneDrive й інтернет-трафік). Усе одно класти відео сюди?", icon="warning"):
+            return
         if not messagebox.askyesno("Папка контенту", f"Нове відео класти в\n{d}\n\nУже готові файли лишаться на "
                                    "старому місці (їх можна перенести вручну). Продовжити?"):
             return

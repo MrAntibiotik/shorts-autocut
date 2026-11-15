@@ -106,6 +106,21 @@ class ContentTest(unittest.TestCase):
         self.assertEqual(poster["folders"]["highlights"], str(hl))
         self.assertEqual(content.ensure_migrated(self.settings, cfg, replays), [])      # удруге — нічого
 
+    def test_onedrive_desktop_keeps_video_out_of_cloud(self):
+        """Робочий стіл у OneDrive — відео в «Відео»\\Контент (поза хмарою), старі папки звідти теж виносимо."""
+        od = Path(self.tmp.name) / "OneDrive" / "Desktop"
+        (od / "Хайлайти").mkdir(parents=True)
+        (od / "Хайлайти" / "h.mp4").write_bytes(b"h")
+        videos = Path(self.tmp.name) / "Videos"
+        with mock.patch.object(config, "desktop_dir", return_value=od), \
+                mock.patch.object(content, "videos_dir", return_value=videos):
+            self.assertEqual(content.content_dir(self.settings), videos / "Контент")
+            self.assertTrue(content.in_onedrive(od))
+            content.ensure_migrated(self.settings, {}, None)
+            self.assertTrue((videos / "Контент" / "Мій канал" / "Хайлайти" / "h.mp4").exists())
+            self.assertFalse((od / "Хайлайти").exists())
+            self.assertFalse((od / "Контент").exists())            # на робочому столі (у хмарі) — жодного відео
+
     def test_custom_publish_folder_is_left_alone(self):
         self.make_legacy()
         mine = str(Path(self.tmp.name) / "Poster" / "ready")
