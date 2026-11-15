@@ -1,15 +1,5 @@
-"""Зрозумілі користувачу помилки (українською, з порадою, що зробити)."""
+"""Перехідник: модуль перенесено в autocut/core/errors.py (старий імпорт shorts.errors працює далі)."""
+import importlib
+import sys
 
-
-class UserError(Exception):
-    """Помилка, яку бачить користувач: що сталося + що зробити."""
-
-    def __init__(self, message: str, hint: str | None = None):
-        super().__init__(message)
-        self.message = message
-        self.hint = hint
-
-    def __str__(self) -> str:
-        if self.hint:
-            return f"{self.message}\n   Що зробити: {self.hint}"
-        return self.message
+sys.modules[__name__] = importlib.import_module("autocut.core.errors")

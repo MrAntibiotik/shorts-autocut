@@ -1,24 +1,17 @@
-"""Маленьке вікно з повідомленням (для кнопки DaVinci, якщо вбудовані вікна Resolve недоступні)."""
+"""Перехідник: код перенесено в autocut/app/msgbox.py.
 
+Старий шлях tools\\msgbox.py лишено для extra\\*.bat, кнопки DaVinci, автозапуску бота і ярликів.
+"""
+import importlib
+import runpy
 import sys
 from pathlib import Path
 
-
-def main():
-    text = "?"
-    if len(sys.argv) > 1:
-        try:
-            text = Path(sys.argv[1]).read_text(encoding="utf-8")
-        except Exception as e:
-            text = f"Не вдалося прочитати повідомлення: {e}"
-    import tkinter as tk
-    from tkinter import messagebox
-    root = tk.Tk()
-    root.withdraw()
-    root.attributes("-topmost", True)
-    messagebox.showinfo("Автонарізка шортсів", text, parent=root)
-    root.destroy()
-
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 if __name__ == "__main__":
-    main()
+    runpy.run_module("autocut.app.msgbox", run_name="__main__", alter_sys=True)
+else:
+    sys.modules[__name__] = importlib.import_module("autocut.app.msgbox")
