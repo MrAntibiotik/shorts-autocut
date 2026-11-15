@@ -804,7 +804,7 @@ def analyze_readings(readings: list[dict], profile: dict) -> list[Event]:
             if any(e.type == E.BATTLE_START for e in evs):
                 end.reset()
             out += evs
-        if ast is not None and "ast_raw" in r:
+        if ast is not None and "ast_raw" in r and full_counters(r):   # лише коли розкладка рядків однозначна
             for e in ast.update(t, r["ast_raw"]):
                 if e.type == E.HIT:
                     out.append(Event(e.t, E.ASSIST, "vision:засвіт", value=e.value, confidence=1.0,
@@ -1066,6 +1066,11 @@ def _confirmed_final(values: list[int | None], max_jump: int = 6000, need: int =
     return acc
 
 
+def full_counters(r: dict) -> bool:
+    """У кадрі видно всі три рядки блоку лічильників (шкода, заблоковано, засвіт)."""
+    return all(first_number(r.get(k) or "") is not None for k in ("dmg_raw", "blk_raw", "ast_raw"))
+
+
 def add_battle_stats(battles: list[dict], readings: list[dict]) -> None:
     """Підсумки бою з блоку лічильників. Шкода — останнє значення перевіреного лічильника
     (те саме, з якого рахуються влучання); заблоковано і засвіт — лише зростають, з підтвердженням."""
@@ -1076,6 +1081,11 @@ def add_battle_stats(battles: list[dict], readings: list[dict]) -> None:
         b["damage_total"] = b.get("damage_counter") or (b.get("damage_sum") or 0) or None
         for raw_key, out_key in (("blk_raw", "blocked_total"), ("ast_raw", "assist_total")):
             vals = [first_number(r.get(raw_key) or "") for r in rows]
+            if raw_key == "ast_raw":
+                # Рядки блоку лічильників у WoT зсуваються, коли якогось значення немає: тоді в «третьому
+                # рядку» може стояти заблокована шкода. Засвіт рахуємо лише з кадрів, де видно всі три рядки
+                # (шкода, заблоковано, засвіт) — тоді розкладка однозначна.
+                vals = [v if full_counters(r) else None for v, r in zip(vals, rows)]
             b[out_key] = _confirmed_final([v if v is not None and v <= 50000 else None for v in vals])
 
 
