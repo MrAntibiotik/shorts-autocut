@@ -665,6 +665,24 @@ class CameraCheckTest(unittest.TestCase):
             rr.record_one(Path(__file__), None, opts, obs)
         self.assertEqual(len(clicks), 2)                                # рівно один додатковий клік
 
+    def test_real_fixed_camera_message_is_green(self):
+        """Справжній напис гри «Fixed camera activated.» (скриншот) — розпізнається за кольором, навіть без OCR."""
+        import numpy as np
+        from PIL import Image
+        from shorts.replay_record import EndDetector, green_text
+        shot = np.asarray(Image.open(ROOT / "tests" / "data" / "fixed_camera_activated.png").convert("RGB"))
+        H, W = 1440, 2560
+        frame = np.zeros((H, W, 3), np.uint8)
+        frame[:] = (90, 110, 60)
+        big = np.asarray(Image.fromarray(shot).resize((shot.shape[1] * 3, shot.shape[0] * 3)))
+        y, x = int(H * 0.70), W // 2 - big.shape[1] // 2
+        frame[y:y + big.shape[0], x:x + big.shape[1]] = big
+        bgr = frame[..., ::-1].copy()
+        self.assertTrue(green_text(bgr))
+        d = EndDetector()
+        d.text = lambda crop: ""                     # OCR нічого не прочитав — усе одно «зафіксовано»
+        self.assertEqual(d.camera(bgr), "player")
+
     def test_keeps_clicking_until_fixed_camera(self):
         """Напису немає — клікаємо ще, поки не з'явиться «Fixed camera activated» (не здаємося після 1-го кліку)."""
         from unittest import mock

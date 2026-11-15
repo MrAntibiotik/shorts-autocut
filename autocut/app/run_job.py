@@ -571,6 +571,15 @@ def gui(settings, log_file: Path):
               command=start).pack(side="right", padx=10)
     tk.Button(btns, text="Закрити", width=12, command=root.destroy).pack(side="right")
 
+    # версія програми і відкат на збережену (backups\)
+    from autocut.cli import update as _upd
+    tk.Label(btns, text=f"Версія {_upd.code_version()}", fg="#777").pack(side="left")
+
+    def rollback_ui():
+        from autocut.app.rollback_dialog import RollbackDialog
+        RollbackDialog(root)
+    tk.Button(btns, text="⏪ Відкат…", command=rollback_ui).pack(side="left", padx=6)
+
     # ---------------------------------------------------------------- режим розробника («antibiotik»)
     def selected_recording():
         sel = files.curselection()

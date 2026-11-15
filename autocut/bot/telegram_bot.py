@@ -603,20 +603,59 @@ class Bot:
     # -------------------------------------------------------------- оновлення
     UPDATE_BTN = {"inline_keyboard": [[{"text": "🔄 Оновити зараз", "callback_data": "U|go"}]]}
 
+    ROLLBACK_BTN = [{"text": "⏪ Відкотити версію", "callback_data": "B|list"}]
+
     def cmd_update(self):
         from autocut.cli import update
+        here = f"Встановлено: версія {update.code_version()}"
         try:
             lv, rv = update.local_version(), update.remote_version()
         except Exception as e:
-            self.send(f"Не вдалося зв'язатися з GitHub: {e}")
+            self.send(f"{here}\nНе вдалося зв'язатися з GitHub: {e}", {"inline_keyboard": [self.ROLLBACK_BTN]})
             return
         if lv.get("sha") == rv["sha"]:
-            self.send(f"✅ У вас остання версія ({rv['sha'][:7]}: {rv['message']}).")
+            self.send(f"✅ {here} — остання ({rv['sha'][:7]}: {rv['message']}).",
+                      {"inline_keyboard": [self.ROLLBACK_BTN]})
             return
         news = update.changes_since(lv.get("sha"))
-        text = "🔄 Є оновлення" + (f" — змін: {len(news)}:\n" + "\n".join(f"• {c}" for c in news) if news
-                                   else f": {rv['message']}")
-        self.send(text, self.UPDATE_BTN)
+        text = f"{here}\n🔄 Є оновлення" + (f" — змін: {len(news)}:\n" + "\n".join(f"• {c}" for c in news) if news
+                                            else f": {rv['message']}")
+        self.send(text, {"inline_keyboard": self.UPDATE_BTN["inline_keyboard"] + [self.ROLLBACK_BTN]})
+
+    def cmd_rollback(self):
+        """Список збережених версій (backups\\) — кнопкою повернути будь-яку."""
+        from autocut.cli import update
+        items = update.list_backups()
+        if not items:
+            self.send("⏪ Збережених версій ще немає: копія робиться перед кожним оновленням, "
+                      "тож з'явиться після наступного.")
+            return
+        self.rollback_names = {str(i): b["name"] for i, b in enumerate(items)}
+        rows = [[{"text": f"⏪ {b['version']} · {b['created']}" + (f" · {b['message'][:30]}" if b.get("message") else ""),
+                  "callback_data": f"B|{i}"}] for i, b in enumerate(items)]
+        rows.append([{"text": "✖ Скасувати", "callback_data": "X|"}])
+        self.send(f"Зараз версія {update.code_version()}. На яку повернутись? Налаштування, рамки, токен, "
+                  "відео й кеш не змінюються; поточна версія теж збережеться — відкат можна скасувати.",
+                  {"inline_keyboard": rows})
+
+    def do_rollback(self, key: str):
+        from autocut.cli import update
+        name = (getattr(self, "rollback_names", {}) or {}).get(key)
+        if not name:
+            self.send("Список застарів — натисніть «⏪ Відкотити версію» ще раз.")
+            return
+        st = read_status(self.settings) or {}
+        if st.get("status") == "running" and time.time() - float(st.get("heartbeat") or 0) < 120:
+            self.send("⏳ Зараз іде обробка — відкочу, коли закінчиться (натисніть ще раз пізніше).")
+            return
+        try:
+            res = update.restore_backup(name, log=lambda m: None)
+        except Exception as e:
+            self.send(f"❌ Відкат не вдався: {e}")
+            return
+        self.send(f"⏪ Повернуто версію {res['version']}. Бот перезапускається… Вікно програми закрийте й "
+                  "відкрийте знову.")
+        self.restart()
 
     def do_update(self):
         st = read_status(self.settings) or {}
@@ -716,7 +755,7 @@ class Bot:
                 raise
             self._answer(cq, toast)
             return
-        if act in ("v", "f", "U", "j", "H", "P"):
+        if act in ("v", "f", "U", "j", "H", "P", "B"):
             self._answer(cq, self.TOASTS.get(act))
             self._on_callback(cq)
             return
@@ -744,6 +783,14 @@ class Bot:
             return
         if act == "U":
             self.do_update()
+            return
+        if act == "B":
+            msg = cq.get("message") or {}
+            self.delete_msg(msg.get("message_id"))
+            if key == "list":
+                self.cmd_rollback()
+            else:
+                self.do_rollback(key)
             return
         if act == "P":
             msg = cq.get("message") or {}

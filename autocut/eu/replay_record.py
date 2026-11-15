@@ -189,7 +189,9 @@ def green_text(img) -> bool:
         h, w = img.shape[:2]
         crop = np.asarray(img[int(h * 0.55):int(h * 0.92), int(w * 0.2):int(w * 0.8)]).astype(int)
         b, g, r = crop[..., 0], crop[..., 1], crop[..., 2]          # кадр з OBS — у BGR
-        mask = (g >= 170) & (g - r >= 60) & (g - b >= 60)
+        # «Fixed camera activated.» — приблизно RGB(113,181,47): зелений канал 160–195, синій низький.
+        # Трава/кущі жовтіші (R близько до G) і темніші — їх відсікає різниця G-R.
+        mask = (g >= 140) & (g - r >= 45) & (g - b >= 80)
         if mask.sum() < max(40, mask.size * 0.0004):
             return False
         rows = np.where(mask.sum(axis=1) >= 3)[0]
