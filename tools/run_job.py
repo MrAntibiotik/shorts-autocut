@@ -149,7 +149,7 @@ def gui(settings, log_file: Path):
         logging.getLogger("run_job").warning("Вкладка Telegram-бота недоступна: %s", e)
     try:
         from replays_tab import build_replays_tab
-        nb.add(build_replays_tab(nb, settings), text="  🎮 Реплеї  ")
+        nb.add(build_replays_tab(nb, settings), text="  🇬🇧 EU: реплеї  ")
     except Exception as e:  # так само: вкладка реплеїв не повинна ламати основне вікно
         logging.getLogger("run_job").warning("Вкладка «Реплеї» недоступна: %s", e)
     tk.Label(setup, text="Автонарізка шортсів", font=("Segoe UI", 15, "bold")).pack(anchor="w", **pad)

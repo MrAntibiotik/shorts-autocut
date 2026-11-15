@@ -55,8 +55,8 @@ class RecordOptions:
     click_at: tuple = ("load-5",)   # 55 с від запуску гри
     tail_s: float = 20.0          # після кінця бою (запасний варіант, якщо кінець не розпізнано)
     detect_end: bool = True       # бачити кінець бою на екрані (знімок з OBS + розпізнавання тексту)
-    check_camera: bool = True     # після кліку прочитати напис унизу: вільна камера → клікнути ще раз
-    max_camera_clicks: int = 3
+    check_camera: bool = True     # після кліку прочитати напис унизу: поки немає «Fixed camera activated» — клікати ще
+    max_camera_clicks: int = 8
     end_tail_s: float = 4.0       # скільки ще писати після «Перемога» / «Відтворення… закінчено»
     default_battle_s: float = 900  # якщо тривалість у реплеї невідома (бій не дограно)
     max_s: float = 1500
@@ -151,17 +151,25 @@ END_WORDS = ("відтворення запису", "запису бою зак�
 # Ліва кнопка в реплеї перемикає камеру: вільний огляд ↔ за напрямком гравця («фіксація камери»).
 # Точний напис залежить від мови й версії клієнта — шукаємо корені слів і стан (увімкнено / вимкнено).
 CAM_FREE = ("вільн", "свобод", "free")                          # вільна камера
-CAM_LOCK = ("фікс", "закріп", "прив'яз", "привяз", "lock", "слідк", "слеж", "follow")   # прив'язка до гравця
+CAM_LOCK = ("фікс", "фиксир", "закріп", "прив'яз", "привяз", "fixed", "fix cam", "lock", "слідк", "слеж",
+            "follow")   # прив'язка до гравця: «Fixed camera activated.»
 CAM_PLAYER = ("першої особи", "першого лиця", "первого лица", "first person", "first-person",
               "від гравця", "камера гравця", "player camera", "від обличчя")
 CAM_ON = ("увімкн", "включ", "активн", " on", "enabled", "activated")
 CAM_OFF = ("вимкн", "выключ", "відключ", "отключ", " off", "disabled", "deactivated")
 
 
+CAM_SHOT_W = 2560   # знімок для напису про камеру — більший, бо напис дрібний (на 3440×1440 при 1280 не читається)
+
+
 def camera_state(text: str) -> str | None:
     """«free» — вільна камера, «player» — за гравцем, None — напису про камеру немає."""
     t = f" {(text or '').lower()} "
-    on, off = any(w in t for w in CAM_ON), any(w in t for w in CAM_OFF)
+    off = any(w in t for w in CAM_OFF)
+    t_on = t
+    for w in CAM_OFF:                       # «deactivated» містить «activated», «выключ» — «включ»
+        t_on = t_on.replace(w, " ")
+    on = any(w in t_on for w in CAM_ON)
     if any(w in t for w in CAM_PLAYER):
         return "free" if off and not on else "player"
     if any(w in t for w in CAM_FREE):
@@ -218,11 +226,13 @@ class EndDetector:
             return ""
 
     def camera(self, img, bottom: float = 0.4) -> str | None:
-        """Напис унизу екрана після кліку: «free» — вільна камера, «player» — від першої особи, None — немає."""
+        """Напис унизу екрана після кліку («Fixed camera activated.» — зелений над панеллю снарядів):
+        «free» — вільна камера, «player» — зафіксована за гравцем, None — напису немає."""
         if img is None:
             return None
-        try:
-            crop = img[int(img.shape[0] * (1 - bottom)):, :]
+        try:   # центр знизу: там напис; менша ділянка — точніше розпізнавання дрібного тексту
+            h, w = img.shape[:2]
+            crop = img[int(h * (1 - bottom)):int(h * 0.97), int(w * 0.25):int(w * 0.75)]
         except Exception:  # noqa: BLE001
             crop = img
         self.last_text = self.text(crop)
@@ -646,36 +656,39 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
             while clicks and time.time() - launched >= clicks[0]:   # камера від обличчя гравця
                 clicks.pop(0)
                 if cam and not cam_clicks:                          # зелене було ще до кліку — йому не віримо
-                    cam.green_before = green_text(obs.screenshot())
+                    cam.green_before = green_text(obs.screenshot(width=CAM_SHOT_W))
                 click_player_view()
                 cam_clicks += 1
                 now = time.time()
                 cam_checks = [now + 1.5, now + 3.0, now + 4.5, now + 6.0] if cam else []
             if cam_checks and time.time() >= cam_checks[0]:            # який напис з'явився після кліку?
                 cam_checks.pop(0)
-                state = cam.camera(obs.screenshot())
+                state = cam.camera(obs.screenshot(width=CAM_SHOT_W))
                 seen = (getattr(cam, "last_text", "") or "").strip()
                 if state and on_camera:
                     on_camera(state, seen)
                 if state:
                     log.info("Напис про камеру: «%s» → %s", seen[:120], state)
                 if state == "player":
-                    log.info("Камера від першої особи — так і лишаю")
+                    log.info("Камеру зафіксовано за гравцем — так і лишаю")
                     cam_checks = []
-                elif state == "free":
+                elif state == "free" or not cam_checks:
+                    # вільна камера або «Fixed camera activated» так і не з'явився — клікаємо ще (лівою кнопкою)
                     if cam_clicks < opts.max_camera_clicks:
-                        log.info("Увімкнулась вільна камера — клікаю ще раз")
+                        log.info("%s — клікаю ще раз (%d/%d)", "Увімкнулась вільна камера" if state == "free" else
+                                 "Напису «Fixed camera activated» немає", cam_clicks + 1, opts.max_camera_clicks)
+                        cam.green_before = green_text(obs.screenshot(width=CAM_SHOT_W))
                         click_player_view()
                         cam_clicks += 1
                         now = time.time()
-                        cam_checks = [now + 1.5, now + 3.0, now + 4.5, now + 6.0]
+                        cam_checks = [now + 1.0, now + 2.0, now + 3.0, now + 4.5]
+                        if on_camera and state == "free":
+                            on_camera("free", seen)
                     else:
-                        log.warning("Камера лишилась вільною після %d кліків", cam_clicks)
+                        log.warning("Камера не зафіксувалась після %d кліків", cam_clicks)
                         cam_checks = []
-                elif not cam_checks:
-                    log.info("Напис про камеру не знайдено — лишаю як є")
-                    if on_camera:
-                        on_camera(None, seen)
+                        if on_camera:
+                            on_camera(None, seen)
             if time.time() - last_check >= 15:                       # OBS справді пише?
                 last_check = time.time()
                 try:

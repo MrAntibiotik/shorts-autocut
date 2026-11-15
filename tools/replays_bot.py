@@ -1,4 +1,4 @@
-"""Реплеї в Telegram-боті автонарізки (кнопка «🎮 Реплеї»).
+"""Реплеї в Telegram-боті автонарізки (кнопка «🇬🇧 EU: реплеї»).
 
 • Фільтр сайту wot-record.com кнопками: рівень, тип, майстерність, нації, сортування, мінімальна шкода.
   Кнопка «🌐 Відкрити підбірку» відкриває сайт з цим фільтром прямо на телефоні.
@@ -6,7 +6,7 @@
   (версія гри, бій дограно, шкода/фраги) і покладе в чергу на ПК.
 • «🎬 Записати зібрані» — запис через гру й OBS на ПК, нарізка, передача в Poster EN-каналу.
   Або сам, коли нових реплеїв не було N хв (як у вкладці).
-Фільтр і налаштування — спільні з вкладкою «🎮 Реплеї» (work/replays_state.json).
+Фільтр і налаштування — спільні з вкладкою «🇬🇧 EU: реплеї» (work/replays_state.json).
 """
 
 from __future__ import annotations
@@ -145,12 +145,12 @@ class ReplaysBot:
         game_ver = f"{cv[0]}.{cv[1]}" if len(cv) >= 2 else ""
         if game_ver and ver and game_ver != ver:
             no_game += (f"⚠️ Ваша гра — {game_ver}, а реплеї — {ver}: реплеї іншої версії гра не відкриває. "
-                        "Оновіть гру (або виберіть свою версію у вкладці «🎮 Реплеї»).\n")
+                        "Оновіть гру (або виберіть свою версію у вкладці «🇬🇧 EU: реплеї»).\n")
         if ver and src != "найновіша" and not site_knows(ver) and newest and newest != ver:
             no_game += (f"⚠️ {'Ваша гра' if src == 'ваша гра' else 'Вибрана версія'} — {ver}, а на сайті такої версії "
                         f"немає (найновіша там {newest}). Список показую без фільтра версії; реплеї з сайту у вашій грі "
                         "можуть не відкритися — бот відхилятиме їх як «інша версія гри».\n")
-        return ("🎮 Реплеї для EN-каналу\n\n"
+        return ("🇬🇧 EU-канал · шортси з реплеїв (у твій канал не потрапляють)\n\n"
                 f"Фільтр: {' · '.join(parts) or 'усі бої'}\n"
                 f"Сортування: {sorts.get(st.get('sort') or 'date', st.get('sort'))} · версія: "
                 f"{ver + ' (' + self.version_info(st)[2] + ')' if ver else 'будь-яка'}\n"
@@ -191,9 +191,10 @@ class ReplaysBot:
             [b(f"🌍 Нації{f' ({n_nat})' if n_nat else ''}", "v:nation"), b(f"↕ {sort_label}", "s")],
             [b(f"💥 Шкода від {fmt_n(md) if md else '—'}", "ask:min_damage"),
              b(f"🔦 Засвіт від {fmt_n(ma) if ma else '—'}", "ask:min_assist")],
-            [b("📋 Показати бої", "list:1"),
-             {"text": "🌐 На сайті", "url": build_url(self.selection(st), sort=st.get("sort") or "date")}],
-            [b(f"🎬 Записати зібрані ({self.pending(st)})", "go"), b("🔄", "ref"), b("♻ Скинути", "r")],
+            [b("📋 Бої за фільтром", "list:1"),
+             {"text": "🌐 Відкрити на сайті", "url": build_url(self.selection(st), sort=st.get("sort") or "date")}],
+            [b(f"🎬 EU: записати й нарізати зібрані ({self.pending(st)})", "go")],
+            [b("🔄 Оновити цей екран", "ref"), b("♻ Скинути фільтр", "r")],
         ]
         return {"inline_keyboard": rows}
 
@@ -291,7 +292,7 @@ class ReplaysBot:
             return
         if int(doc.get("file_size") or 0) > MAX_FILE:
             self.bot.send("Файл завеликий для Telegram-бота (понад 20 МБ). Скачайте його на ПК — "
-                          "вкладка «🎮 Реплеї» забере з «Завантажень».")
+                          "вкладка «🇬🇧 EU: реплеї» забере з «Завантажень».")
             return
         info_ = self.bot.api.call("getFile", file_id=doc["file_id"])
         url = self.bot.api.base.replace("/bot", "/file/bot", 1) + info_["file_path"]
@@ -337,7 +338,7 @@ class ReplaysBot:
         foreign = not mine and busy(replays_dir, own_running=False)    # залишки обірваного запису знімаються
         running = mine or foreign
         ahead = self.pending(st) - 1
-        queue = ("чекає: запис іде з вкладки «🎮 Реплеї» на ПК — почнеться, щойно та закінчить "
+        queue = ("чекає: запис іде з вкладки «🇬🇧 EU: реплеї» на ПК — почнеться, щойно та закінчить "
                  "(або «⏹ Зупинити запис»)" if foreign else
                  f"у черзі на запис, перед ним: {ahead}" if running and ahead > 0 else
                  "чекає, доки закінчиться запис іншого бою" if running else "")
@@ -520,8 +521,8 @@ class ReplaysBot:
             self.bot.send(f"⚠️ Шортси з реплеїв не віддано в EN-канал: {e}")
             return 0
         if caught:
-            self.bot.send(f"📤 У чергу EN-каналу Poster віддано {len(caught)} шортсів з реплеїв, змонтованих раніше "
-                          "(тоді папку EN-каналу ще не було видно). В основний канал вони не потрапляють.")
+            self.bot.send(f"🇬🇧 EU: у чергу EU-каналу Poster віддано {len(caught)} шортсів з реплеїв, змонтованих раніше "
+                          "(тоді папку EU-каналу ще не було видно). У твій канал вони не потрапляють.")
         return len(caught)
 
     def _work(self, st: dict) -> None:

@@ -612,6 +612,9 @@ class CameraCheckTest(unittest.TestCase):
             "Free camera: disabled": "player",
             "Вид від першої особи увімкнено": "player",
             "15 / 0 / 2": None,
+            "Fixed camera activated.": "player",          # саме так пише гра (англ. клієнт)
+            "Fixed camera deactivated.": "free",
+            "Фіксовану камеру активовано": "player",
         }
         for text, want in cases.items():
             self.assertEqual(camera_state(text), want, text)
@@ -661,6 +664,30 @@ class CameraCheckTest(unittest.TestCase):
                 mock.patch.object(rr.time, "sleep", side_effect=lambda s: clock.__setitem__("t", clock["t"] + s)):
             rr.record_one(Path(__file__), None, opts, obs)
         self.assertEqual(len(clicks), 2)                                # рівно один додатковий клік
+
+    def test_keeps_clicking_until_fixed_camera(self):
+        """Напису немає — клікаємо ще, поки не з'явиться «Fixed camera activated» (не здаємося після 1-го кліку)."""
+        from unittest import mock
+        from shorts import replay_record as rr
+        clock = {"t": 1000.0}
+        opts = rr.RecordOptions(game_dir=Path("."), load_s=5, click_at=("10",), tail_s=0, default_battle_s=60,
+                                max_s=80, detect_end=False)
+        obs = mock.Mock()
+        obs.status.return_value = (True, "00:00:10")
+        obs.stop.return_value = __file__
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        # 1-й і 2-й кліки — нічого не видно (4 перевірки кожен), 3-й — «Fixed camera activated.»
+        answers = iter([None] * 8 + ["player"])
+        clicks = []
+        with mock.patch.object(rr, "game_exe", return_value=Path(__file__)), \
+                mock.patch.object(rr.subprocess, "Popen", return_value=proc), mock.patch.object(rr, "kill_game"), \
+                mock.patch.object(rr.EndDetector, "camera", lambda self, img: next(answers, None)), \
+                mock.patch.object(rr, "click_player_view", side_effect=lambda: clicks.append(clock["t"])), \
+                mock.patch.object(rr.time, "time", side_effect=lambda: clock["t"]), \
+                mock.patch.object(rr.time, "sleep", side_effect=lambda s: clock.__setitem__("t", clock["t"] + s)):
+            rr.record_one(Path(__file__), None, opts, obs)
+        self.assertEqual(len(clicks), 3)                                # клікав, поки не зафіксувалась
 
     def test_replay_shorts_go_to_separate_output(self):
         from unittest import mock
