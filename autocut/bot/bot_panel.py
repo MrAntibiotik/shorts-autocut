@@ -19,6 +19,7 @@ sys.path.insert(0, str(TOOLS))
 from autocut.bot.setup_telegram import STARTUP_LNK, bot_running, make_startup, start_bot, stop_bot  # noqa: E402
 from autocut.bot.telegram_bot import TgApi, load_cfg, save_cfg  # noqa: E402
 from autocut.core.config import output_dir, work_dir  # noqa: E402
+from autocut.core.content import folder as content_folder  # noqa: E402
 
 
 def build_bot_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
@@ -51,7 +52,7 @@ def build_bot_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
                  f"Власник (ваш Telegram ID): {owner}" if owner else
                  ("Власник: ще ні — напишіть боту /start" if c.get("token") else ""),
                  f"Автозапуск з Windows: {'так' if STARTUP_LNK.exists() else 'ні'}",
-                 f"Папка публікації: {c.get('publish_dir') or output_dir(settings) / '_до_публікації'}"]
+                 f"Папка публікації: {c.get('publish_dir') or content_folder(settings, 'publish', create=False)}"]
         lbl_info.config(text="\n".join(x for x in lines if x))
         v_auto.set(STARTUP_LNK.exists())
 
@@ -207,7 +208,7 @@ def build_bot_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
     prow = tk.Frame(ob)
     prow.pack(fill="x", pady=(0, 4))
     e_pub = tk.Entry(prow, width=62)
-    e_pub.insert(0, cfg.get("publish_dir") or str(output_dir(settings) / "_до_публікації"))
+    e_pub.insert(0, cfg.get("publish_dir") or str(content_folder(settings, 'publish', create=False)))
     e_pub.pack(side="left", padx=(0, 6))
 
     def pick_pub():

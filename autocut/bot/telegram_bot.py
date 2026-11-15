@@ -179,7 +179,8 @@ class Marks:
 
 
 def publish_dir(settings: dict, cfg: dict) -> Path:
-    d = Path(cfg["publish_dir"]) if cfg.get("publish_dir") else output_dir(settings) / "_до_публікації"
+    from autocut.core.content import folder
+    d = Path(cfg["publish_dir"]) if cfg.get("publish_dir") else folder(settings, "publish")
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -1004,6 +1005,26 @@ class Bot:
             self.send(f"❌ Обробка завершилась з помилкою: {st.get('message', '')}", ttl=TTL_ERROR)
         self.update_card(force=True)
 
+    def migrate_content(self) -> None:
+        """Один раз: старі папки з відео → Робочий стіл\\Контент (Мій канал / EU-канал), шляхи переписано."""
+        from autocut.core.content import content_dir, ensure_migrated
+        rdir = None
+        try:
+            if self.replays is not None:
+                rdir = Path(self.replays.state()["replays_dir"])
+        except Exception:  # noqa: BLE001
+            pass
+        before = self.cfg.get("publish_dir")
+        moves = ensure_migrated(self.settings, self.cfg, rdir, log_fn=log.info)
+        if self.cfg.get("publish_dir") != before:
+            save_cfg(self.cfg)
+        if moves and self.owner is not None:
+            self.send("📁 Усе відео тепер в одному місці: " + str(content_dir(self.settings)) + "\n"
+                      "  🎬 Мій канал: Нарізки · Хайлайти · До публікації\n"
+                      "  🇬🇧 EU-канал: Нарізки · Записи реплеїв\n"
+                      f"Перенесено папок: {len(moves)}; шляхи в історії оновлено. Poster підхопить нові папки сам.",
+                      ttl=TTL_ERROR)
+
     # -------------------------------------------------------------- картка статусу й прибирання
     def update_card(self, force: bool = False, bottom: bool = False) -> None:
         """Одна картка статусу внизу чату. Змінився текст — редагуємо на місці; з'явились нові шортси
@@ -1106,6 +1127,7 @@ class Bot:
         except Exception as e:
             log.warning("setMyCommands: %s", e)
         log.info("Бот запущено, власник: %s", self.owner)
+        self.migrate_content()
         if self.owner is not None:
             try:
                 self.reconcile()

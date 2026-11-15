@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
 
 from autocut.bot.telegram_bot import CFG_FILE, LOCK_PORT, TgApi, load_cfg, save_cfg  # noqa: E402
+from autocut.core.content import folder as content_folder  # noqa: E402
 
 STARTUP_LNK = Path(os.environ.get("APPDATA", "")) / "Microsoft/Windows/Start Menu/Programs/Startup/Shorts Telegram Bot.lnk"
 
@@ -47,7 +48,7 @@ def make_startup(on: bool) -> None:
 
 def ask_publish_dir(cfg: dict) -> None:
     from autocut.core.config import load_settings, output_dir
-    default = cfg.get("publish_dir") or str(output_dir(load_settings()) / "_до_публікації")
+    default = cfg.get("publish_dir") or str(content_folder(load_settings(), "publish", create=False))
     print("\nПапка для шортсів, що підходять для публікації (кнопка «✅ Підходить» у боті переносить туди MP4).")
     a = input(f"Шлях (Enter = {default}): ").strip().strip('"')
     path = Path(a or default)
@@ -105,7 +106,7 @@ def main() -> int:
     if cfg.get("token"):
         print(f"Бот уже налаштований (власник: {cfg.get('owner_id')}).")
         if not yes("Налаштувати заново (новий токен)?", False):
-            cur = cfg.get("publish_dir") or "output\\_до_публікації"
+            cur = cfg.get("publish_dir") or "Контент\\Мій канал\\До публікації"
             if yes(f"Змінити папку публікації ({cur})?", False):
                 ask_publish_dir(cfg)
                 save_cfg(cfg)

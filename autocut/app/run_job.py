@@ -129,6 +129,18 @@ def gui(settings, log_file: Path):
         except UserError:
             names[p] = p
 
+    try:   # один раз: старі папки з відео → Робочий стіл\Контент (і для Poster — карта перенесень)
+        from autocut.bot.telegram_bot import load_cfg, save_cfg
+        from autocut.core.content import ensure_migrated
+        from autocut.eu.replay_state import load as load_replays
+        bcfg = load_cfg()
+        before = bcfg.get("publish_dir")
+        rdir = Path(load_replays(settings).get("replays_dir") or "") or None
+        if ensure_migrated(settings, bcfg, rdir) and bcfg.get("publish_dir") != before:
+            save_cfg(bcfg)
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger("run_job").warning("Перенесення в «Контент»: %s", e)
+
     root = tk.Tk()
     root.title("Автонарізка шортсів")
     root.geometry("780x760")
@@ -178,33 +190,34 @@ def gui(settings, log_file: Path):
     tk.Button(rd_row, text="Відкрити", command=lambda: open_folder(rd_var.get())).pack(side="right")
     tk.Button(rd_row, text="Огляд…", command=pick_rec_dir).pack(side="right", padx=4)
 
-    # папка для готових хайлайтів (за замовчуванням Робочий стіл\Хайлайти)
-    from autocut.core.config import highlights_dir
+    # уся папка з відео (обидва канали): Робочий стіл\Контент\{Мій канал, EU-канал}\…
+    from autocut.core.content import content_dir
     hd_row = tk.Frame(setup)
     hd_row.pack(fill="x", **pad)
-    tk.Label(hd_row, text="Папка хайлайтів:", font=("Segoe UI", 10, "bold")).pack(side="left")
-    try:
-        hd_val = str(highlights_dir(settings))
-    except OSError:
-        hd_val = settings["paths"].get("highlights_dir") or ""
-    hd_var = tk.StringVar(value=hd_val)
+    tk.Label(hd_row, text="Папка контенту:", font=("Segoe UI", 10, "bold")).pack(side="left")
+    hd_var = tk.StringVar(value=str(content_dir(settings)))
     tk.Entry(hd_row, textvariable=hd_var, state="readonly", font=("Segoe UI", 9)).pack(
         side="left", fill="x", expand=True, padx=6)
 
-    def pick_hl_dir():
-        d = filedialog.askdirectory(title="Куди класти готові хайлайти", initialdir=hd_var.get())
+    def pick_content_dir():
+        d = filedialog.askdirectory(title="Де тримати все відео (Мій канал і EU-канал)", initialdir=hd_var.get())
         if not d:
             return
         d = str(Path(d))
-        settings["paths"]["highlights_dir"] = d
+        if not messagebox.askyesno("Папка контенту", f"Нове відео класти в\n{d}\n\nУже готові файли лишаться на "
+                                   "старому місці (їх можна перенести вручну). Продовжити?"):
+            return
+        settings["paths"]["content_dir"] = d
         hd_var.set(d)
         try:
-            save_setting(("paths", "highlights_dir"), d)
+            save_setting(("paths", "content_dir"), d)
         except Exception as e:
             messagebox.showerror("Помилка", f"Не вдалося зберегти в settings.json: {e}")
 
     tk.Button(hd_row, text="Відкрити", command=lambda: open_folder(hd_var.get())).pack(side="right")
-    tk.Button(hd_row, text="Огляд…", command=pick_hl_dir).pack(side="right", padx=4)
+    tk.Button(hd_row, text="Огляд…", command=pick_content_dir).pack(side="right", padx=4)
+    tk.Label(setup, text="    Мій канал: Нарізки · Хайлайти · До публікації        EU-канал: Нарізки · Записи реплеїв",
+             fg="#666", font=("Segoe UI", 9)).pack(anchor="w", padx=10)
 
     tk.Label(setup, text="Запис(и) стріму:", font=("Segoe UI", 10, "bold")).pack(anchor="w", **pad)
     lst_frame = tk.Frame(setup)

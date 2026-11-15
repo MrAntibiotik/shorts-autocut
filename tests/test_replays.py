@@ -369,10 +369,13 @@ class ObsLaunchTest(unittest.TestCase):
         self.assertFalse(rr.obs_ours())
 
     def test_default_record_dir_on_desktop(self):
+        """Записи реплеїв — у спільній папці контенту: Робочий стіл\\Контент\\EU-канал\\Записи реплеїв."""
+        import tempfile
         from unittest import mock
         from shorts import replay_record as rr
-        with mock.patch.object(rr, "desktop_dir", return_value=Path("C:/Users/x/OneDrive/Desktop")):
-            self.assertEqual(rr.default_record_dir(), Path("C:/Users/x/OneDrive/Desktop") / "wot replays eu")
+        import autocut.core.config as cfg
+        with tempfile.TemporaryDirectory() as t, mock.patch.object(cfg, "desktop_dir", return_value=Path(t)):
+            self.assertEqual(rr.default_record_dir(), Path(t) / "Контент" / "EU-канал" / "Записи реплеїв")
 
     def test_no_obs_exe_gives_clear_error(self):
         from unittest import mock
@@ -725,7 +728,11 @@ class CameraCheckTest(unittest.TestCase):
                 replay_job.cut_recording(st, Path(t) / "rec.mkv", "cta")
         self.assertTrue(seen["out"].endswith("output_replays_en"))
         self.assertNotIn(str(Path(t) / "output") + "/", seen["out"] + "/x")   # не всередині output
-        self.assertEqual(Path(replay_job.replays_output_dir({"paths": {}})).name, "output_replays_en")
+        import autocut.core.config as cfg
+        with tempfile.TemporaryDirectory() as t2, mock.patch.object(cfg, "desktop_dir", return_value=Path(t2)):
+            d = Path(replay_job.replays_output_dir({"paths": {}}))
+            self.assertEqual(d, Path(t2) / "Контент" / "EU-канал" / "Нарізки")       # контент EU — окремо
+            self.assertEqual((d / ".poster_channel").read_text(encoding="utf-8"), "en")
 
 
 class ImportSeenTest(unittest.TestCase):

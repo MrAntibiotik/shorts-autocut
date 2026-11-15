@@ -403,8 +403,13 @@ def desktop_dir() -> Path:
 
 
 def default_record_dir() -> Path:
-    """Типова папка записів реплеїв: «wot replays eu» на робочому столі."""
-    return desktop_dir() / RECORD_FOLDER
+    """Типова папка записів реплеїв: …\\Контент\\EU-канал\\Записи реплеїв (усе відео — в одному місці)."""
+    try:
+        from autocut.core.config import load_settings
+        from autocut.core.content import folder
+        return folder(load_settings(), "eu_records")
+    except Exception:  # noqa: BLE001
+        return desktop_dir() / RECORD_FOLDER
 
 
 OBS_PROCESSES = ("obs64.exe", "obs32.exe", "obs.exe")

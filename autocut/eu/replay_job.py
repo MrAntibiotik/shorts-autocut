@@ -176,7 +176,9 @@ def replays_output_dir(settings: dict) -> Path:
     """Окрема папка для шортсів з реплеїв (НЕ всередині output): основний Poster, який стежить за output,
     їх не бачить — вони йдуть лише в папку EN-каналу."""
     from autocut.core.config import resolve_path
-    d = resolve_path((settings.get("paths") or {}).get("replays_output_dir") or "output_replays_en")
+    from autocut.core.content import LEGACY_EU, folder
+    v = str((settings.get("paths") or {}).get("replays_output_dir") or "")
+    d = folder(settings, "eu_cuts") if v in LEGACY_EU else resolve_path(v)   # …\\Контент\\EU-канал\\Нарізки
     d.mkdir(parents=True, exist_ok=True)
     mark = d / ".poster_channel"          # Poster основного каналу таку папку обходить (навіть без json у шортсах)
     if not mark.exists():

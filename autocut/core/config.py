@@ -31,6 +31,7 @@ DEFAULT_SETTINGS: dict = {
         "output_dir": "output",
         "models_dir": "models",
         "recordings_dir": "",
+        "content_dir": "",             # уся папка з відео; "" — Робочий стіл\\Контент (Мій канал \\ EU-канал)
         "highlights_dir": "",          # куди класти хайлайти; "" — Робочий стіл\\Хайлайти          # папка зі стрімами (OBS); "" — Відео користувача (C:\\Users\\<ім'я>\\Videos)
     },
     "recording": {
@@ -398,15 +399,13 @@ def desktop_dir() -> Path:
 
 
 def highlights_dir(settings: dict) -> Path:
-    """Папка для готових хайлайтів (за замовчуванням Робочий стіл\\Хайлайти)."""
-    d = (settings.get("paths") or {}).get("highlights_dir") or ""
-    d = resolve_path(d) if d else desktop_dir() / "Хайлайти"
-    d.mkdir(parents=True, exist_ok=True)
-    return d
+    """Папка для готових хайлайтів: Робочий стіл\\Контент\\Мій канал\\Хайлайти (див. core/content.py)."""
+    from autocut.core.content import folder
+    return folder(settings, "highlights")
 
 
 def highlight_path(settings: dict, job_name: str, tag: str, battle_dir: str) -> Path:
-    """Робочий стіл\\Хайлайти\\2026-11-13 23-38 · rec1 · <бій>.mp4"""
+    """…\\Контент\\Мій канал\\Хайлайти\\2026-11-13 23-38 · rec1 · <бій>.mp4"""
     import re
     m = re.match(r"job_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})", job_name)
     date = f"{m[1]}-{m[2]}-{m[3]} {m[4]}-{m[5]}" if m else job_name
@@ -432,7 +431,12 @@ def work_dir(settings: dict) -> Path:
 
 
 def output_dir(settings: dict) -> Path:
-    d = resolve_path(settings["paths"]["output_dir"])
+    """Результати автонарізки мого каналу: …\\Контент\\Мій канал\\Нарізки (якщо output_dir не вибрано вручну)."""
+    from autocut.core.content import LEGACY_OUTPUT, folder
+    v = str(settings["paths"].get("output_dir") or "")
+    if v in LEGACY_OUTPUT:
+        return folder(settings, "main_cuts")
+    d = resolve_path(v)
     d.mkdir(parents=True, exist_ok=True)
     return d
 
