@@ -252,6 +252,10 @@ DEFAULT_PROFILE: dict = {
         "compact_pre_s": 1.5,
         "compact_post_s": 3.5,
         "confirmed_first": True,
+        "short_early_shots": True,   # довгий бій: ранні постріли — «вистріл + шкода», останні — повністю
+        "tail_full_shots": 3,
+        "shot_pre_s": 2.0,
+        "shot_post_s": 1.5,
         "vad_margin_db": 10,
         "max_shorts": 0,
     },

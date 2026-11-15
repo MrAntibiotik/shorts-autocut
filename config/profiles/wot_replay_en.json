@@ -287,7 +287,11 @@
     "min_hits": 1,
     "compact_pre_s": 1.5,
     "compact_post_s": 3.5,
-    "confirmed_first": true
+    "confirmed_first": true,
+    "short_early_shots": true,
+    "tail_full_shots": 3,
+    "shot_pre_s": 2.0,
+    "shot_post_s": 1.5
   },
   "layout": {
     "_опис": "Макет шортсу 1080×1920. preset: overlay — гра на весь кадр, вебкамера поверх неї зверху; split — вебкамера смугою зверху, гра під нею. webcam_fit: contain — вебкамера ціла, без обрізання (висота — за її пропорціями; webcam_height > 0 — найбільша висота), cover — заповнити рамку з обрізанням. game_below_webcam — зсунути сцену вниз, щоб приціл був посередині видимої частини під камерою. Числа — пікселі кадру 1080×1920. game_zoom — додаткове збільшення гри; game_offset_x/y — зсув центру гри (частка кадру запису). counters — блок лічильників (V3): anchor: left_middle — зліва посередині (margin — відступ від краю, offset_y — зсув вгору/вниз), right_middle — справа посередині, below_webcam — одразу під вебкамерою (align, gap), absolute — за x/y, height — висота блоку в шортсі. subtitles_y — висота центру субтитрів. cta_y — висота центру заклику (0 = як у settings.json).",

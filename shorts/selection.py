@@ -202,6 +202,49 @@ def _pack(order: list[Event], cfg: dict, max_score: float, rec_start: float, rec
     return chosen
 
 
+def _pack_shots(shots: list[Event], final: Event | None, cfg: dict, max_score: float, rec_start: float,
+                rec_end: float, limit: float, gap: float) -> list[Segment]:
+    """Довгий бій, де всі постріли не влазять навіть із коротким запасом:
+    • останні tail_full_shots пострілів (і фінал бою) — з повним запасом, як завжди;
+    • усі попередні — коротко: момент вистрілу + сповіщення про шкоду (shot_pre_s до, shot_post_s після);
+    • якщо й так задовго — спершу викидаємо найслабші ранні постріли, потім коротшаємо «хвіст»."""
+    by_time = sorted(shots, key=lambda e: e.t)
+    pre, post = float(cfg.get("shot_pre_s", 2.0)), float(cfg.get("shot_post_s", 1.5))
+    n_max = max(0, int(cfg.get("tail_full_shots", 3)))
+    tail: list[Event] = []
+
+    def split(n: int) -> list[Event]:
+        tail[:] = by_time[-n:] if n else []
+        if final is not None and final not in tail:
+            tail.append(final)
+        return [e for e in by_time if e not in tail]
+
+    def build(early_evs: list[Event], compact_tail: bool) -> list[Segment]:
+        segs = []
+        for e in tail:
+            a, b = _window(e, cfg, max_score, compact=compact_tail)
+            segs.append(Segment(max(rec_start, a), min(rec_end, b), [e]))
+        for e in early_evs:
+            segs.append(Segment(max(rec_start, e.t - pre), min(rec_end, e.t + post), [e]))
+        return _merge(segs, min(gap, 1.0))   # короткі шматки зливаємо лише впритул, щоб не тягнути паузи
+
+    # 1) усі ранні постріли коротко + останні 3, потім 2 — повністю («як раніше»)
+    for n in sorted({n_max, min(n_max, 2)}, reverse=True):
+        segs = build(split(n), False)
+        if _total(segs) <= limit:
+            return segs
+    # 2) не влазить — викидаємо найслабші РАННІ постріли (кінець бою лишається)
+    for compact_tail in (False, True):
+        keep = split(min(n_max, 2))
+        segs = build(keep, compact_tail)
+        while _total(segs) > limit and keep:
+            keep.remove(min(keep, key=lambda e: float(e.extra.get("score", 0))))
+            segs = build(keep, compact_tail)
+        if _total(segs) <= limit:
+            return segs
+    return cap_segments(segs, limit)
+
+
 def _covered(segs: list[Segment], evs: list[Event]) -> int:
     return sum(1 for e in evs if any(s.start <= e.t <= s.end for s in segs))
 
@@ -255,6 +298,14 @@ def select_battle(battle: dict, cfg: dict, rec_start: float, rec_end: float,
                      "(%d з %d пострілів)", battle.get("index"), len(shots), limit,
                      _covered(compact, shots), len(shots))
             chosen = compact
+        if _covered(chosen, shots) < len(shots) and cfg.get("short_early_shots", True):
+            # і з коротким запасом не всі — ранні постріли «вистріл + шкода», останні 2–3 — повністю
+            packed = _pack_shots(shots, final, cfg, max_score, rec_start, rec_end, limit, gap)
+            if _covered(packed, shots) >= _covered(chosen, shots):  # не менше пострілів, і кінець бою — на місці
+                log.info("  Бій %s: ранні постріли — коротко (вистріл + шкода), останні %d — повністю: "
+                         "%d з %d пострілів", battle.get("index"), int(cfg.get("tail_full_shots", 3)),
+                         _covered(packed, shots), len(shots))
+                chosen = packed
 
     if speech is not None and cfg["speech_snap"]:
         chosen = _snap(chosen, cfg, speech, rec_start, rec_end, limit, gap)
