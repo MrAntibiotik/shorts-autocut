@@ -20,7 +20,7 @@ import threading
 import time
 from pathlib import Path
 
-STAGES = [("dl", "Скачано"), ("check", "Перевірено"), ("obs", "OBS"), ("rec", "Запис бою"),
+STAGES = [("dl", "Скачано"), ("check", "Перевірено"), ("obs", "OBS"), ("cam", "Камера"), ("rec", "Запис бою"),
           ("cut", "Нарізка"), ("post", "Передача в Poster"), ("pub", "Публікація")]
 ICON = {"wait": "⏸", "run": "⏳", "done": "✅", "skip": "⏭", "err": "❌"}
 EDIT_EVERY_S = 20          # прогрес запису — не частіше (обмеження Telegram на редагування)
