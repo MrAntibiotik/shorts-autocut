@@ -189,11 +189,65 @@ class DownloadTest(unittest.TestCase):
 
 class PosterHandoffTest(unittest.TestCase):
     def setUp(self):
+        import os
         self.tmp = tempfile.TemporaryDirectory()
         self.d = Path(self.tmp.name)
+        self._env = os.environ.get("LOCALAPPDATA")
+        os.environ["LOCALAPPDATA"] = str(self.d / "appdata")   # не чіпати справжній poster.json на ПК
 
     def tearDown(self):
+        import os
+        if self._env is None:
+            os.environ.pop("LOCALAPPDATA", None)
+        else:
+            os.environ["LOCALAPPDATA"] = self._env
         self.tmp.cleanup()
+
+    def _poster(self, main: Path, en: Path):
+        import json as _j
+        f = self.d / "appdata" / "MrAntibiotik" / "poster.json"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(_j.dumps({"ready": str(main), "channels": {"en": {"name": "EN", "ready": str(en)}}}), encoding="utf-8")
+
+    def test_empty_folder_uses_poster_en_channel(self):
+        info = parse(make_replay(self.d / "5000001.wotreplay"))
+        self._poster(self.d / "ready_main", self.d / "poster" / "channels" / "en" / "ready")
+        mp4 = self.d / "battle_01_dmg_7412.mp4"
+        mp4.write_bytes(b"fake")
+        out = publish(mp4, info, ReplayJobOptions(replays_dir=self.d, publish_dir=None), "5000001")
+        self.assertEqual(out.parent, self.d / "poster" / "channels" / "en" / "ready" / "WoT")
+        self.assertEqual(json.loads(out.with_suffix(".json").read_text(encoding="utf-8"))["channel"], "en")
+
+    def test_never_into_main_channel(self):
+        info = parse(make_replay(self.d / "5000001.wotreplay"))
+        self._poster(self.d / "ready_main", self.d / "en_ready")
+        mp4 = self.d / "battle_01_dmg_7412.mp4"
+        mp4.write_bytes(b"fake")
+        for bad in (self.d / "ready_main", self.d / "ready_main" / "WoT"):
+            with self.assertRaises(RuntimeError):
+                publish(mp4, info, ReplayJobOptions(replays_dir=self.d, publish_dir=bad), "5000001")
+        self.assertFalse((self.d / "ready_main").exists() and list((self.d / "ready_main").rglob("*.mp4")))
+
+    def test_catch_up_unpublished(self):
+        from shorts.replay_job import publish_unpublished
+        rp = make_replay(self.d / "5000001.wotreplay")
+        video = self.d / "rec.mkv"
+        video.write_bytes(b"v")
+        rp.with_suffix(".recorded").write_text(str(video), encoding="utf-8")
+        out_root = self.d / "out_en"
+        job = out_root / "job_1"
+        (job / "b1").mkdir(parents=True)
+        mp4 = job / "b1" / "battle_01_dmg_7412.mp4"
+        mp4.write_bytes(b"fake")
+        (job / "job.json").write_text(json.dumps({"recordings": [{"path": str(video), "shorts": [{"mp4": str(mp4)}]}]}),
+                                      encoding="utf-8")
+        settings = {"paths": {"replays_output_dir": str(out_root)}}
+        opts = ReplayJobOptions(replays_dir=self.d, publish_dir=None)
+        self.assertEqual(publish_unpublished(settings, opts), [])      # Poster ще не повідомив папку — чекаємо
+        self._poster(self.d / "ready_main", self.d / "en_ready")
+        got = publish_unpublished(settings, opts)
+        self.assertEqual([p.parent for p in got], [self.d / "en_ready" / "WoT"])
+        self.assertEqual(publish_unpublished(settings, opts), [])      # вдруге не дублює
 
     def test_json_and_publish(self):
         info = parse(make_replay(self.d / "5000001.wotreplay"))

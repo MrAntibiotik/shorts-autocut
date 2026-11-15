@@ -79,6 +79,7 @@ def poster_json(info: ReplayInfo | None, opts: ReplayJobOptions) -> dict:
         "status": "ready_to_post",
         "game": GAME_FOLDER,
         "source": "replay",
+        "channel": "en",            # лише для EN/EU-каналу: основний канал Poster такі шортси не бере
         "replay": info.to_dict() if info else None,
         "youtube": {"title": title, "description": desc, "tags": [t.lstrip("#") for t in tags], "hashtags": tags},
         "tiktok": {"caption": f"{title} {line}"},
@@ -86,11 +87,25 @@ def poster_json(info: ReplayInfo | None, opts: ReplayJobOptions) -> dict:
     }
 
 
+def target_dir(opts: ReplayJobOptions) -> Path | None:
+    """Куди класти шортси з реплеїв: папка з налаштувань «Реплеїв» або (порожньо) — папка EN-каналу,
+    яку повідомив Poster. Папку основного каналу — ніколи: це різний контент."""
+    from .poster_link import channel_ready, is_main_channel_folder
+    d = Path(opts.publish_dir) if opts.publish_dir else channel_ready("en")
+    if d is None:
+        return None
+    if is_main_channel_folder(d):
+        raise RuntimeError(f"«{d}» — папка ОСНОВНОГО каналу Poster. Шортси з реплеїв туди не кладу "
+                           "(різний контент). Вкажіть у «Реплеях» папку EN-каналу або залиште поле порожнім.")
+    return d
+
+
 def publish(mp4: Path, info: ReplayInfo | None, opts: ReplayJobOptions, rid: str) -> Path | None:
     """Копіює шортс у папку EN-каналу Poster (атомарно: спершу .part, потім перейменування) + json."""
-    if not opts.publish_dir:
+    root = target_dir(opts)
+    if root is None:
         return None
-    d = Path(opts.publish_dir) / GAME_FOLDER
+    d = root / GAME_FOLDER
     d.mkdir(parents=True, exist_ok=True)
     name = f"replay_{rid}_{mp4.stem}"
     js = d / f"{name}.json"
@@ -99,7 +114,62 @@ def publish(mp4: Path, info: ReplayInfo | None, opts: ReplayJobOptions, rid: str
     shutil.copy2(mp4, part)
     final = d / f"{name}.mp4"
     part.replace(final)
+    _mark_published(mp4)
     return final
+
+
+def _published_file(settings_out: Path) -> Path:
+    return settings_out / "_published_en.json"
+
+
+def _mark_published(mp4: Path) -> None:
+    """Запам'ятати, що шортс уже віддано в Poster (щоб «догнати» лише невіддані)."""
+    job_dir = next((p for p in Path(mp4).parents if p.name.startswith("job_")), None)
+    if job_dir is None:
+        return
+    f = _published_file(job_dir.parent)
+    try:
+        done = set(json.loads(f.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        done = set()
+    done.add(str(Path(mp4).resolve()))
+    f.write_text(json.dumps(sorted(done), ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def publish_unpublished(settings: dict, opts: ReplayJobOptions) -> list[Path]:
+    """Шортси з реплеїв, які змонтувались, але не потрапили в Poster (папку EN-каналу не було вказано
+    або Poster ще не повідомив її) — віддаємо зараз. Повертає нові шляхи в папці EN-каналу."""
+    if target_dir(opts) is None:
+        return []
+    out_root = replays_output_dir(settings)
+    try:
+        done = set(json.loads(_published_file(out_root).read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        done = set()
+    videos = {}
+    for marker in Path(opts.replays_dir).glob("*.recorded"):
+        try:
+            videos[str(Path(marker.read_text(encoding="utf-8").strip()).resolve())] = marker.with_suffix(".wotreplay")
+        except OSError:
+            continue
+    out = []
+    for jf in sorted(out_root.glob("job_*/job.json")):
+        try:
+            job = json.loads(jf.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        for rec in job.get("recordings", []):
+            rp = videos.get(str(Path(rec.get("path", "")).resolve()))
+            for sh in rec.get("shorts", []):
+                mp4 = Path(sh.get("mp4") or "")
+                if not mp4.exists() or str(mp4.resolve()) in done:
+                    continue
+                info = info_of(rp) if rp and rp.exists() else None
+                p = publish(mp4, info, opts, rp.stem if rp else jf.parent.name)
+                if p:
+                    log.info("Догнав у чергу EN-каналу: %s", p)
+                    out.append(p)
+    return out
 
 
 def replays_output_dir(settings: dict) -> Path:
@@ -108,6 +178,12 @@ def replays_output_dir(settings: dict) -> Path:
     from .config import resolve_path
     d = resolve_path((settings.get("paths") or {}).get("replays_output_dir") or "output_replays_en")
     d.mkdir(parents=True, exist_ok=True)
+    mark = d / ".poster_channel"          # Poster основного каналу таку папку обходить (навіть без json у шортсах)
+    if not mark.exists():
+        try:
+            mark.write_text("en", encoding="utf-8")
+        except OSError:
+            pass
     return d
 
 
@@ -158,6 +234,11 @@ def run(settings: dict, opts: ReplayJobOptions, rec_opts=None, progress=None, ca
     from .replay_state import running
     replays = [Path(p) for p in opts.only] if opts.only else pending_replays(opts.replays_dir)
     summary = {"replays": len(replays), "recorded": 0, "shorts": [], "published": [], "errors": []}
+    try:   # змонтовані раніше, але не віддані в Poster — у чергу EN-каналу
+        summary["published"] += [str(p) for p in publish_unpublished(settings, opts)]
+    except Exception as e:  # noqa: BLE001
+        log.warning("Догнати невіддані шортси: %s", e)
+        summary["errors"].append(str(e))
     if not replays:
         return summary
     with running(opts.replays_dir, who) as alive:
@@ -264,7 +345,8 @@ def _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive
                         summary["published"].append(str(p))
                         log.info("  → у публікацію: %s", p)
                     stage(rp, "post", "done" if p else "skip",
-                          Path(p).name if p else "папку EN-каналу не вказано — шортс лише в output")
+                          Path(p).name if p else "папки EN-каналу немає (запустіть Poster або вкажіть її в «Реплеях») — "
+                                                 "шортс в output_replays_en, віддам у чергу при наступному запуску")
                     if on_short:
                         try:
                             on_short(p or s, info)
@@ -280,4 +362,5 @@ def _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive
                 rp.with_suffix(".failed").write_text(str(e), encoding="utf-8")
 
 
-__all__ = ["PROFILE_ID", "ReplayJobOptions", "retry_failed", "cut_recording", "pending_replays", "poster_json", "publish", "run"]
+__all__ = ["PROFILE_ID", "ReplayJobOptions", "retry_failed", "cut_recording", "pending_replays", "poster_json", "publish",
+           "publish_unpublished", "target_dir", "run"]

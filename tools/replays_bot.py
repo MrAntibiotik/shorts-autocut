@@ -201,6 +201,12 @@ class ReplaysBot:
         st = self.state()
         self.view = "main"
         self.bot.send(self.text(st), self.markup(st))
+        if not busy(Path(st["replays_dir"])):          # під час запису «доганяє» сам цикл запису
+            from shorts.replay_job import ReplayJobOptions
+            jopts = ReplayJobOptions(replays_dir=Path(st["replays_dir"]),
+                                     publish_dir=Path(st["publish_dir"]) if str(st.get("publish_dir") or "").strip()
+                                     else None, cta_text=cta_text(st), credit_author=bool(st.get("credit", True)))
+            threading.Thread(target=self.catch_up, args=(jopts,), daemon=True, name="replays-catch-up").start()
 
     def redraw(self, msg: dict):
         st = self.state()
@@ -505,6 +511,19 @@ class ReplaysBot:
             return "⏹ Зупинено"
         return "⏹ Зупиняю… (до кількох секунд)"
 
+    def catch_up(self, jopts) -> int:
+        """Шортси з реплеїв, що змонтувались, але не потрапили в чергу EN-каналу Poster, — віддати зараз."""
+        try:
+            from shorts.replay_job import publish_unpublished
+            caught = publish_unpublished(self.settings, jopts)
+        except Exception as e:  # noqa: BLE001
+            self.bot.send(f"⚠️ Шортси з реплеїв не віддано в EN-канал: {e}")
+            return 0
+        if caught:
+            self.bot.send(f"📤 У чергу EN-каналу Poster віддано {len(caught)} шортсів з реплеїв, змонтованих раніше "
+                          "(тоді папку EN-каналу ще не було видно). В основний канал вони не потрапляють.")
+        return len(caught)
+
     def _work(self, st: dict) -> None:
         from shorts.replay_job import ReplayJobOptions, run
         from shorts.replay_record import RecordError, RecordOptions
@@ -524,6 +543,7 @@ class ReplaysBot:
                                  record=bool(st.get("do_record", True)), cut=bool(st.get("do_cut", True)))
 
         total = {"recorded": 0, "shorts": 0, "published": 0, "errors": []}
+        self.catch_up(jopts)
         for _ in range(100):               # реплеї, скачані під час запису, — одразу слідом
             if not self.pending(st):
                 break

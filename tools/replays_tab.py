@@ -458,6 +458,14 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
                                      cta_text=params["cta_text"], credit_author=bool(params["credit"]),
                                      record=bool(params["do_record"]), cut=bool(params["do_cut"]))
             total = {"imported": 0, "recorded": 0, "shorts": 0, "published": 0}
+            try:   # змонтовані раніше, але не віддані в Poster EN-каналу — у його чергу
+                from shorts.replay_job import publish_unpublished
+                caught = publish_unpublished(settings, jopts)
+                if caught:
+                    total["published"] += len(caught)
+                    q.put(("log", f"📤 Догнав у чергу EN-каналу: {len(caught)} шортсів, змонтованих раніше"))
+            except Exception as e:  # noqa: BLE001
+                q.put(("log", f"⚠️ {e}"))
             while not cancel.is_set():
                 if watch:
                     res = import_folder(ImportOptions(src=Path(params["downloads_dir"]), dest=replays_dir,
