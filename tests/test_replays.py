@@ -562,6 +562,30 @@ class CameraCheckTest(unittest.TestCase):
         for text, want in cases.items():
             self.assertEqual(camera_state(text), want, text)
 
+    def test_green_text_at_bottom(self):
+        import numpy as np
+        from shorts.replay_record import EndDetector, green_text
+        img = np.zeros((720, 1280, 3), dtype=np.uint8)
+        img[:, :] = (60, 110, 90)                                  # BGR: трава/земля
+        self.assertFalse(green_text(img))
+        grass = img.copy()
+        grass[400:700, 200:1100] = (70, 190, 160)                  # світла трава — не текст
+        self.assertFalse(green_text(grass))
+        text = img.copy()
+        for x in range(520, 760, 6):                               # «букви» зеленого рядка над панеллю снарядів
+            text[560:576, x:x + 3] = (40, 230, 120)
+        self.assertTrue(green_text(text))
+        top = img.copy()
+        for x in range(520, 760, 6):
+            top[100:116, x:x + 3] = (40, 230, 120)                 # угорі — не той напис
+        self.assertFalse(green_text(top))
+        d = EndDetector()
+        d.text = lambda crop: ""                                   # слів не впізнали
+        self.assertEqual(d.camera(text), "player")
+        self.assertIn("зелений", d.last_text)
+        d.green_before = True                                      # зелене було ще до кліку
+        self.assertIsNone(d.camera(text))
+
     def test_free_camera_gets_one_more_click(self):
         from unittest import mock
         from shorts import replay_record as rr
