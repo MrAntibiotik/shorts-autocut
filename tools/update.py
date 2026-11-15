@@ -29,7 +29,7 @@ REPO = "MrAntibiotik/shorts-autocut"
 BRANCH = "main"
 VERSION_FILE = ROOT / "VERSION.json"
 UA = {"User-Agent": "shorts-autocut-updater"}
-SKIP_TOP = {"config", "samples", "venv", "work", "output", "models", "ffmpeg", "whisper", "defaults"}
+SKIP_TOP = {"config", "samples", "venv", "work", "output", "output_replays_en", "models", "ffmpeg", "whisper", "defaults"}
 _NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 
 

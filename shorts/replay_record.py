@@ -55,6 +55,8 @@ class RecordOptions:
     click_at: tuple = ("load-5",)   # 55 с від запуску гри
     tail_s: float = 20.0          # після кінця бою (запасний варіант, якщо кінець не розпізнано)
     detect_end: bool = True       # бачити кінець бою на екрані (знімок з OBS + розпізнавання тексту)
+    check_camera: bool = True     # після кліку прочитати напис унизу: вільна камера → клікнути ще раз
+    max_camera_clicks: int = 3
     end_tail_s: float = 4.0       # скільки ще писати після «Перемога» / «Відтворення… закінчено»
     default_battle_s: float = 900  # якщо тривалість у реплеї невідома (бій не дограно)
     max_s: float = 1500
@@ -146,6 +148,12 @@ END_WORDS = ("відтворення запису", "запису бою зак�
              "victory", "defeat", "draw", "replay playback", "playback has", "победа", "поражение", "ничья")
 
 
+CAM_FREE_WORDS = ("вільна камера", "вільну камеру", "вільної камери", "free camera", "free cam",
+                  "свободная камера", "свободной камеры")
+CAM_PLAYER_WORDS = ("першої особи", "першого лиця", "від обличчя", "first person", "first-person",
+                    "камера гравця", "player camera", "от первого лица")
+
+
 class EndDetector:
     """Кінець бою на екрані: «ПЕРЕМОГА!» / «Поразка» / «Нічия» або вікно «Відтворення запису бою закінчено»."""
 
@@ -168,6 +176,21 @@ class EndDetector:
             log.warning("Розпізнавання кінця бою недоступне (%s) — зупинка за часом", e)
             self.failed = True
             return ""
+
+    def camera(self, img, bottom: float = 0.4) -> str | None:
+        """Напис унизу екрана після кліку: «free» — вільна камера, «player» — від першої особи, None — немає."""
+        if img is None:
+            return None
+        try:
+            crop = img[int(img.shape[0] * (1 - bottom)):, :]
+        except Exception:  # noqa: BLE001
+            crop = img
+        t = self.text(crop)
+        if any(w in t for w in CAM_FREE_WORDS):
+            return "free"
+        if any(w in t for w in CAM_PLAYER_WORDS):
+            return "player"
+        return None
 
     def ended(self, img) -> str | None:
         t = self.text(img)
@@ -550,6 +573,9 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
         known = bool(info and info.duration_s)
         end_from = max(opts.load_s + 60, total - opts.tail_s - 150) if known else opts.load_s + 90
         detector = EndDetector() if opts.detect_end else None
+        cam = EndDetector() if opts.check_camera else None   # напис про камеру внизу екрана після кліку
+        cam_checks: list[float] = []
+        cam_clicks = 0
         last_end_check, end_at = t0, None
         while time.time() - t0 < total:
             if cancel and cancel():
@@ -579,6 +605,27 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
             while clicks and time.time() - launched >= clicks[0]:   # камера від обличчя гравця
                 clicks.pop(0)
                 click_player_view()
+                cam_clicks += 1
+                now = time.time()
+                cam_checks = [now + 1.5, now + 3.0, now + 4.5, now + 6.0] if cam else []
+            if cam_checks and time.time() >= cam_checks[0]:            # який напис з'явився після кліку?
+                cam_checks.pop(0)
+                state = cam.camera(obs.screenshot())
+                if state == "player":
+                    log.info("Камера від першої особи — так і лишаю")
+                    cam_checks = []
+                elif state == "free":
+                    if cam_clicks < opts.max_camera_clicks:
+                        log.info("Увімкнулась вільна камера — клікаю ще раз")
+                        click_player_view()
+                        cam_clicks += 1
+                        now = time.time()
+                        cam_checks = [now + 1.5, now + 3.0, now + 4.5, now + 6.0]
+                    else:
+                        log.warning("Камера лишилась вільною після %d кліків", cam_clicks)
+                        cam_checks = []
+                elif not cam_checks:
+                    log.info("Напис про камеру не знайдено — лишаю як є")
             if time.time() - last_check >= 15:                       # OBS справді пише?
                 last_check = time.time()
                 try:
