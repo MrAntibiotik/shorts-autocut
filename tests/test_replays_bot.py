@@ -38,7 +38,7 @@ class FakeBot:
         self.owner = 1
         self.sent = []
 
-    def send(self, text, markup=None):
+    def send(self, text, markup=None, ttl="auto", silent=False):
         self.sent.append((text, markup))
         return {"message_id": 99}
 

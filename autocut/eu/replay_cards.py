@@ -66,7 +66,7 @@ class Cards:
              "msg": None, "edited": 0.0, "info": info}
         stop = {"inline_keyboard": [[{"text": "⏹ Зупинити запис", "callback_data": "F|stop"}]]}
         # кнопки ПІД повідомленням з самого початку — інакше Telegram не дає потім редагувати картку з кнопкою
-        res = self.bot.send(self.text(c), stop if "вкладк" in queue else {"inline_keyboard": []})
+        res = self.bot.send(self.text(c), stop if "вкладк" in queue else {"inline_keyboard": []}, ttl=None)
         c["msg"] = res.get("message_id") if isinstance(res, dict) else None
         with self.lock:
             self.cards[key] = c
@@ -122,7 +122,7 @@ class Cards:
                         info = None
                     self.cards[key] = {"head": self.head(info), "st": {"dl": "done", "check": "done"}, "det": {},
                                        "queue": "", "msg": None, "edited": 0.0, "info": info}
-                    res = self.bot.send(self.text(self.cards[key]), {"inline_keyboard": []})
+                    res = self.bot.send(self.text(self.cards[key]), {"inline_keyboard": []}, ttl=None)
                     self.cards[key]["msg"] = res.get("message_id") if isinstance(res, dict) else None
                 targets = [self.cards[key]]
             for c in targets:
@@ -143,6 +143,10 @@ class Cards:
                 if state == "err" and rp is not None:    # спільну помилку (OBS, гра) бот пише один раз сам
                     self.bot.send(f"❌ {c['head'][2:]}\n{dict(STAGES).get(stage, stage)}: {detail}")
                 self._edit(c, force=changed or state != "run")
+                finished = (c["st"].get("pub") in ("run", "skip") and c["st"].get("post") in ("done", "skip")) \
+                    or "err" in c["st"].values()
+                if finished and c.get("msg") and hasattr(self.bot, "chat"):
+                    self.bot.chat.expire(c["msg"], 10 * 60)    # картка завершеного реплею — зникне за 10 хв
 
 
 __all__ = ["Cards", "STAGES"]

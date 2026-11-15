@@ -210,6 +210,8 @@ class ReplaysBot:
             threading.Thread(target=self.catch_up, args=(jopts,), daemon=True, name="replays-catch-up").start()
 
     def redraw(self, msg: dict):
+        if hasattr(self.bot, "chat"):
+            self.bot.chat.touch(msg.get("message_id"))          # з екраном реплеїв працюють — не прибирати
         st = self.state()
         try:
             self.bot.api.call("editMessageText", chat_id=self.bot.owner, message_id=msg["message_id"],
