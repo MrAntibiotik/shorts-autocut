@@ -171,6 +171,29 @@ def camera_state(text: str) -> str | None:
     return None
 
 
+def green_text(img) -> bool:
+    """Яскраво-зелений рядок тексту внизу по центру (над панеллю снарядів) — так гра пише, що камеру
+    прив'язано до гравця. Трава/кущі сюди не потрапляють: вони темніші й жовтуватіші (R близько до G)."""
+    if img is None:
+        return False
+    try:
+        import numpy as np
+        h, w = img.shape[:2]
+        crop = np.asarray(img[int(h * 0.55):int(h * 0.92), int(w * 0.2):int(w * 0.8)]).astype(int)
+        b, g, r = crop[..., 0], crop[..., 1], crop[..., 2]          # кадр з OBS — у BGR
+        mask = (g >= 170) & (g - r >= 60) & (g - b >= 60)
+        if mask.sum() < max(40, mask.size * 0.0004):
+            return False
+        rows = np.where(mask.sum(axis=1) >= 3)[0]
+        cols = np.where(mask.any(axis=0))[0]
+        if not len(rows) or not len(cols):
+            return False
+        band, span = rows[-1] - rows[0] + 1, cols[-1] - cols[0] + 1
+        return band <= h * 0.09 and span >= w * 0.06 and span > band * 2   # саме рядок тексту, а не пляма
+    except Exception:  # noqa: BLE001
+        return False
+
+
 class EndDetector:
     """Кінець бою на екрані: «ПЕРЕМОГА!» / «Поразка» / «Нічия» або вікно «Відтворення запису бою закінчено»."""
 
@@ -203,7 +226,11 @@ class EndDetector:
         except Exception:  # noqa: BLE001
             crop = img
         self.last_text = self.text(crop)
-        return camera_state(self.last_text)
+        state = camera_state(self.last_text)
+        if state is None and green_text(img) and not getattr(self, "green_before", False):
+            state = "player"                     # слів не впізнали, але з'явився зелений напис — значить від гравця
+            self.last_text = (self.last_text + " (зелений напис)").strip()
+        return state
 
     def ended(self, img) -> str | None:
         t = self.text(img)
@@ -618,6 +645,8 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
                     end_at = time.time() + opts.end_tail_s
             while clicks and time.time() - launched >= clicks[0]:   # камера від обличчя гравця
                 clicks.pop(0)
+                if cam and not cam_clicks:                          # зелене було ще до кліку — йому не віримо
+                    cam.green_before = green_text(obs.screenshot())
                 click_player_view()
                 cam_clicks += 1
                 now = time.time()
@@ -678,7 +707,7 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
     return path
 
 
-__all__ = ["Cancelled", "EndDetector", "Obs", "camera_state", "close_obs", "obs_ours", "RecordError", "RecordOptions", "default_record_dir", "desktop_dir", "obs_running", "click_player_view", "click_times", "client_version",
+__all__ = ["Cancelled", "EndDetector", "green_text", "Obs", "camera_state", "close_obs", "obs_ours", "RecordError", "RecordOptions", "default_record_dir", "desktop_dir", "obs_running", "click_player_view", "click_times", "client_version",
            "ensure_obs", "find_game_dir",
            "game_exe", "kill_game",
            "launch_obs",
