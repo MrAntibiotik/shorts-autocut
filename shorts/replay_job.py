@@ -226,7 +226,16 @@ def _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive
                     sub(t, f * 0.6)
                     rec = t.split("OBS ", 1)[1] if "OBS " in t else ""     # лічильник самого OBS — запис справді йде
                     stage(rp, "rec", "run", f"{_mmss(f * total)} / ~{_mmss(total)}" + (f" · {rec}" if rec else ""))
-                video = record_one(rp, info, rec_opts, obs, progress=rec_progress, cancel=cancel)
+                def on_camera(state, text, rp=rp):
+                    shown = f"«{text[:80]}»" if text else "напису не видно"
+                    if state == "player":
+                        stage(rp, "cam", "done", f"від гравця · {shown}")
+                    elif state == "free":
+                        stage(rp, "cam", "run", f"вільна — клікаю ще раз · {shown}")
+                    else:
+                        stage(rp, "cam", "skip", f"напис не розпізнано · {shown}")
+                video = record_one(rp, info, rec_opts, obs, progress=rec_progress, cancel=cancel,
+                                   on_camera=on_camera)
                 marker.write_text(str(video), encoding="utf-8")
                 summary["recorded"] += 1
                 stage(rp, "rec", "done", Path(video).name)

@@ -545,6 +545,23 @@ class CameraCheckTest(unittest.TestCase):
             d.text = lambda im, t=text: t
             self.assertEqual(d.camera(img), want, text)
 
+    def test_camera_state_rules(self):
+        from shorts.replay_record import camera_state
+        cases = {
+            "Вільну камеру вимкнено": "player",
+            "Вільна камера: увімкнено": "free",
+            "Фіксацію камери вимкнено": "free",
+            "Фіксація камери — увімкнено": "player",
+            "Свободная камера включена": "free",
+            "Режим свободной камеры выключен": "player",
+            "Camera lock: ON": "player",
+            "Free camera: disabled": "player",
+            "Вид від першої особи увімкнено": "player",
+            "15 / 0 / 2": None,
+        }
+        for text, want in cases.items():
+            self.assertEqual(camera_state(text), want, text)
+
     def test_free_camera_gets_one_more_click(self):
         from unittest import mock
         from shorts import replay_record as rr

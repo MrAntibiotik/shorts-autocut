@@ -148,10 +148,27 @@ END_WORDS = ("відтворення запису", "запису бою зак�
              "victory", "defeat", "draw", "replay playback", "playback has", "победа", "поражение", "ничья")
 
 
-CAM_FREE_WORDS = ("вільна камера", "вільну камеру", "вільної камери", "free camera", "free cam",
-                  "свободная камера", "свободной камеры")
-CAM_PLAYER_WORDS = ("першої особи", "першого лиця", "від обличчя", "first person", "first-person",
-                    "камера гравця", "player camera", "от первого лица")
+# Ліва кнопка в реплеї перемикає камеру: вільний огляд ↔ за напрямком гравця («фіксація камери»).
+# Точний напис залежить від мови й версії клієнта — шукаємо корені слів і стан (увімкнено / вимкнено).
+CAM_FREE = ("вільн", "свобод", "free")                          # вільна камера
+CAM_LOCK = ("фікс", "закріп", "прив'яз", "привяз", "lock", "слідк", "слеж", "follow")   # прив'язка до гравця
+CAM_PLAYER = ("першої особи", "першого лиця", "первого лица", "first person", "first-person",
+              "від гравця", "камера гравця", "player camera", "від обличчя")
+CAM_ON = ("увімкн", "включ", "активн", " on", "enabled", "activated")
+CAM_OFF = ("вимкн", "выключ", "відключ", "отключ", " off", "disabled", "deactivated")
+
+
+def camera_state(text: str) -> str | None:
+    """«free» — вільна камера, «player» — за гравцем, None — напису про камеру немає."""
+    t = f" {(text or '').lower()} "
+    on, off = any(w in t for w in CAM_ON), any(w in t for w in CAM_OFF)
+    if any(w in t for w in CAM_PLAYER):
+        return "free" if off and not on else "player"
+    if any(w in t for w in CAM_FREE):
+        return "player" if off and not on else "free"
+    if any(w in t for w in CAM_LOCK):
+        return "free" if off and not on else "player"
+    return None
 
 
 class EndDetector:
@@ -185,12 +202,8 @@ class EndDetector:
             crop = img[int(img.shape[0] * (1 - bottom)):, :]
         except Exception:  # noqa: BLE001
             crop = img
-        t = self.text(crop)
-        if any(w in t for w in CAM_FREE_WORDS):
-            return "free"
-        if any(w in t for w in CAM_PLAYER_WORDS):
-            return "player"
-        return None
+        self.last_text = self.text(crop)
+        return camera_state(self.last_text)
 
     def ended(self, img) -> str | None:
         t = self.text(img)
@@ -552,7 +565,8 @@ def click_player_view() -> bool:
 
 
 def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: Obs,
-               progress=None, cancel=None) -> Path:
+               progress=None, cancel=None, on_camera=None) -> Path:
+    """on_camera(стан, текст напису) — що показала гра після кліку (для живої картки)."""
     """Відтворює один реплей і повертає шлях до запису OBS."""
     exe = game_exe(opts.game_dir)
     total = record_seconds(info, opts)
@@ -611,6 +625,11 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
             if cam_checks and time.time() >= cam_checks[0]:            # який напис з'явився після кліку?
                 cam_checks.pop(0)
                 state = cam.camera(obs.screenshot())
+                seen = (getattr(cam, "last_text", "") or "").strip()
+                if state and on_camera:
+                    on_camera(state, seen)
+                if state:
+                    log.info("Напис про камеру: «%s» → %s", seen[:120], state)
                 if state == "player":
                     log.info("Камера від першої особи — так і лишаю")
                     cam_checks = []
@@ -626,6 +645,8 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
                         cam_checks = []
                 elif not cam_checks:
                     log.info("Напис про камеру не знайдено — лишаю як є")
+                    if on_camera:
+                        on_camera(None, seen)
             if time.time() - last_check >= 15:                       # OBS справді пише?
                 last_check = time.time()
                 try:
@@ -657,7 +678,7 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
     return path
 
 
-__all__ = ["Cancelled", "EndDetector", "Obs", "close_obs", "obs_ours", "RecordError", "RecordOptions", "default_record_dir", "desktop_dir", "obs_running", "click_player_view", "click_times", "client_version",
+__all__ = ["Cancelled", "EndDetector", "Obs", "camera_state", "close_obs", "obs_ours", "RecordError", "RecordOptions", "default_record_dir", "desktop_dir", "obs_running", "click_player_view", "click_times", "client_version",
            "ensure_obs", "find_game_dir",
            "game_exe", "kill_game",
            "launch_obs",
