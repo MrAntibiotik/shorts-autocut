@@ -102,10 +102,20 @@ def publish(mp4: Path, info: ReplayInfo | None, opts: ReplayJobOptions, rid: str
     return final
 
 
+def replays_output_dir(settings: dict) -> Path:
+    """Окрема папка для шортсів з реплеїв (НЕ всередині output): основний Poster, який стежить за output,
+    їх не бачить — вони йдуть лише в папку EN-каналу."""
+    from .config import resolve_path
+    d = resolve_path((settings.get("paths") or {}).get("replays_output_dir") or "output_replays_en")
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def cut_recording(settings: dict, recording: Path, cta_text: str, progress=None, cancel=None) -> list[Path]:
     """Автонарізка одного запису реплею профілем wot_replay_en. Повертає готові MP4."""
     from .pipeline import Job, JobOptions, Progress
     st = copy.deepcopy(settings)
+    st.setdefault("paths", {})["output_dir"] = str(replays_output_dir(settings))   # не в загальний output
     jopts = JobOptions(recordings=[recording], profile_id=PROFILE_ID, cta_text=cta_text, render=True,
                        separation=False, subtitles=False, speech_ai=False, highlights=False)
     import threading

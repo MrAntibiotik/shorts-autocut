@@ -535,6 +535,59 @@ class MinimapLayoutTest(unittest.TestCase):
         self.assertNotIn("top_zone", wot["layout"])
 
 
+class CameraCheckTest(unittest.TestCase):
+    def test_camera_words(self):
+        from shorts import replay_record as rr
+        d = rr.EndDetector()
+        img = __import__("numpy").zeros((100, 200, 3), dtype="uint8")
+        for text, want in (("режим: вільна камера", "free"), ("камера від першого лиця увімкнено", "player"),
+                           ("free camera mode enabled", "free"), ("15 13 ammo", None)):
+            d.text = lambda im, t=text: t
+            self.assertEqual(d.camera(img), want, text)
+
+    def test_free_camera_gets_one_more_click(self):
+        from unittest import mock
+        from shorts import replay_record as rr
+        clock = {"t": 1000.0}
+        opts = rr.RecordOptions(game_dir=Path("."), load_s=5, click_at=("10",), tail_s=0, default_battle_s=30,
+                                max_s=40, detect_end=False)
+        obs = mock.Mock()
+        obs.status.return_value = (True, "00:00:10")
+        obs.stop.return_value = __file__
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        answers = iter(["free", None, "player"])                       # після 1-го кліку — вільна, після 2-го — гравець
+        clicks = []
+        with mock.patch.object(rr, "game_exe", return_value=Path(__file__)), \
+                mock.patch.object(rr.subprocess, "Popen", return_value=proc), mock.patch.object(rr, "kill_game"), \
+                mock.patch.object(rr.EndDetector, "camera", lambda self, img: next(answers, None)), \
+                mock.patch.object(rr, "click_player_view", side_effect=lambda: clicks.append(clock["t"])), \
+                mock.patch.object(rr.time, "time", side_effect=lambda: clock["t"]), \
+                mock.patch.object(rr.time, "sleep", side_effect=lambda s: clock.__setitem__("t", clock["t"] + s)):
+            rr.record_one(Path(__file__), None, opts, obs)
+        self.assertEqual(len(clicks), 2)                                # рівно один додатковий клік
+
+    def test_replay_shorts_go_to_separate_output(self):
+        from unittest import mock
+        from shorts import replay_job
+        seen = {}
+
+        class FakeJob:
+            def __init__(self, st, jopts, progress):
+                seen["out"] = st["paths"]["output_dir"]
+
+            def run(self):
+                return {"recordings": []}
+        with tempfile.TemporaryDirectory() as t:
+            st = {"paths": {"output_dir": str(Path(t) / "output"), "replays_output_dir": str(Path(t) / "output_replays_en"),
+                            "work_dir": str(Path(t) / "work")}}
+            with mock.patch("shorts.pipeline.Job", FakeJob), mock.patch("shorts.resolve_export.write_status"):
+                replay_job.cut_recording(st, Path(t) / "rec.mkv", "cta")
+        self.assertTrue(seen["out"].endswith("output_replays_en"))
+        self.assertNotIn(str(Path(t) / "output") + "/", seen["out"] + "/x")   # не всередині output
+        self.assertEqual(Path(replay_job.replays_output_dir({"paths": {}})).name, "output_replays_en")
+
+
 class ImportSeenTest(unittest.TestCase):
     def test_unsuitable_checked_once(self):
         with tempfile.TemporaryDirectory() as t:
