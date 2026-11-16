@@ -236,7 +236,7 @@ DEFAULT_PROFILE: dict = {
     },
     "battles": {"split_gap_s": 45, "merge_death_s": 20, "log_match_s": 2.0},
     "selection": {
-        "max_duration_s": 58.0,         # шортс — не довше 58 с (код і так не дає більше)
+        "max_duration_s": 59.5,         # YouTube Shorts — не довше 59,5 с (код і так не дає більше)
         "pre_s": [2.0, 3.0],
         "post_s": [2.0, 3.0],
         "death_pre_s": 4.0,

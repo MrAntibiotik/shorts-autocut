@@ -103,7 +103,7 @@ def build_command(settings: dict, info: VideoInfo, layout: Layout, segments: lis
     f.append(f"[{cur}]format={r.get('pix_fmt') or 'yuv420p'}[vout]")
     cmd += ["-filter_complex", ";".join(f), "-map", "[vout]", "-map", "[ac]", "-r", str(fps)]
     from autocut.core.selection import SHORT_MAX_S
-    if layout.height > layout.width:          # вертикальний шортс — страховка ffmpeg: не довше 58 с
+    if layout.height > layout.width:          # вертикальний шортс — страховка ffmpeg: не довше 59,5 с
         cmd += ["-t", f"{SHORT_MAX_S:.3f}"]
     cmd += video_args(r, encoder) + audio_args(r) + ["-movflags", "+faststart", str(out_path)]
     return cmd
