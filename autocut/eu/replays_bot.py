@@ -257,6 +257,12 @@ class ReplaysBot:
                     self.bot.delete_msg(msg.get("message_id"))     # підказку прибираємо, показуємо меню знову
                     self.show()
                     return f"{LIMIT_NAMES[field].capitalize()} від {fmt_n(int(num))}" if int(num) else "Без порогу"
+        elif kind == "retry":                    # «🔁 Перезапустити запис» під помилкою чи «завис»
+            self.bot.delete_msg(msg.get("message_id"))
+            return self.restart(val)
+        elif kind == "skip":
+            self.bot.delete_msg(msg.get("message_id"))
+            return "⏭ Пропущено — реплей не записуватиметься (повернути: «🎬 Записати зібрані»)"
         elif kind == "list":
             return self.show_list(int(val or 1), msg if "📋 Бої" in (msg.get("text") or "") else None)
         elif kind == "dl":
@@ -461,8 +467,12 @@ class ReplaysBot:
 
     # -------------------------------------------------------------- запис і нарізка
     def tick(self) -> None:
-        """Раз на ~10 с: (1) у черзі є реплеї, запис вільний — починаємо (режим «одразу»);
-        (2) режим очікування: реплеї прийшли через бота і нових не було idle_min хвилин."""
+        """Раз на ~10 с: (0) сторож: запис завис / впав — сповістити; (1) у черзі є реплеї, запис вільний —
+        починаємо (режим «одразу»); (2) режим очікування: реплеї прийшли через бота і нових не було idle_min хвилин."""
+        try:
+            self.watchdog()
+        except Exception as e:  # noqa: BLE001
+            log.warning("Сторож запису: %s", e)
         st = self.state()
         if (st.get("instant", True) and not self.user_stopped and time.time() >= self.hold_until
                 and not (self.thread and self.thread.is_alive()) and self.pending(st)
@@ -476,6 +486,54 @@ class ReplaysBot:
             self.last_received = 0.0
             self.start(manual=False)
 
+    STALL_S = 240                         # стільки без ознак життя — запис завис
+
+    def beat(self, *_a) -> None:
+        self.last_beat = time.time()
+
+    def restart(self, key: str = "") -> str:
+        """Перезапуск запису після помилки або «завис»: зупинити те, що лишилось (гра, позначка), і почати знову —
+        реплей, що не вдався, — першим."""
+        from autocut.eu.replay_record import kill_game
+        from autocut.eu.replay_state import clear_lock
+        st = self.state()
+        if self.thread and self.thread.is_alive():
+            self.cancel.set()                 # старий запис (якщо ще живий) — зупинити; йому лишається старий прапор
+            self.thread = None
+        kill_game()
+        clear_lock(Path(st["replays_dir"]))
+        if key:
+            Path(st["replays_dir"], f"{key}.failed").unlink(missing_ok=True)
+        self.stall_warned = False
+        return self.start(manual=True)
+
+    def watchdog(self) -> None:
+        """Запис «іде», а ознак життя немає (завис) або робота впала без звіту — сповістити з кнопками."""
+        alive = bool(self.thread and self.thread.is_alive())
+        active = [c for c in self.cards.cards.values() if "run" in (c["st"].get("rec"), c["st"].get("obs"))]
+        if alive and active and time.time() - float(getattr(self, "last_beat", 0) or time.time()) > self.STALL_S:
+            if not getattr(self, "stall_warned", False):
+                self.stall_warned = True
+                mins = int((time.time() - self.last_beat) / 60)
+                for c in active:
+                    c["st"]["rec"] = "err"
+                    c["det"]["rec"] = f"завис: {mins} хв без ознак життя"
+                    self.cards._edit(c, True)
+                self.bot.send(f"⚠️ Запис реплею завис: {mins} хв без ознак життя (гра чи OBS закрились або не "
+                              "відповідають). Перезапустити?",
+                              {"inline_keyboard": [[{"text": "🔁 Перезапустити запис", "callback_data": "F|retry:"},
+                                                    {"text": "⏹ Зупинити", "callback_data": "F|stop"}]]},
+                              ttl=2 * 3600)
+        elif not alive and active:            # робота впала, а картки лишились «іде»
+            for c in active:
+                c["st"]["rec"] = "err"
+                c["det"]["rec"] = "запис перервався"
+                self.cards._edit(c, True)
+            self.bot.send("⚠️ Запис реплею перервався без звіту. Перезапустити?",
+                          {"inline_keyboard": [[{"text": "🔁 Перезапустити запис", "callback_data": "F|retry:"},
+                                                {"text": "⏭ Пропустити", "callback_data": "F|skip:"}]]},
+                          ttl=2 * 3600)
+
     def start(self, manual: bool) -> str:
         st = self.state()
         replays_dir = Path(st["replays_dir"])
@@ -488,7 +546,8 @@ class ReplaysBot:
                 self.bot.send("⏺ Запис уже йде" + ("" if mine else " (з вкладки на ПК)") + ". Зупинити?",
                               {"inline_keyboard": [[{"text": "⏹ Зупинити запис", "callback_data": "F|stop"}]]})
             return "⏺ Запис уже йде"
-        self.cancel.clear()
+        self.cancel = threading.Event()       # новий прапор: зупинений/завислий старий запис його не «оживить»
+        self.last_beat, self.stall_warned = time.time(), False
         if manual:                        # «🎬 Записати зібрані» — і ті, що раніше не вдалися
             from autocut.eu.replay_job import retry_failed
             retry_failed(replays_dir)
@@ -553,8 +612,12 @@ class ReplaysBot:
             try:
                 from autocut.eu.replay_job import pending_replays
                 self.cards.set_queue([p.stem for p in pending_replays(Path(st["replays_dir"]))])
-                summary = run(self.settings, jopts, ropts, who="Telegram-бот", on_stage=self.cards.stage,
-                              cancel=self.cancel.is_set)
+                cancel = self.cancel
+                def on_stage(*a, _cards=self.cards):
+                    self.beat()
+                    _cards.stage(*a)
+                summary = run(self.settings, jopts, ropts, who="Telegram-бот", on_stage=on_stage,
+                              progress=self.beat, cancel=cancel.is_set)
             except Busy as e:
                 self.bot.send(f"⏺ Не починаю: {e}.")
                 return

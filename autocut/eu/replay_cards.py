@@ -141,7 +141,11 @@ class Cards:
                     c["st"]["pub"] = "skip"
                     c["det"]["pub"] = "немає шортса" if stage == "cut" else "не передано в Poster"
                 if state == "err" and rp is not None:    # спільну помилку (OBS, гра) бот пише один раз сам
-                    self.bot.send(f"❌ {c['head'][2:]}\n{dict(STAGES).get(stage, stage)}: {detail}")
+                    key = Path(rp).stem
+                    self.bot.send(f"❌ {c['head'][2:]}\n{dict(STAGES).get(stage, stage)}: {detail}",
+                                  {"inline_keyboard": [[{"text": "🔁 Перезапустити запис", "callback_data": f"F|retry:{key}"},
+                                                        {"text": "⏭ Пропустити", "callback_data": f"F|skip:{key}"}]]},
+                                  ttl=2 * 3600)
                 self._edit(c, force=changed or state != "run")
                 finished = (c["st"].get("pub") in ("run", "skip") and c["st"].get("post") in ("done", "skip")) \
                     or "err" in c["st"].values()

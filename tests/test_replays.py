@@ -686,6 +686,45 @@ class CameraCheckTest(unittest.TestCase):
         d.text = lambda crop: ""                     # OCR нічого не прочитав — усе одно «зафіксовано»
         self.assertEqual(d.camera(bgr), "player")
 
+    def _record(self, game_alive, obs_status=None, total_s=600):
+        """record_one з підставними грою, OBS і часом. game_alive(секунда від старту) -> bool."""
+        from unittest import mock
+        from shorts import replay_record as rr
+        clock = {"t": 1000.0}
+        opts = rr.RecordOptions(game_dir=Path("."), load_s=5, click_at=(), tail_s=0, default_battle_s=total_s,
+                                max_s=total_s + 60, detect_end=False, check_camera=False)
+        obs = mock.Mock()
+        obs.status.side_effect = obs_status or (lambda: (True, "00:00:10"))
+        obs.stop.return_value = __file__
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        with mock.patch.object(rr, "game_exe", return_value=Path(__file__)), \
+                mock.patch.object(rr.subprocess, "Popen", return_value=proc), mock.patch.object(rr, "kill_game"), \
+                mock.patch.object(rr, "game_running", side_effect=lambda: game_alive(clock["t"] - 1000.0)), \
+                mock.patch.object(rr.time, "time", side_effect=lambda: clock["t"]), \
+                mock.patch.object(rr.time, "sleep", side_effect=lambda s: clock.__setitem__("t", clock["t"] + s)):
+            return rr.record_one(Path(__file__), None, opts, obs), obs
+
+    def test_game_closed_mid_battle_is_an_error(self):
+        from shorts import replay_record as rr
+        with self.assertRaisesRegex(rr.RecordError, "Гру закрито посеред бою"):
+            self._record(lambda t: t < 106)                     # гра закрилась на 1:46 з ~10 хв
+        path, obs = self._record(lambda t: t < 590)             # наприкінці бою — нормально, запис збережено
+        self.assertTrue(path)
+
+    def test_game_never_started(self):
+        from shorts import replay_record as rr
+        with self.assertRaisesRegex(rr.RecordError, "Гра не запустилась"):
+            self._record(lambda t: False)
+
+    def test_obs_closed_mid_recording(self):
+        from shorts import replay_record as rr
+
+        def gone():
+            raise ConnectionError("OBS closed")
+        with self.assertRaisesRegex(rr.RecordError, "OBS закрито"):
+            self._record(lambda t: True, obs_status=gone)
+
     def test_keeps_clicking_until_fixed_camera(self):
         """Напису немає — клікаємо ще, поки не з'явиться «Fixed camera activated» (не здаємося після 1-го кліку)."""
         from unittest import mock

@@ -211,17 +211,32 @@ class EndDetector:
         self.reader = None
         self.failed = False
 
+    OCR_TIMEOUT_S = 25          # розпізнавання не має зупиняти запис (перший запуск EasyOCR може тягнутись хвилинами)
+    _pool = None
+
+    def _read(self, img) -> str:
+        if self.reader is None:
+            import easyocr
+            try:
+                self.reader = easyocr.Reader(["uk", "en"], gpu=True, verbose=False)
+            except Exception:  # noqa: BLE001 — без відеокарти
+                self.reader = easyocr.Reader(["uk", "en"], gpu=False, verbose=False)
+        return " ".join(t for _, t, _ in self.reader.readtext(img)).lower()
+
     def text(self, img) -> str:
         if img is None or self.failed:
             return ""
         try:
-            if self.reader is None:
-                import easyocr
-                try:
-                    self.reader = easyocr.Reader(["uk", "en"], gpu=True, verbose=False)
-                except Exception:  # noqa: BLE001 — без відеокарти
-                    self.reader = easyocr.Reader(["uk", "en"], gpu=False, verbose=False)
-            return " ".join(t for _, t, _ in self.reader.readtext(img)).lower()
+            import concurrent.futures as cf
+            if EndDetector._pool is None:
+                EndDetector._pool = cf.ThreadPoolExecutor(max_workers=1, thread_name_prefix="ocr")
+            fut = EndDetector._pool.submit(self._read, img)
+            try:
+                return fut.result(timeout=self.OCR_TIMEOUT_S if self.reader is not None else 120)
+            except cf.TimeoutError:
+                log.warning("Розпізнавання тексту на екрані надто довге — далі без нього (запис іде)")
+                self.failed = True
+                return ""
         except Exception as e:  # noqa: BLE001
             log.warning("Розпізнавання кінця бою недоступне (%s) — зупинка за часом", e)
             self.failed = True
@@ -608,6 +623,11 @@ def click_player_view() -> bool:
         return False
 
 
+def _mmss(sec: float) -> str:
+    sec = int(max(0, sec))
+    return f"{sec // 60}:{sec % 60:02d}"
+
+
 def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: Obs,
                progress=None, cancel=None, on_camera=None) -> Path:
     """on_camera(стан, текст напису) — що показала гра після кліку (для живої картки)."""
@@ -626,7 +646,7 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
         started = True
         t0 = time.time()
         last_check, obs_tc = t0, ""
-        last_game_check, gone = t0, 0
+        last_game_check, gone, seen_game, obs_fail = t0, 0, False, 0
         # кінець бою бачимо на екрані: перевіряємо ближче до розрахованого кінця (або з 90-ї с, якщо тривалість невідома)
         known = bool(info and info.duration_s)
         end_from = max(opts.load_s + 60, total - opts.tail_s - 150) if known else opts.load_s + 90
@@ -647,7 +667,13 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
                 if alive is None:                               # не вдалось дізнатися — як раніше, за процесом
                     alive = proc.poll() is None
                 gone = 0 if alive else gone + 1
-                if gone >= 2:
+                seen_game = seen_game or bool(alive)
+                if not seen_game and time.time() - t0 > opts.load_s + 45:
+                    raise RecordError("Гра не запустилась (немає процесу World of Tanks) — запис скасовано")
+                if gone >= 2 and seen_game and end_at is None and time.time() - t0 < total * 0.85:
+                    raise RecordError(f"Гру закрито посеред бою (на {_mmss(time.time() - t0)} з ~{_mmss(total)}) "
+                                      "— запис перервано")
+                if gone >= 2 and seen_game:
                     log.info("Гру закрито — зупиняю запис")
                     break
             if end_at is not None and time.time() >= end_at:
@@ -700,9 +726,13 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
                 last_check = time.time()
                 try:
                     active, tc = obs.status()
+                    obs_fail = 0
                 except Exception as e:  # noqa: BLE001
+                    obs_fail += 1
                     active, tc = True, ""
-                    log.debug("OBS статус: %s", e)
+                    log.warning("OBS не відповідає (%d): %s", obs_fail, e)
+                    if obs_fail >= 2:                       # ~30 с без відповіді — OBS закрили або він завис
+                        raise RecordError("OBS закрито або він не відповідає — запис перервано") from e
                 if not active:
                     raise RecordError("OBS зупинив запис посеред бою (закрили OBS, скінчилось місце на диску?)")
                 obs_tc = tc

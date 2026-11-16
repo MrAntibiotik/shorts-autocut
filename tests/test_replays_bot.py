@@ -435,6 +435,62 @@ class ReplaysBotTest(unittest.TestCase):
         self.assertTrue(self.bot.sent[-1][0].startswith("❌ Leopard1"))
         self.assertIn("Запис бою: гра закрилась", self.bot.sent[-1][0])
 
+    def test_error_offers_restart(self):
+        from replay_cards import Cards
+        from shorts.replay_meta import parse
+        rp = make_replay(self.d / "err.wotreplay")
+        cards = Cards(self.bot)
+        cards.create("err", parse(rp))
+        cards.stage(rp, "rec", "err", "Гру закрито посеред бою (на 1:46 з ~12:25) — запис перервано")
+        text, markup = self.bot.sent[-1]
+        self.assertIn("Гру закрито посеред бою", text)
+        self.assertEqual([b["callback_data"] for b in buttons(markup)], ["F|retry:err", "F|skip:err"])
+        started = []
+        self.rb.start = lambda manual: started.append(manual) or "🎬 Починаю запис: 1"
+        (self.d / "replays").mkdir(exist_ok=True)
+        failed = self.d / "replays" / "err.failed"
+        failed.write_text("x")
+        self.assertTrue(self.rb.on_callback({"message": {"message_id": 7}}, "retry:err").startswith("🎬"))
+        self.assertEqual(started, [True])
+        self.assertFalse(failed.exists())                                  # реплей — знову в черзі
+
+    def test_watchdog_stalled_recording(self):
+        import threading
+        from replay_cards import Cards
+        from shorts.replay_meta import parse
+        rp = make_replay(self.d / "st.wotreplay")
+        self.rb.cards = Cards(self.bot)
+        self.rb.cards.create("st", parse(rp))
+        self.rb.cards.stage(rp, "rec", "run", "1:46 / ~12:25")
+        stop = threading.Event()
+        self.rb.thread = threading.Thread(target=stop.wait, daemon=True)  # «завислий» запис
+        self.rb.thread.start()
+        try:
+            self.rb.last_beat = time.time() - 600                         # 10 хв без ознак життя
+            self.rb.watchdog()
+            text, markup = self.bot.sent[-1]
+            self.assertIn("завис", text)
+            self.assertIn("F|retry:", [b["callback_data"] for b in buttons(markup)])
+            n = len(self.bot.sent)
+            self.rb.watchdog()                                             # не повторює
+            self.assertEqual(len(self.bot.sent), n)
+        finally:
+            stop.set()
+
+    def test_watchdog_dead_worker(self):
+        from replay_cards import Cards
+        from shorts.replay_meta import parse
+        rp = make_replay(self.d / "dead.wotreplay")
+        self.rb.cards = Cards(self.bot)
+        self.rb.cards.create("dead", parse(rp))
+        self.rb.cards.stage(rp, "rec", "run", "0:30 / ~8:00")
+        self.rb.thread = None                                              # робота впала без звіту
+        self.rb.watchdog()
+        self.assertIn("перервався", self.bot.sent[-1][0])
+        n = len(self.bot.sent)
+        self.rb.watchdog()
+        self.assertEqual(len(self.bot.sent), n)
+
     def test_auto_start_after_idle(self):
         started = []
         self.rb.start = lambda manual: started.append(manual) or "ok"
