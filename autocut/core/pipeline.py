@@ -281,7 +281,7 @@ class Job:
             speech = self._silero_speech(chunks, sai_cfg, speech)
         shorts = select_shorts(battles, prof, start, end, speech)
         ai_words = self._speech_ai(chunks, shorts, battles, sai_cfg, start, end, P) if opts.speech_ai and shorts else None
-        for sh in shorts:                     # після подовження до кінця фраз — ще раз: не довше 59,5 с
+        for sh in shorts:                     # після подовження до кінця фраз — ще раз: не довше 58 с
             sh.segments = cap_segments(sh.segments, SHORT_MAX_S)
         log.info("Боїв: %d, шортсів: %d", len(battles), len(shorts))
         for sh in shorts:

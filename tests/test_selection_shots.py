@@ -13,7 +13,7 @@ from shorts.events import Event  # noqa: E402
 from shorts.selection import select_battle  # noqa: E402
 
 CFG = {
-    "max_duration_s": 59.5, "pre_s": [3.0, 3.0], "post_s": [6.0, 6.0], "merge_gap_s": 4.0,
+    "max_duration_s": 58.0, "pre_s": [3.0, 3.0], "post_s": [6.0, 6.0], "merge_gap_s": 4.0,
     "min_score": 1.0, "always_include_final": True, "speech_snap": False, "compact_pre_s": 1.5,
     "compact_post_s": 3.5, "confirmed_first": True, "short_early_shots": True, "tail_full_shots": 3,
     "shot_pre_s": 2.0, "shot_post_s": 1.5, "death_pre_s": 4.0, "death_post_s": 1.5,
@@ -32,12 +32,12 @@ class ShotsTest(unittest.TestCase):
         return {"index": 1, "events": evs}, evs[:-1], evs[-1]
 
     def test_all_shots_fit_short_early_full_tail(self):
-        b, shots, death = self.battle(12)   # 12 пострілів: з повним (9 с) і навіть коротким (5 с) запасом — не влазять
+        b, shots, death = self.battle(11)   # 11 пострілів: з повним (9 с) і навіть коротким (5 с) запасом — не влазять у 58 с
         segs, final = select_battle(b, CFG, 0, 10_000, None)
         total = sum(s.end - s.start for s in segs)
-        self.assertLessEqual(total, 59.5 + 1e-6)
+        self.assertLessEqual(total, 58.0 + 1e-6)
         covered = [e for e in shots if any(s.start <= e.t <= s.end for s in segs)]
-        self.assertEqual(len(covered), 12)                         # жоден постріл не загубився
+        self.assertEqual(len(covered), 11)                         # жоден постріл не загубився
         self.assertTrue(any(s.start <= death.t <= s.end for s in segs))  # фінал бою є
         for e in shots[-2:]:                                       # останні — з повним запасом (3 с до, 6 с після)
             seg = next(s for s in segs if s.start <= e.t <= s.end)
@@ -50,7 +50,7 @@ class ShotsTest(unittest.TestCase):
     def test_too_many_drops_weakest_early_not_the_end(self):
         b, shots, death = self.battle(20)   # 20 пострілів — і коротко не влазять усі
         segs, _ = select_battle(b, CFG, 0, 10_000, None)
-        self.assertLessEqual(sum(s.end - s.start for s in segs), 59.5 + 1e-6)
+        self.assertLessEqual(sum(s.end - s.start for s in segs), 58.0 + 1e-6)
         covered = {e.t for e in shots if any(s.start <= e.t <= s.end for s in segs)}
         for e in shots[-2:]:
             self.assertIn(e.t, covered)                            # кінець бою не викидається
