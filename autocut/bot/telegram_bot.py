@@ -34,6 +34,8 @@ from autocut.core.logs import setup_logging  # noqa: E402
 from autocut.core.resolve_export import read_status  # noqa: E402
 from autocut.core.util import fmt_time  # noqa: E402
 from autocut.bot.chat import REFRESH_AFTER, TTL_BUTTONS, TTL_ERROR, TTL_INFO, ChatRegistry  # noqa: E402
+from autocut.bot.access import (CONTROL, OWNER_ACTS, OWNER_CMDS, ROLE_NAMES, VIEWER_CMDS, Access,  # noqa: E402
+                                display_name)
 
 log = logging.getLogger("telegram")
 CFG_FILE = CONFIG_DIR / "telegram.json"
@@ -303,7 +305,9 @@ class Bot:
         self.hl_busy = False
         self.rec_choices: dict[str, tuple] = {}   # id кнопки -> (результат, шортс, файл запису)
         self.last_update_check = 0.0
-        self.chat = ChatRegistry(work_dir(settings) / "tg_chat.json")   # що в чаті постійне, а що тимчасове
+        self._ctx = threading.local()          # у чиєму чаті зараз дія (власник / адмін / глядач)
+        self._chats: dict[int, ChatRegistry] = {}
+        self.access = Access(cfg, lambda: save_cfg(self.cfg), lambda: self.owner)
         self._card_last = ("", 0.0)            # (текст картки, коли рахували)
         self._card_bottom = False              # картку треба перенести вниз (під нові шортси)
         try:
@@ -312,6 +316,37 @@ class Bot:
         except Exception as e:  # реплеї не повинні ламати бота
             log.warning("Реплеї в боті недоступні: %s", e)
             self.replays = None
+
+    # -------------------------------------------------------------- кілька людей: чий чат зараз
+    @property
+    def cid(self):
+        """Чат, з яким зараз працюємо: того, хто натиснув/написав; фонові справи — власник."""
+        return getattr(self._ctx, "chat", None) or self.owner
+
+    @property
+    def chat(self) -> ChatRegistry:
+        """Облік повідомлень саме цього чату (у кожної людини — свій)."""
+        cid = self.cid
+        reg = self._chats.get(cid)
+        if reg is None:
+            name = "tg_chat.json" if cid == self.owner else f"tg_chat_{cid}.json"
+            reg = self._chats[cid] = ChatRegistry(work_dir(self.settings) / name)
+        return reg
+
+    def as_chat(self, cid):
+        bot = self
+
+        class _Ctx:
+            def __enter__(self_):
+                self_.prev = getattr(bot._ctx, "chat", None)
+                bot._ctx.chat = cid
+
+            def __exit__(self_, *a):
+                bot._ctx.chat = self_.prev
+        return _Ctx()
+
+    def role(self) -> str | None:
+        return self.access.role(self.cid)
 
     # -------------------------------------------------------------- відправка
     # постійне меню внизу чату
@@ -328,12 +363,19 @@ class Bot:
                  "📋 Шортси": "/shorts", "⏳ Статус": "/status", "📤 До публікації": "/kept",
                  "📁 Усі результати": "/all", "🔄 Оновлення": "/update", "🗑 Видалені": "/deleted", "🎮 Реплеї": "/replays"}
 
+    VIEW_MENU = {"keyboard": [[{"text": "⏳ Що зараз робиться"}, {"text": "🧹 Очистити чат"}]],
+                 "resize_keyboard": True, "is_persistent": True}
+
+    def menu(self) -> dict:
+        """Нижнє меню за роллю: глядачу — лише статус і очищення чату."""
+        return self.MENU if self.role() in CONTROL else self.VIEW_MENU
+
     def delete_msg(self, mid) -> None:
         if not mid:
             return
         self.chat.forget(mid)
         try:
-            self.api.call("deleteMessage", chat_id=self.owner, message_id=mid)
+            self.api.call("deleteMessage", chat_id=self.cid, message_id=mid)
         except Exception:
             pass
 
@@ -372,7 +414,13 @@ class Bot:
         self.hl_busy = True
         wait = self.send(f"⏳ Хайлайт: {s['name']}\nРоблю на 7–8 хв (увесь кадр стріму) з opener'ом — це займе кілька хвилин…")
 
+        chat = self.cid
+
         def work():
+            with self.as_chat(chat):
+                return _work()
+
+        def _work():
             try:
                 exe = Path(sys.executable)
                 pyw = exe.with_name("pythonw.exe")             # вікно прогресу без консолі
@@ -405,9 +453,9 @@ class Bot:
                     prev = make_preview(self.settings, mp4, horizontal=True)
                     if prev.stat().st_size > MAX_UPLOAD:
                         raise RuntimeError("завеликий")
-                    self.api.call("sendChatAction", chat_id=self.owner, action="upload_video")
+                    self.api.call("sendChatAction", chat_id=self.cid, action="upload_video")
                     vw, vh, vd = video_size(self.settings, prev)     # без розміру Telegram показує квадрат
-                    self.track(self.api.send_file("sendVideo", "video", prev, chat_id=self.owner, caption=cap,
+                    self.track(self.api.send_file("sendVideo", "video", prev, chat_id=self.cid, caption=cap,
                                                   supports_streaming="true", width=vw, height=vh, duration=vd,
                                                   _timeout=900), 30 * 60)   # подивитись — і зникне
                 except Exception as e:
@@ -439,7 +487,7 @@ class Bot:
             markup = {"inline_keyboard": [[{"text": "♻ Відновити", "callback_data": f"R|{key}"}]]}
             try:
                 prev = make_preview(self.settings, Path(e["mp4"]))
-                res = self.api.send_file("sendVideo", "video", prev, chat_id=self.owner,
+                res = self.api.send_file("sendVideo", "video", prev, chat_id=self.cid,
                                          caption=f"🗑 Видалено: {name}", supports_streaming="true",
                                          width=480, height=854, reply_markup=markup)
                 self.track(res, TTL_BUTTONS)
@@ -463,8 +511,8 @@ class Bot:
     def send(self, text: str, markup: dict | None = None, ttl="auto", silent: bool = False):
         """Повідомлення в чат. Усе, крім картки й непідтверджених шортсів, — тимчасове:
         ttl="auto" — 2 хв (з кнопками — 15 хв), число — свої секунди, None — постійне."""
-        res = self.api.call("sendMessage", chat_id=self.owner, text=text,
-                            reply_markup=markup if markup is not None else self.MENU,
+        res = self.api.call("sendMessage", chat_id=self.cid, text=text,
+                            reply_markup=markup if markup is not None else self.menu(),
                             disable_web_page_preview=True, disable_notification=silent)
         self.track(res, self._auto_ttl(markup) if ttl == "auto" else ttl)
         return res
@@ -487,12 +535,12 @@ class Bot:
         for i in range(0, len(ids), 100):
             part = ids[i:i + 100]
             try:
-                self.api.call("deleteMessages", chat_id=self.owner, message_ids=part)
+                self.api.call("deleteMessages", chat_id=self.cid, message_ids=part)
                 done += len(part)
             except Exception:
                 for mid in part:            # старіші версії API — по одному
                     try:
-                        self.api.call("deleteMessage", chat_id=self.owner, message_id=mid)
+                        self.api.call("deleteMessage", chat_id=self.cid, message_id=mid)
                         done += 1
                     except Exception:
                         pass
@@ -504,7 +552,10 @@ class Bot:
         return done
 
     def short_markup(self, key: str, published: bool, video: bool = True) -> dict:
-        """Кнопки під шортсом. video=True — повідомлення вже є відео (кнопка 480p не потрібна)."""
+        """Кнопки під шортсом. video=True — повідомлення вже є відео (кнопка 480p не потрібна).
+        Глядач («👁 перегляд») — без кнопок."""
+        if self.role() not in CONTROL:
+            return {"inline_keyboard": []}
         second = ([{"text": "↩ Повернути", "callback_data": f"u|{key}"}] if published else
                   [{"text": "✅ Підходить → до публікації", "callback_data": f"k|{key}"}])
         first = [{"text": "📱 Оригінал (повна якість)", "callback_data": f"f|{key}"}]
@@ -524,18 +575,18 @@ class Bot:
             return False                                     # уже є в чаті
         ttl = None if not pub else TTL_BUTTONS
         try:
-            self.api.call("sendChatAction", chat_id=self.owner, action="upload_video")
+            self.api.call("sendChatAction", chat_id=self.cid, action="upload_video")
             prev = make_preview(self.settings, cur)
             if prev.stat().st_size > MAX_UPLOAD:
                 raise RuntimeError("завеликий")
-            res = self.api.send_file("sendVideo", "video", prev, chat_id=self.owner,
+            res = self.api.send_file("sendVideo", "video", prev, chat_id=self.cid,
                                caption=self.short_text(s, cur, pub), supports_streaming="true",
                                width=480, height=854, duration=int(s["duration"]),
                                reply_markup=self.short_markup(key, pub, video=True))
             file_id = ((res or {}).get("video") or {}).get("file_id", "") if isinstance(res, dict) else ""
         except Exception as e:
             log.warning("Відео %s не надіслано: %s", s["name"], e)
-            res = self.api.call("sendMessage", chat_id=self.owner, text=self.short_text(s, cur, pub),
+            res = self.api.call("sendMessage", chat_id=self.cid, text=self.short_text(s, cur, pub),
                                 reply_markup=self.short_markup(key, pub, video=False))
             file_id = ""
         mid = res.get("message_id") if isinstance(res, dict) else None
@@ -545,6 +596,22 @@ class Bot:
         else:
             self.chat.add(mid, ttl, "approved")
         return True
+
+    def drop_everywhere(self, key: str) -> None:
+        """Шортс вирішено (хтось натиснув «Підходить» / «Видалити») — прибрати його з чатів УСІХ людей."""
+        for c in self.access.recipients():
+            with self.as_chat(c):
+                mid = self.chat.drop_short(key)
+                if mid:
+                    self.delete_msg(mid)
+                self.update_card(force=True)
+
+    def broadcast_short(self, key: str, s: dict, mp4: Path) -> None:
+        """Шортс знову на перевірці (повернули / відновили) — у чати всіх, у кого його немає."""
+        for c in self.access.recipients():
+            with self.as_chat(c):
+                self.send_short(key, s, mp4, False)
+                self.update_card(force=True)
 
     def locate(self, job_dir: Path, s: dict, marks: Marks) -> tuple[Path | None, bool]:
         """Де зараз MP4 шортсу: (шлях або None, чи в папці публікації)."""
@@ -763,7 +830,8 @@ class Bot:
             "🔄 Оновити програму — завантажити нову версію з GitHub\n"
             "🇬🇧 EU: реплеї → шортси — шортси для EU-каналу з чужих реплеїв: фільтр, підбірка, запис "
             "(файл .wotreplay можна просто надіслати сюди). Вони йдуть лише в чергу EU-каналу Poster\n"
-            "🧹 Очистити чат — прибрати повідомлення бота (за 48 год)\n\n"
+            "🧹 Очистити чат — прибрати повідомлення бота\n"
+            "/users — хто має доступ до бота (людина пише /start — вам приходить запит: 🛠 адмін або 👁 перегляд)\n\n"
             "Під шортсом: ▶ 480p — легкий перегляд, 📱 оригінал (якщо до 50 МБ), "
             "✅ Підходить — перенести MP4 (і субтитри) в папку публікації, ↩ Повернути — назад, "
             "🗑 Видалити — у output\\_видалені.")
@@ -809,12 +877,17 @@ class Bot:
         if act == "C":
             self.cmd_shorts()
             return
+        if act == "A":
+            uid, _, role = key.partition("|")
+            if uid.lstrip("-").isdigit() and role in ("admin", "viewer", "no"):
+                self.set_access(int(uid), role, cq.get("message") or {})
+            return
         if act == "X":
             msg = cq.get("message") or {}
             if key == "go":
                 self.do_clear()
             elif msg:
-                self.api.call("deleteMessage", chat_id=self.owner, message_id=msg["message_id"])
+                self.api.call("deleteMessage", chat_id=self.cid, message_id=msg["message_id"])
             return
         if act == "j":
             self.show_job(output_dir(self.settings) / f"job_{key}")
@@ -855,8 +928,7 @@ class Bot:
             mp4 = restore_short(entry, s)
             marks.set_deleted(key, None)
             self.delete_msg(msg.get("message_id"))
-            self.send_short(key, s, mp4, False)
-            self.update_card(force=True)
+            self.broadcast_short(key, s, mp4)
             return
         if act == "H":
             self.start_highlight(job_dir, s)
@@ -876,25 +948,25 @@ class Bot:
             if not msg:
                 return
             if text is not None and msg.get("text") is not None:
-                self.api.call("editMessageText", chat_id=self.owner, message_id=msg["message_id"],
+                self.api.call("editMessageText", chat_id=self.cid, message_id=msg["message_id"],
                               text=text, reply_markup=markup)
             elif text is not None and is_video:
-                self.api.call("editMessageCaption", chat_id=self.owner, message_id=msg["message_id"],
+                self.api.call("editMessageCaption", chat_id=self.cid, message_id=msg["message_id"],
                               caption=text, reply_markup=markup)
             else:
-                self.api.call("editMessageReplyMarkup", chat_id=self.owner, message_id=msg["message_id"],
+                self.api.call("editMessageReplyMarkup", chat_id=self.cid, message_id=msg["message_id"],
                               reply_markup=markup)
 
         vid = msg.get("text") is None          # кнопки під відео (не під текстом)
         if act in ("v", "f"):
-            self.api.call("sendChatAction", chat_id=self.owner, action="upload_video")
+            self.api.call("sendChatAction", chat_id=self.cid, action="upload_video")
             path = make_preview(self.settings, cur) if act == "v" else cur
             if path.stat().st_size > MAX_UPLOAD:
                 self.send("Оригінал більший за 50 МБ — Telegram не дозволяє ботам таке надсилати. "
                           "Дивіться ▶ 480p.")
                 return
             w, h = (480, 854) if act == "v" else (1080, 1920)
-            res = self.api.send_file("sendVideo", "video", path, chat_id=self.owner, caption=self.short_text(s, cur, pub),
+            res = self.api.send_file("sendVideo", "video", path, chat_id=self.cid, caption=self.short_text(s, cur, pub),
                                supports_streaming="true", width=w, height=h, duration=int(s["duration"]),
                                reply_markup={"inline_keyboard": []})
             self.track(res, TTL_BUTTONS)                     # лише подивитись — зникне саме
@@ -903,7 +975,7 @@ class Bot:
             marks.set(key, new)
             self.chat.drop_short(key)
             self.delete_msg(msg.get("message_id"))           # перевірено — з чату зникає; лічильник — у картці
-            self.update_card(force=True)
+            self.drop_everywhere(key)                        # і з чатів інших людей
         elif act == "k":
             self.chat.drop_short(key)
             self.delete_msg(msg.get("message_id"))
@@ -915,8 +987,7 @@ class Bot:
                     shutil.move(str(back.with_suffix(".srt")), str(s["mp4"].with_suffix(".srt")))
             marks.set(key, None)
             self.delete_msg(msg.get("message_id"))
-            self.send_short(key, s, s["mp4"], False)        # знову на перевірку — постійний у чаті
-            self.update_card(force=True)
+            self.broadcast_short(key, s, s["mp4"])           # знову на перевірку — у чати всіх
         elif act == "d":
             redraw(None, {"inline_keyboard": [[
                 {"text": "🗑 Так, видалити", "callback_data": f"D|{key}"},
@@ -927,7 +998,7 @@ class Bot:
             marks.set_deleted(key, entry)
             self.chat.drop_short(key)
             self.delete_msg(msg.get("message_id"))      # пост зникає; відновити — «🗑 Видалені»
-            self.update_card(force=True)
+            self.drop_everywhere(key)
             log.info("Видалено %s -> %s", s["name"], entry["moved"])
         elif act == "c":
             redraw(None, self.short_markup(key, pub, vid))
@@ -936,9 +1007,19 @@ class Bot:
     def handle(self, upd: dict):
         if "callback_query" in upd:
             cq = upd["callback_query"]
-            if (cq.get("from") or {}).get("id") != self.owner:
+            uid = (cq.get("from") or {}).get("id")
+            role = self.access.role(uid)
+            act = cq.get("data", "").partition("|")[0]
+            if role not in CONTROL:
+                if role == "viewer":
+                    self._answer(cq, "👁 У вас доступ лише на перегляд")
                 return
-            self.on_callback(cq)
+            if act in OWNER_ACTS and role != "owner":
+                self._answer(cq, "Це може лише власник бота")
+                return
+            chat = ((cq.get("message") or {}).get("chat") or {}).get("id") or uid
+            with self.as_chat(chat):
+                self.on_callback(cq)
             return
         m = upd.get("message") or {}
         uid = (m.get("from") or {}).get("id")
@@ -947,10 +1028,84 @@ class Bot:
             self.owner = uid
             self.cfg["owner_id"] = uid
             save_cfg(self.cfg)
-        if uid != self.owner:
-            return                        # чужим — нічого
+        role = self.access.role(uid)
+        if role not in ("owner", "admin", "viewer"):
+            self.ask_access(m, role)          # чужий: /start — запит власнику; решта — нічого
+            return
+        with self.as_chat(uid):
+            self._handle_message(m, role, text)
+
+    def ask_access(self, m: dict, role: str | None) -> None:
+        user = m.get("from") or {}
+        uid = user.get("id")
+        if uid is None or not (m.get("text") or "").strip().startswith("/start") or self.owner is None:
+            return
+        name = display_name(user)
+        if role != "pending":
+            self.access.set(uid, "pending", name)
+            kb = {"inline_keyboard": [[{"text": "🛠 Адмін", "callback_data": f"A|{uid}|admin"},
+                                       {"text": "👁 Перегляд", "callback_data": f"A|{uid}|viewer"},
+                                       {"text": "❌ Відхилити", "callback_data": f"A|{uid}|no"}]]}
+            self.send(f"🔑 Запит доступу до бота: {name}\n\n🛠 Адмін — перевіряє шортси (кнопки «✅ Підходить» / «🗑»)\n"
+                      "👁 Перегляд — лише бачить шортси й статус", kb, ttl=7 * 24 * 3600)
+        with self.as_chat(uid):
+            self.api.call("sendMessage", chat_id=uid, text="🔑 Запит доступу надіслано власнику бота. "
+                          "Щойно він підтвердить — тут з'являться шортси й статус.")
+
+    def cmd_users(self) -> None:
+        users = {k: v for k, v in self.access.users.items() if v.get("role")}
+        if not users:
+            self.send("Доступ має лише власник. Щоб дати доступ: людина пише боту /start — вам прийде запит.")
+            return
+        rows = []
+        lines = ["👥 Доступ до бота (людина пише /start — вам приходить запит):"]
+        for k, v in users.items():
+            lines.append(f"• {v.get('name') or k} — {ROLE_NAMES.get(v.get('role'), v.get('role'))}")
+            rows.append([{"text": f"🛠 {v.get('name') or k}"[:30], "callback_data": f"A|{k}|admin"},
+                         {"text": "👁", "callback_data": f"A|{k}|viewer"},
+                         {"text": "🗑", "callback_data": f"A|{k}|no"}])
+        self.send("\n".join(lines), {"inline_keyboard": rows})
+
+    def set_access(self, uid: int, role: str, msg: dict) -> None:
+        name = self.access.name(uid)
+        self.delete_msg(msg.get("message_id"))
+        if role == "no":
+            was = self.access.role(uid)
+            self.access.remove(uid)
+            self.send(f"🗑 {name}: доступу немає.")
+            if was in ("admin", "viewer"):
+                with self.as_chat(uid):
+                    for key, v in list(self.chat.data["shorts"].items()):
+                        self.chat.drop_short(key)
+                        self.delete_msg(v.get("id"))
+                    card = self.chat.card()
+                    if card:
+                        self.delete_msg(card["id"])
+                    self.api.call("sendMessage", chat_id=uid, text="Доступ до бота закрито власником.",
+                                  reply_markup={"remove_keyboard": True})
+            return
+        self.access.set(uid, role)
+        self.send(f"✅ {name}: {ROLE_NAMES[role]}.")
+        with self.as_chat(uid):                      # новій людині — меню, картка й шортси на перевірці
+            self.send(f"✅ Вам відкрито доступ: {ROLE_NAMES[role]}." + (
+                "\nПід шортсами — «✅ Підходить» / «🗑 Видалити»." if role == "admin" else
+                "\nВи бачите шортси й статус; рішення приймає власник."), ttl=TTL_BUTTONS)
+            self.cmd_shorts()
+            self.update_card(force=True, bottom=True)
+
+    def _handle_message(self, m: dict, role: str, text: str):
         self.chat.note_id(m.get("message_id"))
         self.track(m, TTL_INFO)
+        mapped = self.MENU_CMDS.get(text, text)
+        cmd0 = mapped.split()[0].split("@")[0].lower() if mapped else ""
+        if role == "viewer" and cmd0 not in VIEWER_CMDS:
+            self.delete_msg(m.get("message_id"))
+            self.send("👁 У вас доступ лише на перегляд: шортси й статус. Рішення приймає власник.")
+            return
+        if role != "owner" and (cmd0 in OWNER_CMDS or m.get("document")):
+            self.delete_msg(m.get("message_id"))
+            self.send("Це може лише власник бота (оновлення програми, EU-реплеї, доступ).")
+            return
         if m.get("document") and self.replays is not None:   # надісланий файл реплею
             self.replays.on_document(m)
             return
@@ -964,7 +1119,13 @@ class Bot:
         text = self.MENU_CMDS.get(text, text)        # кнопки меню внизу чату
         cmd = text.split()[0].split("@")[0].lower() if text else ""
         if cmd == "/start":
-            self.send("Привіт! Я бот автонарізки шортсів.\n\n" + self.HELP, self.MENU)
+            if role == "viewer":
+                self.send("Привіт! Тут з'являтимуться нові шортси й статус (доступ на перегляд).")
+                self.update_card(force=True, bottom=True)
+            else:
+                self.send("Привіт! Я бот автонарізки шортсів.\n\n" + self.HELP, self.menu())
+        elif cmd == "/users":
+            self.cmd_users()
         elif cmd == "/clear":
             self.cmd_clear()
         elif cmd == "/deleted":
@@ -982,7 +1143,7 @@ class Bot:
         elif cmd == "/replays" and self.replays is not None:
             self.replays.show()
         else:
-            self.send(self.HELP, self.MENU)
+            self.send(self.HELP, self.menu())
         if cmd != "/start":
             self.delete_msg(m.get("message_id"))      # ваше натискання кнопки меню — прибираємо
 
@@ -999,7 +1160,11 @@ class Bot:
         s = cur[0]
         if s == "done" and cur[1]:
             job_dir = output_dir(self.settings) / str(cur[1])
-            if not self.show_job(job_dir):
+            shown = 0
+            for c in self.access.recipients():               # власник, адміни, глядачі
+                with self.as_chat(c):
+                    shown = max(shown, self.show_job(job_dir))
+            if not shown:
                 self.send(f"✅ {st.get('message') or 'Обробка завершена'} — нових шортсів немає.")
         elif s == "error":
             self.send(f"❌ Обробка завершилась з помилкою: {st.get('message', '')}", ttl=TTL_ERROR)
@@ -1047,7 +1212,7 @@ class Bot:
                 self._card_last = (text, time.time())
                 return
             try:
-                self.api.call("editMessageText", chat_id=self.owner, message_id=card["id"], text=text_new)
+                self.api.call("editMessageText", chat_id=self.cid, message_id=card["id"], text=text_new)
                 self._card_last = (text_new, time.time())
                 return
             except Exception as e:  # noqa: BLE001
@@ -1055,7 +1220,7 @@ class Bot:
                     self._card_last = (text_new, time.time())
                     return
                 log.info("Картку не відредаговано (%s) — надсилаю нову", e)
-        res = self.api.call("sendMessage", chat_id=self.owner, text=text_new, reply_markup=self.MENU,
+        res = self.api.call("sendMessage", chat_id=self.cid, text=text_new, reply_markup=self.menu(),
                             disable_notification=True, disable_web_page_preview=True)
         if card is not None:
             self.delete_msg(card["id"])
@@ -1080,7 +1245,7 @@ class Bot:
                 continue
             if v.get("file_id"):
                 try:
-                    res = self.api.call("sendVideo", chat_id=self.owner, video=v["file_id"],
+                    res = self.api.call("sendVideo", chat_id=self.cid, video=v["file_id"],
                                         caption=self.short_text(s, cur, False), supports_streaming=True,
                                         width=480, height=854, duration=int(s["duration"]),
                                         reply_markup=self.short_markup(key, False, video=True),
@@ -1104,7 +1269,7 @@ class Bot:
                 self.delete_msg(v.get("id"))
                 continue
             try:
-                self.api.call("editMessageReplyMarkup", chat_id=self.owner, message_id=v["id"],
+                self.api.call("editMessageReplyMarkup", chat_id=self.cid, message_id=v["id"],
                               reply_markup=self.short_markup(key, False, video=True))
             except Exception as e:  # noqa: BLE001
                 if "not modified" in str(e):
@@ -1123,18 +1288,20 @@ class Bot:
                 {"command": "all", "description": "Усі нарізки"},
                 {"command": "update", "description": "Оновити програму з GitHub"},
                 {"command": "replays", "description": "🇬🇧 EU: шортси з реплеїв для EU-каналу"},
+                {"command": "users", "description": "Хто має доступ до бота"},
                 {"command": "clear", "description": "Очистити чат"}])
         except Exception as e:
             log.warning("setMyCommands: %s", e)
         log.info("Бот запущено, власник: %s", self.owner)
         self.migrate_content()
-        if self.owner is not None:
+        for c in self.access.recipients():
             try:
-                self.reconcile()
-                self.janitor()
-                self.update_card(force=True, bottom=True)
+                with self.as_chat(c):
+                    self.reconcile()
+                    self.janitor()
+                    self.update_card(force=True, bottom=True)
             except Exception as e:  # noqa: BLE001
-                log.warning("Чат після запуску: %s", e)
+                log.warning("Чат %s після запуску: %s", c, e)
         stop = threading.Event()
 
         def watcher():
@@ -1143,11 +1310,13 @@ class Bot:
                     self.watch_status()
                 except Exception as e:
                     log.warning("Статус: %s", e)
-                try:
-                    self.janitor()
-                    self.update_card()
-                except Exception as e:
-                    log.warning("Чат: %s", e)
+                for c in self.access.recipients():
+                    try:
+                        with self.as_chat(c):
+                            self.janitor()
+                            self.update_card()
+                    except Exception as e:
+                        log.warning("Чат %s: %s", c, e)
                 try:
                     self.check_updates()
                 except Exception as e:
