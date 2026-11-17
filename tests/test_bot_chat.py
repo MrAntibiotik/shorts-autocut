@@ -225,5 +225,26 @@ class BotAccessTest(BotChatTest):
         self.assertNotIn(77, self.bot.access.recipients())
 
 
+    def test_owner_menu_has_access_button_and_invite(self):
+        self.bot.access.set(77, "admin", "Адмін")
+        texts = lambda m: [b["text"] for row in m["keyboard"] for b in row]       # noqa: E731
+        with self.bot.as_chat(42):
+            self.assertIn("👥 Доступ: адміністратори й перегляд", texts(self.bot.menu()))
+        with self.bot.as_chat(77):
+            self.assertNotIn("👥 Доступ: адміністратори й перегляд", texts(self.bot.menu()))
+        self.start_from(88, "Нова")                                         # запит чекає
+        orig = self.api.call
+        self.api.call = lambda method, _timeout=40, **p: ({"username": "rizak_bot"} if method == "getMe"
+                                                         else orig(method, _timeout, **p))
+        self.bot.handle({"update_id": 7, "message": {"message_id": 11, "text": "👥 Доступ: адміністратори й перегляд",
+                                                     "from": {"id": 42}, "chat": {"id": 42}}})
+        msg = self.chat_calls(42, "sendMessage")[-1]
+        self.assertIn("Чекають рішення", msg["text"])
+        datas = [b["callback_data"] for row in msg["reply_markup"]["inline_keyboard"] for b in row]
+        self.assertIn("A|88|admin", datas)
+        self.assertIn("A|invite|admin", datas)
+        self.press_as(42, "A|invite|admin")
+        self.assertIn("https://t.me/rizak_bot?start=join", self.chat_calls(42, "sendMessage")[-1]["text"])
+
 for _name in [n for n in vars(BotChatTest) if n.startswith("test_")]:
     setattr(BotAccessTest, _name, None)

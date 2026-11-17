@@ -359,6 +359,7 @@ class Bot:
     MENU_CMDS = {"📋 Нові шортси на перевірку": "/shorts", "⏳ Що зараз робиться": "/status",
                  "✅ Схвалені (до публікації)": "/kept", "📁 Усі нарізки": "/all", "🔄 Оновити програму": "/update",
                  "🧹 Очистити чат": "/clear", "🗑 Видалені — відновити": "/deleted", "🇬🇧 EU: реплеї → шортси": "/replays",
+                 "👥 Доступ: адміністратори й перегляд": "/users",
                  # старі підписи (меню до оновлення) — теж працюють
                  "📋 Шортси": "/shorts", "⏳ Статус": "/status", "📤 До публікації": "/kept",
                  "📁 Усі результати": "/all", "🔄 Оновлення": "/update", "🗑 Видалені": "/deleted", "🎮 Реплеї": "/replays"}
@@ -367,8 +368,11 @@ class Bot:
                  "resize_keyboard": True, "is_persistent": True}
 
     def menu(self) -> dict:
-        """Нижнє меню за роллю: глядачу — лише статус і очищення чату."""
-        return self.MENU if self.role() in CONTROL else self.VIEW_MENU
+        """Нижнє меню за роллю: власнику — ще «👥 Доступ»; глядачу — лише статус і очищення чату."""
+        r = self.role()
+        if r == "owner":
+            return {**self.MENU, "keyboard": self.MENU["keyboard"] + [[{"text": "👥 Доступ: адміністратори й перегляд"}]]}
+        return self.MENU if r in CONTROL else self.VIEW_MENU
 
     def delete_msg(self, mid) -> None:
         if not mid:
@@ -879,6 +883,9 @@ class Bot:
             return
         if act == "A":
             uid, _, role = key.partition("|")
+            if uid == "invite":
+                self.cmd_invite()
+                return
             if uid.lstrip("-").isdigit() and role in ("admin", "viewer", "no"):
                 self.set_access(int(uid), role, cq.get("message") or {})
             return
@@ -1052,19 +1059,45 @@ class Bot:
             self.api.call("sendMessage", chat_id=uid, text="🔑 Запит доступу надіслано власнику бота. "
                           "Щойно він підтвердить — тут з'являться шортси й статус.")
 
+    def bot_username(self) -> str:
+        if not getattr(self, "_username", ""):
+            try:
+                self._username = (self.api.call("getMe") or {}).get("username", "")
+            except Exception:  # noqa: BLE001
+                self._username = ""
+        return self._username
+
     def cmd_users(self) -> None:
+        """«👥 Доступ»: хто має доступ, запити, що чекають, і «➕ Додати адміністратора»."""
         users = {k: v for k, v in self.access.users.items() if v.get("role")}
-        if not users:
-            self.send("Доступ має лише власник. Щоб дати доступ: людина пише боту /start — вам прийде запит.")
-            return
-        rows = []
-        lines = ["👥 Доступ до бота (людина пише /start — вам приходить запит):"]
-        for k, v in users.items():
+        rows, lines = [], ["👥 Доступ до бота"]
+        pending = {k: v for k, v in users.items() if v.get("role") == "pending"}
+        active = {k: v for k, v in users.items() if v.get("role") != "pending"}
+        if pending:
+            lines.append("\n🔑 Чекають рішення:")
+            for k, v in pending.items():
+                lines.append(f"• {v.get('name') or k}")
+                rows.append([{"text": f"🛠 Адмін: {v.get('name') or k}"[:40], "callback_data": f"A|{k}|admin"},
+                             {"text": "👁 Перегляд", "callback_data": f"A|{k}|viewer"},
+                             {"text": "❌", "callback_data": f"A|{k}|no"}])
+        lines.append("\nМають доступ:" if active else "\nДоступ поки має лише власник (ви).")
+        for k, v in active.items():
             lines.append(f"• {v.get('name') or k} — {ROLE_NAMES.get(v.get('role'), v.get('role'))}")
             rows.append([{"text": f"🛠 {v.get('name') or k}"[:30], "callback_data": f"A|{k}|admin"},
                          {"text": "👁", "callback_data": f"A|{k}|viewer"},
-                         {"text": "🗑", "callback_data": f"A|{k}|no"}])
+                         {"text": "🗑 Прибрати", "callback_data": f"A|{k}|no"}])
+        lines.append("\n🛠 — адмін (перевіряє шортси), 👁 — лише перегляд, 🗑 — прибрати доступ.")
+        rows.append([{"text": "➕ Додати адміністратора", "callback_data": "A|invite|admin"}])
         self.send("\n".join(lines), {"inline_keyboard": rows})
+
+    def cmd_invite(self) -> None:
+        name = self.bot_username()
+        link = f"https://t.me/{name}?start=join" if name else ""
+        self.send("➕ Як додати адміністратора:\n"
+                  f"1. Перешліть людині посилання на бота: {link or '(знайдіть бота в Telegram за назвою)'}\n"
+                  "2. Людина відкриває його й натискає «Start».\n"
+                  "3. Вам приходить запит — натисніть «🛠 Адмін» (або «👁 Перегляд»).\n"
+                  "Після цього людина одразу бачить шортси на перевірці й картку статусу.", ttl=30 * 60)
 
     def set_access(self, uid: int, role: str, msg: dict) -> None:
         name = self.access.name(uid)
