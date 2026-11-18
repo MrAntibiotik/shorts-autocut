@@ -100,12 +100,13 @@ def problem_replays(settings: dict, replays_dir: Path) -> list[dict]:
                 video = Path(rec.read_text(encoding="utf-8").strip())
             except OSError:
                 continue
+            n = shorts_by_video.get(str(video.resolve()))
+            if n:
+                continue                      # шортс уже є — запис можна було видалити (прибирання за 3 дні)
             if not video.exists():
                 out.append({"rp": rp, "kind": "lost", "reason": "файл запису зник — запишу знову", "video": None})
                 continue
-            n = shorts_by_video.get(str(video.resolve()))
-            if not n:
-                out.append({"rp": rp, "kind": "uncut", "video": video,
+            out.append({"rp": rp, "kind": "uncut", "video": video,
                             "reason": "нарізка не знайшла моментів" if n == 0 else "запис є, нарізки не було"})
     return out
 

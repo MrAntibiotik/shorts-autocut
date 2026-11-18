@@ -527,6 +527,13 @@ class ReplaysBotTest(unittest.TestCase):
         self.assertFalse((rd / "c.recorded").exists())
         self.assertEqual(sorted(p.stem for p in replay_job.pending_replays(rd)), ["a", "c"])
 
+    def test_deleted_recording_with_short_is_not_a_problem(self):
+        rd = self._problems_setup()
+        (self.d / "d.mkv").unlink()                                        # прибирання видалило запис, шортс є
+        kinds = {it["rp"].stem: it["kind"] for it in replay_job.problem_replays(self.settings, rd)}
+        self.assertNotIn("d", kinds)                                         # не «запис зник» — повтору не буде
+        self.assertEqual(kinds["c"], "lost")
+
     def test_bot_shows_problems_and_retries(self):
         rd = self._problems_setup()
         self.rb.show()
