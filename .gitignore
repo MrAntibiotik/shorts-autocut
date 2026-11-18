@@ -16,3 +16,4 @@ VERSION.json
 templates/opener_16x10/opener_*/
 output_replays_en/
 backups/
+config/ui_theme.txt

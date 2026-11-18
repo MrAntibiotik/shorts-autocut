@@ -143,9 +143,13 @@ def gui(settings, log_file: Path):
 
     root = tk.Tk()
     root.title("Автонарізка шортсів")
-    root.geometry("780x760")
+    from autocut.app import theme
+    from autocut.cli import update as _upd
+    term = theme.on()
+    root.geometry("980x820" if term else "780x760")
     root.minsize(640, 520)
     pad = {"padx": 10, "pady": 4}
+    set_status = theme.banner(root, f"РІЗАК // SHORTS AUTOCUT  v{_upd.code_version()}") if term else (lambda *a, **k: None)
 
     # ---------------------------------------------------------------- екран налаштувань
     # вкладки: «Автонарізка» і «Telegram-бот»
@@ -431,15 +435,22 @@ def gui(settings, log_file: Path):
     btns.pack(fill="x", side="bottom", pady=10)
 
     # ---------------------------------------------------------------- екран прогресу
+    # «повний візуальний контроль»: дошка етапів (кожен запис × кожен етап), загальна смуга, журнал
     prog = tk.Frame(root)
-    stage_lbl = tk.Label(prog, text="", font=("Segoe UI", 11, "bold"), anchor="w", justify="left", wraplength=720)
+    stage_lbl = tk.Label(prog, text="", font=("Segoe UI", 11, "bold"), anchor="w", justify="left", wraplength=840)
     stage_lbl.pack(fill="x", **pad)
+    board_box = tk.Frame(prog)
+    board_box.pack(fill="x", **pad)
+    board = [None]
+    total_lbl = tk.Label(prog, text="", anchor="w", font=("Consolas", 10, "bold"))
+    total_lbl.pack(fill="x", **pad)
     bar = ttk.Progressbar(prog, maximum=1000)
     bar.pack(fill="x", **pad)
     eta_lbl = tk.Label(prog, text="", fg="#555", anchor="w")
     eta_lbl.pack(fill="x", **pad)
-    logbox = tk.Text(prog, height=20, font=("Consolas", 9), state="disabled", wrap="word")
-    logbox.pack(fill="both", expand=True, **pad)
+    tk.Label(prog, text="ЖУРНАЛ", anchor="w", fg="#555").pack(fill="x", padx=10)
+    log_frame, append = theme.console(prog, height=14)
+    log_frame.pack(fill="both", expand=True, **pad)
     pbtns = tk.Frame(prog)
     pbtns.pack(fill="x", pady=8)
 
@@ -448,11 +459,18 @@ def gui(settings, log_file: Path):
     t_start = [0.0]
     result = {}
 
-    def append(text):
-        logbox.configure(state="normal")
-        logbox.insert("end", text + "\n")
-        logbox.see("end")
-        logbox.configure(state="disabled")
+    def show_total(frac: float):
+        el = time.time() - t_start[0]
+        left = f"   залишилось ≈ {theme.mmss(el / frac - el)}" if frac > 0.02 else ""
+        total_lbl.config(text=f"ВСЬОГО  [{theme.bar(frac, 40)}] {frac * 100:5.1f}%   "
+                              f"минуло {theme.mmss(el)}{left}")
+
+    def tick_total():
+        if result or not prog.winfo_exists():
+            return
+        if board[0] is not None:
+            show_total(board[0].frac)
+        root.after(1000, tick_total)
 
     def poll():
         try:
@@ -462,8 +480,12 @@ def gui(settings, log_file: Path):
                     append(data)
                 elif kind == "progress":
                     stage, frac = data
-                    stage_lbl.config(text=stage)
+                    stage_lbl.config(text="▶ " + stage)
+                    set_status("ПРАЦЮЮ", theme.FG_HI)
                     bar["value"] = frac * 1000
+                    if board[0] is not None:
+                        board[0].update(stage, frac)
+                    show_total(frac)
                     el = time.time() - t_start[0]
                     if frac > 0.02:
                         eta_lbl.config(text=f"{frac * 100:.0f} %   минуло {fmt_time(el, 0)}, "
@@ -472,14 +494,23 @@ def gui(settings, log_file: Path):
                     result.update(data)
                     total = sum(len(r["shorts"]) for r in data["recordings"])
                     bar["value"] = 1000
+                    if board[0] is not None:
+                        board[0].finish(True)
+                    show_total(1.0)
+                    set_status(f"ГОТОВО · ШОРТСІВ: {total}", theme.FG_HI)
+                    append(f">> ГОТОВО. Шортсів: {total}")
                     eta_lbl.config(text=f"100 %   готово за {fmt_time(time.time() - t_start[0], 0)}")
-                    stage_lbl.config(text=f"Готово! Шортсів: {total}.\nПоверніться в DaVinci і натисніть "
+                    stage_lbl.config(text=f"✓ Готово! Шортсів: {total}.\nПоверніться в DaVinci і натисніть "
                                           "Workspace → Scripts → Shorts Autocut ще раз — таймлайни зберуться.")
                     finish()
                 elif kind in ("error", "cancelled"):
-                    stage_lbl.config(text="Скасовано." if kind == "cancelled" else "Помилка — див. текст нижче.")
+                    if board[0] is not None:
+                        board[0].finish(False)
+                    set_status("СКАСОВАНО" if kind == "cancelled" else "ПОМИЛКА", theme.AMBER if kind == "cancelled" else theme.ERR)
+                    stage_lbl.config(text="Скасовано." if kind == "cancelled" else "✗ Помилка — див. журнал нижче.",
+                                     fg="#a05a00" if kind == "cancelled" else "#b00020")
                     if kind == "error":
-                        append("\n[ПОМИЛКА] " + data)
+                        append("[ПОМИЛКА] " + data)
                         messagebox.showerror("Помилка", data)
                     finish()
         except queue.Empty:
@@ -572,7 +603,10 @@ def gui(settings, log_file: Path):
                                  if rec_zones.get(str(Path(r)))},
                           webcams={k: v for k, v in rec_cams.items()})
         nb.pack_forget()
+        board[0] = theme.StageBoard([str(r) for r in recs])
+        theme.board_widget(board_box, board[0], height=min(9 * len(recs), 18)).pack(fill="x")
         prog.pack(fill="both", expand=True)
+        root.after(1000, tick_total)
         h = QueueHandler(q)
         logging.getLogger().addHandler(h)
         append(f"Лог-файл: {log_file}")
@@ -590,13 +624,19 @@ def gui(settings, log_file: Path):
     tk.Button(btns, text="Закрити", width=12, command=root.destroy).pack(side="right")
 
     # версія програми і відкат на збережену (backups\)
-    from autocut.cli import update as _upd
     tk.Label(btns, text=f"Версія {_upd.code_version()}", fg="#777").pack(side="left")
 
     def rollback_ui():
         from autocut.app.rollback_dialog import RollbackDialog
         RollbackDialog(root)
     tk.Button(btns, text="⏪ Відкат…", command=rollback_ui).pack(side="left", padx=6)
+
+    def toggle_look():
+        theme.set_enabled(not term)
+        if messagebox.askyesno("Вигляд", ("Звичайний вигляд" if term else "Вигляд «термінал» (чорний, зелений шрифт)")
+                               + " — після перезапуску вікна.\n\nЗакрити вікно зараз?"):
+            root.destroy()
+    tk.Button(btns, text="◐ Вигляд", command=toggle_look).pack(side="left", padx=6)
 
     # ---------------------------------------------------------------- режим розробника («antibiotik»)
     def selected_recording():

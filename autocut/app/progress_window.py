@@ -37,9 +37,11 @@ def run_with_window(title: str, work, folder_of=None, close_after_s: int = 30):
             box["error"] = e
             q.put(("error", str(e), None))
 
+    from autocut.app import theme
     root = tk.Tk()
     root.title(title)
     root.resizable(False, False)
+    set_status = theme.banner(root, "РІЗАК // " + title.upper()[:40]) if theme.on() else (lambda *a, **k: None)
     try:
         root.attributes("-topmost", True)
         root.after(1500, lambda: root.attributes("-topmost", False))
@@ -54,6 +56,9 @@ def run_with_window(title: str, work, folder_of=None, close_after_s: int = 30):
     bar.start(12)
     info = tk.Label(root, text="", fg="#555", font=("Segoe UI", 9), anchor="w")
     info.pack(fill="x", **pad)
+    hist_frame, history = theme.console(root, height=8)     # етапи з часом — що вже зроблено
+    hist_frame.pack(fill="both", expand=True, **pad)
+    last = {"text": None}
     btns = tk.Frame(root)
     btns.pack(fill="x", padx=14, pady=(4, 12))
     t0 = time.time()
@@ -79,6 +84,8 @@ def run_with_window(title: str, work, folder_of=None, close_after_s: int = 30):
         bar.config(mode="determinate")
         bar["value"] = 1000 if ok else 0
         stage.config(text=text, fg="#2e7d32" if ok else "#b00020")
+        history(text)
+        set_status("ГОТОВО" if ok else "ПОМИЛКА", theme.FG_HI if ok else theme.ERR)
         folder = None
         if ok and folder_of:
             try:
@@ -109,6 +116,10 @@ def run_with_window(title: str, work, folder_of=None, close_after_s: int = 30):
                 if kind == "p":
                     pct = f"  {int(frac * 100)}%" if frac is not None else ""
                     stage.config(text=f"{text}{pct}")
+                    if text != last["text"]:
+                        last["text"] = text
+                        history("▶ " + text)
+                        set_status("ПРАЦЮЮ", theme.FG_HI)
                     set_frac(frac)
                 elif kind == "done":
                     finish(True, "✅ Готово")
