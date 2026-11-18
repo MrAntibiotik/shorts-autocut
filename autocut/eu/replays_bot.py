@@ -78,6 +78,25 @@ class ReplaysBot:
         self.cards = Cards(bot)              # живі картки: етапи від скачування до публікації
 
     # -------------------------------------------------------------- стан
+    def cleanup_records(self, st: dict, now: float | None = None) -> bool:
+        """Раз на keep_records_days днів (типово 3) видаляє записи реплеїв, старші за цей термін.
+        Час останнього прибирання — у replays_state.json, тож перезапуск бота відлік не скидає.
+        Під час запису не прибирає — дочекається, поки запис закінчиться."""
+        days = float(st.get("keep_records_days", 3) or 0)
+        now = now or time.time()
+        if days <= 0 or now - float(st.get("last_records_cleanup") or 0) < days * 86400:
+            return False
+        if self.recording_now():
+            return False
+        self.update(last_records_cleanup=now)
+        try:
+            from autocut.eu.replay_job import cleanup_recordings
+            from autocut.eu.replay_record import default_record_dir
+            cleanup_recordings(Path(st.get("record_dir") or default_record_dir()), days, now=now)
+        except Exception as e:  # noqa: BLE001
+            log.warning("Прибирання записів реплеїв: %s", e)
+        return True
+
     def state(self) -> dict:
         return effective(self.settings)
 
@@ -483,15 +502,7 @@ class ReplaysBot:
         except Exception as e:  # noqa: BLE001
             log.warning("Сторож запису: %s", e)
         st = self.state()
-        if time.time() - getattr(self, "last_cleanup", 0) >= 3600 and not self.recording_now():
-            self.last_cleanup = time.time()          # раз на годину: записи реплеїв старші за N днів — геть
-            try:
-                from autocut.eu.replay_job import cleanup_recordings
-                from autocut.eu.replay_record import default_record_dir
-                rdir = Path(st.get("record_dir") or default_record_dir())
-                cleanup_recordings(rdir, float(st.get("keep_records_days", 3) or 0))
-            except Exception as e:  # noqa: BLE001
-                log.warning("Прибирання записів реплеїв: %s", e)
+        self.cleanup_records(st)
         if (st.get("instant", True) and not self.user_stopped and time.time() >= self.hold_until
                 and not (self.thread and self.thread.is_alive()) and self.pending(st)
                 and not busy(Path(st["replays_dir"]), own_running=False)):

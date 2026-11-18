@@ -659,6 +659,20 @@ class ReplaysBotTest(unittest.TestCase):
         self.assertTrue(fresh.exists() and other.exists() and rp.exists())  # свіже й не-відео — на місці
         self.assertEqual(replay_job.cleanup_recordings(rec, 0), (0, 0))   # 0 — не видаляти
 
+    def test_records_cleanup_every_3_days(self):
+        from unittest import mock
+        calls = []
+        with mock.patch.object(replay_job, "cleanup_recordings", lambda d, days, now=None: calls.append(days)), \
+                mock.patch.object(self.rb, "recording_now", return_value=False):
+            t0 = 1_000_000_000.0
+            self.assertTrue(self.rb.cleanup_records(self.rb.state(), now=t0))           # перший раз — одразу
+            self.assertFalse(self.rb.cleanup_records(self.rb.state(), now=t0 + 3600))   # за годину — ні
+            self.assertFalse(self.rb.cleanup_records(self.rb.state(), now=t0 + 2.9 * 86400))
+            self.assertTrue(self.rb.cleanup_records(self.rb.state(), now=t0 + 3 * 86400))  # через 3 дні — так
+        self.assertEqual(calls, [3.0, 3.0])
+        with mock.patch.object(self.rb, "recording_now", return_value=True):            # під час запису — чекає
+            self.assertFalse(self.rb.cleanup_records(self.rb.state(), now=t0 + 7 * 86400))
+
     def test_auto_start_after_idle(self):
         started = []
         self.rb.start = lambda manual: started.append(manual) or "ok"
