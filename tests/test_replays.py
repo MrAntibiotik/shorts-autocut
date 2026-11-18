@@ -749,6 +749,34 @@ class CameraCheckTest(unittest.TestCase):
             rr.record_one(Path(__file__), None, opts, obs)
         self.assertEqual(len(clicks), 3)                                # клікав, поки не зафіксувалась
 
+    def test_slow_ocr_does_not_unfix_camera(self):
+        """Розпізнавання тексту повільне (10 с), а напис висить ~4 с — фіксацію не можна «проґавити»
+        й клацнути ще раз (це знімало фіксацію). Зайві заплановані кліки після фіксації — пропускаються."""
+        from unittest import mock
+        from shorts import replay_record as rr
+        clock = {"t": 1000.0}
+        opts = rr.RecordOptions(game_dir=Path("."), load_s=5, click_at=("10", "20", "30"), tail_s=0,
+                                default_battle_s=60, max_s=80, detect_end=False)
+        obs = mock.Mock()
+        obs.status.return_value = (True, "00:00:10")
+        obs.stop.return_value = __file__
+        obs.screenshot.side_effect = lambda **kw: clock["t"]         # «кадр» = коли знято
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        clicks = []
+
+        def camera(self, frame):                                       # напис видно 4 с після кліку
+            clock["t"] += 10                                           # повільне розпізнавання
+            return "player" if clicks and frame - clicks[-1] <= 4 else None
+        with mock.patch.object(rr, "game_exe", return_value=Path(__file__)), \
+                mock.patch.object(rr.subprocess, "Popen", return_value=proc), mock.patch.object(rr, "kill_game"), \
+                mock.patch.object(rr.EndDetector, "camera", camera), mock.patch.object(rr.EndDetector, "warm"), \
+                mock.patch.object(rr, "click_player_view", side_effect=lambda: clicks.append(clock["t"])), \
+                mock.patch.object(rr.time, "time", side_effect=lambda: clock["t"]), \
+                mock.patch.object(rr.time, "sleep", side_effect=lambda s: clock.__setitem__("t", clock["t"] + s)):
+            rr.record_one(Path(__file__), None, opts, obs)
+        self.assertEqual(len(clicks), 1)                                # один клік — і камера лишилась зафіксованою
+
     def test_replay_shorts_go_to_separate_output(self):
         from unittest import mock
         from shorts import replay_job
