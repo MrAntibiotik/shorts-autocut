@@ -103,6 +103,27 @@ def shorts_limit(cfg: dict) -> float:
     return min(float(cfg.get("max_duration_s") or SHORT_MAX_S), SHORT_MAX_S)
 
 
+def speed_max(cfg: dict) -> float:
+    """speed_fit — замість викидати моменти, увесь шортс пришвидшується рівно настільки, щоб влізти в ліміт
+    (EU-канал: реплеї). speed_max — найбільше пришвидшення (за замовчуванням ×2)."""
+    if not cfg.get("speed_fit"):
+        return 1.0
+    return max(1.0, min(4.0, float(cfg.get("speed_max", 2.0) or 1.0)))
+
+
+def speed_budget(cfg: dict) -> float:
+    """Скільки секунд моментів можна взяти до пришвидшення: ліміт × speed_max."""
+    return shorts_limit(cfg) * speed_max(cfg)
+
+
+def fit_speed(sh: "Short", cfg: dict) -> "Short":
+    """Шматки довші за ліміт — пришвидшення рівно до ліміту (не більше speed_max); інакше без пришвидшення."""
+    limit = shorts_limit(cfg)
+    sh.segments = cap_segments(sh.segments, limit * speed_max(cfg))
+    sh.speed = round(sh.duration / limit, 4) if sh.duration > limit + 1e-6 else 1.0
+    return sh
+
+
 def cap_segments(segments: list, limit: float = SHORT_MAX_S) -> list:
     """Обрізає шматки з кінця, щоб сума тривалостей була не більша за limit (зайве — з останніх шматків)."""
     total = sum(s.duration for s in segments)
@@ -142,10 +163,17 @@ class Short:
     final_event: Event | None
     title: str = ""
     name: str = ""
+    speed: float = 1.0          # >1 — шортс пришвидшено, щоб усі моменти влізли в ліміт (speed_fit)
 
     @property
     def duration(self) -> float:
+        """Тривалість шматків у записі (до пришвидшення)."""
         return sum(s.duration for s in self.segments)
+
+    @property
+    def out_duration(self) -> float:
+        """Тривалість готового шортса (після пришвидшення)."""
+        return self.duration / (self.speed or 1.0)
 
     @property
     def score(self) -> float:
@@ -156,11 +184,11 @@ class Short:
         return [e for s in self.segments for e in s.events]
 
     def src_to_short(self, t: float) -> float | None:
-        """Час у записі -> час у шортсі (None, якщо поза шматками)."""
+        """Час у записі -> час у шортсі (None, якщо поза шматками); з урахуванням пришвидшення."""
         acc = 0.0
         for s in self.segments:
             if s.start <= t <= s.end:
-                return acc + (t - s.start)
+                return (acc + (t - s.start)) / (self.speed or 1.0)
             acc += s.duration
         return None
 
@@ -286,7 +314,7 @@ def select_battle(battle: dict, cfg: dict, rec_start: float, rec_end: float,
     if final is not None:
         order = [final] + [e for e in order if e is not final]
 
-    limit = shorts_limit(cfg)
+    limit = speed_budget(cfg)          # з speed_fit — більше моментів, потім пришвидшення рівно до ліміту
     gap = float(cfg["merge_gap_s"])
     chosen = _pack(order, cfg, max_score, rec_start, rec_end, limit, gap, compact=False)
     shots = [e for e in order if _confirmed(e)] or [e for e in order if e.type == E.HIT]
@@ -377,8 +405,11 @@ def select_shorts(battles: list[dict], profile: dict, rec_start: float, rec_end:
         sh.name = f"Шортс {i:02d} — {sh.title}"
     for idx, why in skipped:
         log.info("  Бій %d пропущено: %s", idx, why)
-    for sh in shorts:                         # жорстко: не довше 59,5 с
-        sh.segments = cap_segments(sh.segments, SHORT_MAX_S)
+    for sh in shorts:                         # жорстко: готовий шортс не довше 59,5 с (з пришвидшенням — теж)
+        fit_speed(sh, cfg)
+        if sh.speed > 1:
+            log.info("  %s: моменти %.1f с → пришвидшення ×%.2f → %.1f с", sh.title, sh.duration, sh.speed,
+                     sh.out_duration)
     return shorts
 
 
@@ -405,4 +436,5 @@ def make_title(sh: Short, battle: dict) -> str:
 
 def describe(sh: Short) -> str:
     segs = "  ".join(f"{fmt_time(s.start, 0)}–{fmt_time(s.end, 0)}" for s in sh.segments)
-    return f"{sh.name}: {sh.duration:.1f} с, score {sh.score:.1f} | {segs}"
+    sp = f" (моменти {sh.duration:.1f} с, пришвидшено ×{sh.speed:.2f})" if sh.speed > 1 else ""
+    return f"{sh.name}: {sh.out_duration:.1f} с{sp}, score {sh.score:.1f} | {segs}"

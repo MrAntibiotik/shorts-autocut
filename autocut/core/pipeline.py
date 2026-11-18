@@ -32,7 +32,8 @@ from autocut.core.media import probe
 from autocut.core.render import Overlay, render_short
 from autocut.core.report import write_reports
 from autocut.core.resolve_export import markers_for, write_lua, write_marker_edl, write_status
-from autocut.core.selection import SHORT_MAX_S, Short, SpeechMap, cap_segments, describe, select_shorts, shorts_limit
+from autocut.core.selection import (SHORT_MAX_S, Short, SpeechMap, cap_segments, describe, fit_speed,  # noqa: F401
+                                    select_shorts, shorts_limit, speed_budget)
 from autocut.core.recording import find_webcam_file, resolve_recording, webcam_offset  # noqa: F401
 from autocut.core.speech_ai import words_for_short
 from autocut.core.subtitles import Cue, add_emoji, build_cues, transcribe_shorts, write_srt
@@ -187,7 +188,7 @@ class Job:
                 c = dict(cfg, merge_gap_s=sel["merge_gap_s"])
                 for sh in shorts:
                     before = sh.duration
-                    sh.segments = extend_to_phrases(sh.segments, phrases, shorts_limit(sel), c,
+                    sh.segments = extend_to_phrases(sh.segments, phrases, speed_budget(sel), c,
                                                     start, end)
                     if abs(sh.duration - before) > 0.05:
                         log.info("    %s: до кінця фраз %+.1f с → %.1f с", sh.title, sh.duration - before,
@@ -282,7 +283,7 @@ class Job:
         shorts = select_shorts(battles, prof, start, end, speech)
         ai_words = self._speech_ai(chunks, shorts, battles, sai_cfg, start, end, P) if opts.speech_ai and shorts else None
         for sh in shorts:                     # після подовження до кінця фраз — ще раз: не довше 59,5 с
-            sh.segments = cap_segments(sh.segments, SHORT_MAX_S)
+            fit_speed(sh, prof["selection"])
         log.info("Боїв: %d, шортсів: %d", len(battles), len(shorts))
         for sh in shorts:
             log.info("  %s", describe(sh))
@@ -356,7 +357,7 @@ class Job:
             shorts_out.append({
                 "index": sh.index, "battle": sh.battle, "name": sh.name, "file_base": base_name,
                 "dir": folder, "media_folder": media_name,
-                "duration": round(sh.duration, 3), "score": round(sh.score, 2),
+                "duration": round(sh.out_duration, 3), "score": round(sh.score, 2), "speed": sh.speed,
                 "segments": [{"s": round(s.start, 3), "e": round(s.end, 3)} for s in sh.segments],
                 "layers": [l.to_dict() for l in layout.layers],
                 "srt": str(srt) if srt else None,
@@ -378,7 +379,7 @@ class Job:
                 overlays = self.overlays(cues_by[sh.index], so["cta"], layout, self.work / tag / so["file_base"])
                 try:
                     render_short(st, info, layout, [(s.start, s.end) for s in sh.segments], overlays,
-                                 Path(so["mp4"]), webcam)
+                                 Path(so["mp4"]), webcam, speed=sh.speed)
                 except UserError as e:
                     log.error("[ПОМИЛКА] %s", e)
                     so["mp4"] = None
@@ -452,8 +453,8 @@ class Job:
         text = (self.opts.cta_text or "").strip()
         if not text:
             return None
-        dur = min(float(self.settings["cta"]["duration_s"]), sh.duration)
-        return {"text": text, "start": round(max(0.0, sh.duration - dur), 3), "dur": round(dur, 3)}
+        dur = min(float(self.settings["cta"]["duration_s"]), sh.out_duration)
+        return {"text": text, "start": round(max(0.0, sh.out_duration - dur), 3), "dur": round(dur, 3)}
 
     def overlays(self, cues: list[Cue], cta: dict | None, layout: Layout, tmp: Path) -> list[Overlay]:
         return build_overlays(self.settings, cues, cta, layout, tmp)

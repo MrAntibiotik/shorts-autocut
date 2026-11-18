@@ -41,8 +41,19 @@ def _audio_chain(settings: dict, i: int, dur: float, label: str) -> str:
     return f"[{i}:a:{rec['mixed']['audio_track']}]{tail}[{label}]"
 
 
+def _atempo(speed: float) -> str:
+    """atempo — пришвидшення звуку без зміни висоти; ланцюжком, якщо більше ×2 (старі ffmpeg)."""
+    parts, left = [], speed
+    while left > 2.0 + 1e-9:
+        parts.append("atempo=2.0")
+        left /= 2.0
+    parts.append(f"atempo={left:.5f}")
+    return ",".join(parts)
+
+
 def build_command(settings: dict, info: VideoInfo, layout: Layout, segments: list[tuple[float, float]],
-                  overlays: list[Overlay], out_path: Path, webcam: dict | None, encoder: str) -> list[str]:
+                  overlays: list[Overlay], out_path: Path, webcam: dict | None, encoder: str,
+                  speed: float = 1.0) -> list[str]:
     ffmpeg = find_tool(settings, "ffmpeg")
     hw = (settings.get("processing", {}).get("hwaccel") or "").strip()
     cmd = [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-nostdin"]
@@ -93,7 +104,11 @@ def build_command(settings: dict, info: VideoInfo, layout: Layout, segments: lis
         f.append(_audio_chain(settings, rec_i, d, f"a{k}"))
         concat_in.append(f"[v{k}][a{k}]")
     f.append("".join(concat_in) + f"concat=n={len(seg_inputs)}:v=1:a=1[vc][ac]")
-    cur = "vc"
+    cur, aout = "vc", "ac"
+    if speed and speed > 1.0005:              # усі моменти пришвидшено рівно до ліміту (картинка + звук)
+        f.append(f"[vc]setpts=PTS/{speed:.5f}[vsp]")
+        f.append(f"[ac]{_atempo(speed)}[asp]")
+        cur, aout = "vsp", "asp"
     for n_ov, (ov, inp) in enumerate(zip(overlays, ov_inputs)):
         nxt = f"t{n_ov}"
         f.append(f"[{cur}][{inp}:v]overlay={ov.x}:{ov.y}:enable='between(t,{ov.start:.3f},{ov.end:.3f})'"
@@ -101,7 +116,7 @@ def build_command(settings: dict, info: VideoInfo, layout: Layout, segments: lis
         cur = nxt
     r = settings["render"]
     f.append(f"[{cur}]format={r.get('pix_fmt') or 'yuv420p'}[vout]")
-    cmd += ["-filter_complex", ";".join(f), "-map", "[vout]", "-map", "[ac]", "-r", str(fps)]
+    cmd += ["-filter_complex", ";".join(f), "-map", "[vout]", "-map", f"[{aout}]", "-r", str(fps)]
     from autocut.core.selection import SHORT_MAX_S
     if layout.height > layout.width:          # вертикальний шортс — страховка ffmpeg: не довше 59,5 с
         cmd += ["-t", f"{SHORT_MAX_S:.3f}"]
@@ -171,7 +186,8 @@ def _run_with_progress(cmd: list[str], total: float, progress) -> subprocess.Com
 
 
 def render_short(settings: dict, info: VideoInfo, layout: Layout, segments: list[tuple[float, float]],
-                 overlays: list[Overlay], out_path: Path, webcam: dict | None = None, progress=None) -> Path:
+                 overlays: list[Overlay], out_path: Path, webcam: dict | None = None, progress=None,
+                 speed: float = 1.0) -> Path:
     global _nvenc_broken
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = out_path.with_name(out_path.stem + ".part.mp4")
@@ -180,11 +196,11 @@ def render_short(settings: dict, info: VideoInfo, layout: Layout, segments: list
         encoders = encoders[1:]
     last_err = ""
     for enc in encoders:
-        cmd = build_command(settings, info, layout, segments, overlays, tmp, webcam, enc)
+        cmd = build_command(settings, info, layout, segments, overlays, tmp, webcam, enc, speed)
         log.debug("RENDER %s", " ".join(cmd))
         t0 = time.time()
         if progress:
-            res = _run_with_progress(cmd, sum(b - a for a, b in segments), progress)
+            res = _run_with_progress(cmd, sum(b - a for a, b in segments) / max(1.0, speed or 1.0), progress)
         else:
             res = subprocess.run(cmd, capture_output=True, creationflags=_NO_WINDOW)
         if res.returncode == 0 and tmp.exists() and tmp.stat().st_size > 1000:

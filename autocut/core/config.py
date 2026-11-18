@@ -237,6 +237,8 @@ DEFAULT_PROFILE: dict = {
     "battles": {"split_gap_s": 45, "merge_death_s": 20, "log_match_s": 2.0},
     "selection": {
         "max_duration_s": 59.5,         # YouTube Shorts — не довше 59,5 с (код і так не дає більше)
+        "speed_fit": False,             # True — не викидати моменти, а пришвидшити шортс рівно до ліміту (EU)
+        "speed_max": 2.0,               # найбільше пришвидшення
         "pre_s": [2.0, 3.0],
         "post_s": [2.0, 3.0],
         "death_pre_s": 4.0,
