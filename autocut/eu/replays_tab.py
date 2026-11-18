@@ -55,7 +55,7 @@ def build_replays_tab(parent: tk.Misc, settings: dict) -> tk.Frame:
     canvas.pack(side="left", fill="both", expand=True)
     sb.pack(side="right", fill="y")
     canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-e.delta / 120), "units")
-                    if str(e.widget).startswith(str(outer)) else None)
+                    if str(e.widget).startswith(str(outer)) else None, add="+")
 
     st = load(settings)
     replays_default = str(work_dir(settings) / "replays")

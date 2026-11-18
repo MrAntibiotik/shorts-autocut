@@ -15,12 +15,14 @@ class StageBoardTest(unittest.TestCase):
         self.assertEqual(b.status[(0, 5)], "skip")
         b.update("[2/2] Аналіз запису", 0.5, now=300)
         self.assertEqual(b.status[(0, 7)], "skip")                         # «звіт» не був — пропущено
-        lines = b.lines(now=310)
-        self.assertEqual(len(lines), 2 * (len(STAGES) + 1))
-        self.assertTrue(lines[0][0].startswith("✓ ЗАПИС 1/2"))
-        self.assertIn("[ >> ]", "".join(t for t, tag in lines if tag == "run"))
+        rows = b.rows(now=310)
+        self.assertEqual(len(rows), 2 * (len(STAGES) + 1))
+        self.assertEqual((rows[0]["kind"], rows[0]["state"]), ("head", "ok"))       # запис 1 — готово
+        run = [r for r in rows if r["kind"] == "stage" and r["state"] == "run"]
+        self.assertEqual(len(run), 1)
+        self.assertEqual(run[0]["time"], "00:10")
         b.finish(False, now=320)
-        self.assertIn("fail", [tag for _t, tag in b.lines(now=330)])
+        self.assertIn("fail", [r["state"] for r in b.rows(now=330)])
 
     def test_bar(self):
         self.assertEqual(bar(0.5, 10), "█████░░░░░")

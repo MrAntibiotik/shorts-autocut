@@ -41,7 +41,7 @@ def run_with_window(title: str, work, folder_of=None, close_after_s: int = 30):
     root = tk.Tk()
     root.title(title)
     root.resizable(False, False)
-    set_status = theme.banner(root, "РІЗАК // " + title.upper()[:40]) if theme.on() else (lambda *a, **k: None)
+    set_status = theme.banner(root, "Різак", title[:48]) if theme.on() else (lambda *a, **k: None)
     try:
         root.attributes("-topmost", True)
         root.after(1500, lambda: root.attributes("-topmost", False))
@@ -85,7 +85,7 @@ def run_with_window(title: str, work, folder_of=None, close_after_s: int = 30):
         bar["value"] = 1000 if ok else 0
         stage.config(text=text, fg="#2e7d32" if ok else "#b00020")
         history(text)
-        set_status("ГОТОВО" if ok else "ПОМИЛКА", theme.FG_HI if ok else theme.ERR)
+        set_status("Готово" if ok else "Помилка", "ok" if ok else "err")
         folder = None
         if ok and folder_of:
             try:
@@ -119,7 +119,7 @@ def run_with_window(title: str, work, folder_of=None, close_after_s: int = 30):
                     if text != last["text"]:
                         last["text"] = text
                         history("▶ " + text)
-                        set_status("ПРАЦЮЮ", theme.FG_HI)
+                        set_status("Працюю", "busy")
                     set_frac(frac)
                 elif kind == "done":
                     finish(True, "✅ Готово")
