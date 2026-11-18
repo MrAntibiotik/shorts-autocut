@@ -417,8 +417,9 @@ class ReplaysBotTest(unittest.TestCase):
         self.assertEqual(len(self.bot.sent), n_sent + 1)
         cards.stage(rp, "rec", "done", "rec.mkv")
         cards.stage(rp, "cut", "done", "шортсів: 1")
+        n_before = len(self.bot.sent)
         cards.stage(rp, "post", "done", "replay_card.mp4")
-        self.assertIn("✅ Готово до публікації", self.bot.sent[-1][0])
+        self.assertEqual(len(self.bot.sent), n_before)              # «готово» — відео (on_eu_short), без дубля текстом
         last = [c for c in self.bot.api.calls if c[0] == "editMessageText"][-1][1]
         self.assertEqual(last["message_id"], mid)
         for line in ("✅ OBS — OBS готовий", "✅ Запис бою — rec.mkv", "✅ Нарізка — шортсів: 1",
@@ -546,6 +547,27 @@ class ReplaysBotTest(unittest.TestCase):
         self.assertIn("1 — лише нарізка", toast)
         self.assertEqual(calls[0], (False, ["b"]))                            # спершу нарізка з готового запису
         self.assertEqual(calls[1][1], "черга")                               # потім запис не записаних
+
+    def test_ready_eu_short_sent_as_video_and_can_be_dropped(self):
+        from shorts.replay_meta import parse
+        info = parse(make_replay(self.d / "v.wotreplay"))
+        ready = self.d / "poster_en" / "WoT"
+        ready.mkdir(parents=True)
+        mp4 = ready / "replay_v_battle_01.mp4"
+        mp4.write_bytes(b"v" * 100)
+        mp4.with_suffix(".json").write_text("{}", encoding="utf-8")
+        files = []
+        self.bot.api.send_file = lambda method, field, path, **kw: files.append((method, kw)) or {"message_id": 50}
+        with mock.patch("autocut.bot.telegram_bot.make_preview", side_effect=lambda st, p, horizontal=False: p):
+            self.rb.on_eu_short(mp4, info)
+        method, kw = files[-1]
+        self.assertEqual(method, "sendVideo")                        # саме відео, а не лише текст
+        self.assertIn("🇬🇧 EU: готовий шортс", kw["caption"])
+        self.assertIn("Leopard1", kw["caption"])
+        self.assertIn("У черзі EU-каналу Poster", kw["caption"])
+        key = buttons(kw["reply_markup"])[0]["callback_data"].split(":", 1)[1]
+        self.assertIn("Прибрано", self.rb.on_callback({"message": {"message_id": 50}}, f"eudel:{key}"))
+        self.assertFalse(mp4.exists() or mp4.with_suffix(".json").exists())   # з черги Poster EU — прибрано
 
     def test_auto_start_after_idle(self):
         started = []

@@ -258,6 +258,8 @@ class ReplaysBot:
                     self.bot.delete_msg(msg.get("message_id"))     # підказку прибираємо, показуємо меню знову
                     self.show()
                     return f"{LIMIT_NAMES[field].capitalize()} від {fmt_n(int(num))}" if int(num) else "Без порогу"
+        elif kind == "eudel":                    # «🗑 Не публікувати» під готовим шортсом EU
+            return self.drop_eu_short(val, msg)
         elif kind == "probs":                    # «♻ Не вдалися» — список із причинами
             self.show_problems()
             return None
@@ -493,6 +495,48 @@ class ReplaysBot:
             self.last_received = 0.0
             self.start(manual=False)
 
+    EU_SHORT_TTL = 24 * 3600                 # відео готового шортса EU — у чаті добу, далі зникає саме
+
+    def on_eu_short(self, path, info) -> None:
+        """Готовий шортс з реплею — одразу відео в чат (раніше лише текст, а відео надсилав Poster EU перед
+        публікацією). «🗑 Не публікувати» — прибрати з черги EU-каналу."""
+        from autocut.bot.telegram_bot import MAX_UPLOAD, make_preview
+        from autocut.eu.replay_cards import Cards
+        p = Path(path)
+        if not hasattr(self, "eu_shorts"):
+            self.eu_shorts = {}
+        key = str(len(self.eu_shorts))
+        self.eu_shorts[key] = str(p)
+        in_poster = p.parent.name.lower() == "wot"        # копія в черзі Poster EU: <папка каналу>\\WoT\\
+        cap = (f"🇬🇧 EU: готовий шортс\n{Cards.head(info)[2:]}\n"
+               + ("📤 У черзі EU-каналу Poster — він поставить його в розклад і надішле перед публікацією."
+                  if in_poster else f"📁 {p.parent}"))
+        kb = {"inline_keyboard": [[{"text": "🗑 Не публікувати", "callback_data": f"F|eudel:{key}"}]]}
+        try:
+            prev = make_preview(self.settings, p)
+            if prev.stat().st_size > MAX_UPLOAD:
+                raise RuntimeError("завеликий")
+            res = self.bot.api.send_file("sendVideo", "video", prev, chat_id=self.bot.owner, caption=cap,
+                                         supports_streaming="true", width=480, height=854, reply_markup=kb)
+            if hasattr(self.bot, "track"):
+                self.bot.track(res, self.EU_SHORT_TTL)
+        except Exception as e:  # noqa: BLE001
+            log.warning("Відео шортса EU не надіслано: %s", e)
+            self.bot.send(cap, kb, ttl=self.EU_SHORT_TTL)
+
+    def drop_eu_short(self, key: str, msg: dict) -> str:
+        """Прибрати готовий шортс EU з черги Poster (файл і json); Poster сам зсуне чергу."""
+        path = (getattr(self, "eu_shorts", {}) or {}).get(key)
+        self.bot.delete_msg(msg.get("message_id"))
+        if not path:
+            return "Не знайшов цей шортс (бот перезапускався) — приберіть його в боті Poster EU"
+        p = Path(path)
+        if p.parent.name.lower() != "wot":               # не копія в черзі Poster — нічого не чіпаємо
+            return "Цей шортс не в черзі Poster"
+        for f in (p, p.with_suffix(".json")):
+            f.unlink(missing_ok=True)
+        return "🗑 Прибрано з черги EU-каналу — не публікуватиметься"
+
     KIND_ICON = {"failed": "⏺ не записався", "lost": "📼 запис зник", "uncut": "✂ шортса немає"}
 
     def n_problems(self, st: dict) -> int:
@@ -558,7 +602,7 @@ class ReplaysBot:
                     self.beat()
                     _cards.stage(*a)
                 summary = run(self.settings, jopts, None, who="Telegram-бот", on_stage=on_stage,
-                              progress=self.beat, cancel=cancel.is_set)
+                              progress=self.beat, cancel=cancel.is_set, on_short=self.on_eu_short)
                 lines = [f"✂ Нарізку повторено: шортсів {len(summary['shorts'])}, у Poster {len(summary['published'])}."]
                 lines += [f"❌ {e}" for e in summary["errors"][:5]]
                 self.bot.send("\n".join(lines))
@@ -705,7 +749,7 @@ class ReplaysBot:
                     self.beat()
                     _cards.stage(*a)
                 summary = run(self.settings, jopts, ropts, who="Telegram-бот", on_stage=on_stage,
-                              progress=self.beat, cancel=cancel.is_set)
+                              progress=self.beat, cancel=cancel.is_set, on_short=self.on_eu_short)
             except Busy as e:
                 self.bot.send(f"⏺ Не починаю: {e}.")
                 return
