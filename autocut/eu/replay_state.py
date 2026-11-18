@@ -20,7 +20,8 @@ DEFAULTS = {
     "publish_dir": "",
     "obs_host": "localhost", "obs_port": 4455, "obs_password": "",
     "obs_exe": r"C:\Program Files\obs-studio\bin\64bit\obs64.exe", "obs_profile": "", "obs_collection": "",
-    "record_dir": "",            # порожньо — «wot replays eu» на робочому столі
+    "record_dir": "",            # порожньо — …\\Контент\\EU-канал\\Записи реплеїв
+    "keep_records_days": 3,      # записи реплеїв (OBS) старші за N днів видаляються самі; 0 — не видаляти
     "instant": True,             # запис одразу після скачування реплею (без очікування)
     "load_s": 60, "click_s": 55, "cta": DEFAULT_CTA, "day_n": 1, "credit": True,
     "do_record": True, "do_cut": True,

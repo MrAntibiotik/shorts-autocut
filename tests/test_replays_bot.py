@@ -642,6 +642,23 @@ class ReplaysBotTest(unittest.TestCase):
         kill2.assert_not_called()
         self.assertEqual(len(self.bot.sent), n)
 
+    def test_old_recordings_deleted_after_3_days(self):
+        import os
+        rec = self.d / "eu_rec"
+        rec.mkdir()
+        old, fresh = rec / "old.mkv", rec / "fresh.mkv"
+        other, rp = rec / "notes.txt", rec / "x.wotreplay"
+        for f in (old, fresh, other, rp):
+            f.write_bytes(b"x" * 10)
+        week_ago = time.time() - 4 * 86400
+        for f in (old, other, rp):
+            os.utime(f, (week_ago, week_ago))
+        n, size = replay_job.cleanup_recordings(rec, 3)
+        self.assertEqual((n, size), (1, 10))
+        self.assertFalse(old.exists())                                    # старше 3 днів — видалено
+        self.assertTrue(fresh.exists() and other.exists() and rp.exists())  # свіже й не-відео — на місці
+        self.assertEqual(replay_job.cleanup_recordings(rec, 0), (0, 0))   # 0 — не видаляти
+
     def test_auto_start_after_idle(self):
         started = []
         self.rb.start = lambda manual: started.append(manual) or "ok"

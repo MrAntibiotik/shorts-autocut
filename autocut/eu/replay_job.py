@@ -45,6 +45,31 @@ def retry_failed(replays_dir: Path) -> int:
     return n
 
 
+def cleanup_recordings(record_dir: Path, days: float = 3, now: float | None = None) -> tuple[int, int]:
+    """Видаляє записи реплеїв (OBS) старші за days днів. Шортси, нарізки й .wotreplay не чіпає.
+    Повертає (скільки файлів, скільки байтів). Викликати лише коли запис не йде."""
+    import time as _t
+    from autocut.core.recording import VIDEO_EXT
+    if not days or days <= 0:
+        return 0, 0
+    d = Path(record_dir)
+    if not d.is_dir():
+        return 0, 0
+    limit = (now or _t.time()) - float(days) * 86400
+    n = size = 0
+    for f in d.iterdir():
+        try:
+            if f.is_file() and f.suffix.lower() in VIDEO_EXT and f.stat().st_mtime < limit:
+                sz = f.stat().st_size
+                f.unlink()
+                n, size = n + 1, size + sz
+        except OSError as e:
+            log.warning("Запис реплею не видалено (%s): %s", f.name, e)
+    if n:
+        log.info("Записи реплеїв старші за %g дн. видалено: %d (%.1f ГБ)", days, n, size / 1024 ** 3)
+    return n, size
+
+
 def problem_replays(settings: dict, replays_dir: Path) -> list[dict]:
     """Реплеї, з яких так і не вийшов шортс: [{rp, kind, reason, video}].
     kind: failed — не записався (повтор = записати знову); lost — запис зник (записати знову);
@@ -419,5 +444,5 @@ def _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive
                 rp.with_suffix(".failed").write_text(str(e), encoding="utf-8")
 
 
-__all__ = ["PROFILE_ID", "ReplayJobOptions", "retry_failed", "problem_replays", "prepare_retry", "cut_recording", "pending_replays", "poster_json", "publish",
+__all__ = ["PROFILE_ID", "ReplayJobOptions", "retry_failed", "cleanup_recordings", "problem_replays", "prepare_retry", "cut_recording", "pending_replays", "poster_json", "publish",
            "publish_unpublished", "target_dir", "run"]
