@@ -737,8 +737,8 @@ class CameraCheckTest(unittest.TestCase):
         obs.stop.return_value = __file__
         proc = mock.Mock()
         proc.poll.return_value = None
-        # 1-й і 2-й кліки — нічого не видно (4 перевірки кожен), 3-й — «Fixed camera activated.»
-        answers = iter([None] * 8 + ["player"])
+        # 1-й і 2-й кліки — нічого не видно (4 кадри + перевірка перед кліком), 3-й — «Fixed camera activated.»
+        answers = iter([None] * 10 + ["player"])
         clicks = []
         with mock.patch.object(rr, "game_exe", return_value=Path(__file__)), \
                 mock.patch.object(rr.subprocess, "Popen", return_value=proc), mock.patch.object(rr, "kill_game"), \
@@ -776,6 +776,31 @@ class CameraCheckTest(unittest.TestCase):
                 mock.patch.object(rr.time, "sleep", side_effect=lambda s: clock.__setitem__("t", clock["t"] + s)):
             rr.record_one(Path(__file__), None, opts, obs)
         self.assertEqual(len(clicks), 1)                                # один клік — і камера лишилась зафіксованою
+
+    def test_late_fixed_camera_message_stops_clicking(self):
+        """Напис «Fixed camera activated» з'явився із запізненням (після 4 кадрів) — перед новим кліком
+        програма ще раз дивиться на екран і, побачивши напис, більше не клікає."""
+        from unittest import mock
+        from shorts import replay_record as rr
+        clock = {"t": 1000.0}
+        opts = rr.RecordOptions(game_dir=Path("."), load_s=5, click_at=("10",), tail_s=0, default_battle_s=60,
+                                max_s=80, detect_end=False)
+        obs = mock.Mock()
+        obs.status.return_value = (True, "00:00:10")
+        obs.stop.return_value = __file__
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        answers = iter([None] * 4 + ["player"])                       # 4 кадри — порожньо, 5-й — напис
+        clicks = []
+        with mock.patch.object(rr, "game_exe", return_value=Path(__file__)), \
+                mock.patch.object(rr.subprocess, "Popen", return_value=proc), mock.patch.object(rr, "kill_game"), \
+                mock.patch.object(rr.EndDetector, "camera", lambda self, img: next(answers, None)), \
+                mock.patch.object(rr.EndDetector, "warm"), \
+                mock.patch.object(rr, "click_player_view", side_effect=lambda: clicks.append(clock["t"])), \
+                mock.patch.object(rr.time, "time", side_effect=lambda: clock["t"]), \
+                mock.patch.object(rr.time, "sleep", side_effect=lambda s: clock.__setitem__("t", clock["t"] + s)):
+            rr.record_one(Path(__file__), None, opts, obs)
+        self.assertEqual(len(clicks), 1)
 
     def test_replay_shorts_go_to_separate_output(self):
         from unittest import mock

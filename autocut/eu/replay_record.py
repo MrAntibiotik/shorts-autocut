@@ -787,6 +787,9 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
                     if state:
                         break
                 cam_frames = []
+                if state is None:                                   # напис міг з'явитися із запізненням (гра
+                    state = cam.camera(obs.screenshot(width=CAM_SHOT_W))   # підвисла) — ще раз дивимось перед кліком
+                    seen = (getattr(cam, "last_text", "") or "").strip()
                 if state:
                     log.info("Напис про камеру: «%s» → %s", seen[:120], state)
                 if state == "player":
