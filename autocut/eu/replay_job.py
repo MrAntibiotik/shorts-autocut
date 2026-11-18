@@ -45,6 +45,61 @@ def retry_failed(replays_dir: Path) -> int:
     return n
 
 
+def problem_replays(settings: dict, replays_dir: Path) -> list[dict]:
+    """Реплеї, з яких так і не вийшов шортс: [{rp, kind, reason, video}].
+    kind: failed — не записався (повтор = записати знову); lost — запис зник (записати знову);
+          uncut — запис є, шортса немає (повтор = лише нарізати з готового запису, без гри)."""
+    shorts_by_video: dict[str, int] = {}
+    try:
+        for jf in replays_output_dir(settings).glob("job_*/job.json"):
+            try:
+                job = json.loads(jf.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            for rec in job.get("recordings", []):
+                k = str(Path(rec.get("path", "")).resolve())
+                shorts_by_video[k] = max(shorts_by_video.get(k, 0), len(rec.get("shorts") or []))
+    except OSError:
+        pass
+    out = []
+    for rp in sorted(Path(replays_dir).glob("*.wotreplay")):
+        failed, rec = rp.with_suffix(".failed"), rp.with_suffix(".recorded")
+        if failed.exists():
+            try:
+                why = failed.read_text(encoding="utf-8").strip()
+            except OSError:
+                why = ""
+            out.append({"rp": rp, "kind": "failed", "reason": why or "не записався", "video": None})
+        elif rec.exists():
+            try:
+                video = Path(rec.read_text(encoding="utf-8").strip())
+            except OSError:
+                continue
+            if not video.exists():
+                out.append({"rp": rp, "kind": "lost", "reason": "файл запису зник — запишу знову", "video": None})
+                continue
+            n = shorts_by_video.get(str(video.resolve()))
+            if not n:
+                out.append({"rp": rp, "kind": "uncut", "video": video,
+                            "reason": "нарізка не знайшла моментів" if n == 0 else "запис є, нарізки не було"})
+    return out
+
+
+def prepare_retry(items: list[dict]) -> list[Path]:
+    """Готує повтор: не записані / з втраченим записом — знову в чергу на запис; повертає ті, що треба
+    лише нарізати (запис уже є)."""
+    cut_only = []
+    for it in items:
+        rp = Path(it["rp"])
+        if it["kind"] == "failed":
+            rp.with_suffix(".failed").unlink(missing_ok=True)
+        elif it["kind"] == "lost":
+            rp.with_suffix(".recorded").unlink(missing_ok=True)
+        elif it["kind"] == "uncut":
+            cut_only.append(rp)
+    return cut_only
+
+
 def pending_replays(replays_dir: Path) -> list[Path]:
     """Реплеї в папці, які ще не оброблено (поруч немає <id>.recorded чи <id>.failed)."""
     return sorted(p for p in Path(replays_dir).glob("*.wotreplay")
@@ -364,5 +419,5 @@ def _run_all(settings, opts, rec_opts, replays, summary, progress, cancel, alive
                 rp.with_suffix(".failed").write_text(str(e), encoding="utf-8")
 
 
-__all__ = ["PROFILE_ID", "ReplayJobOptions", "retry_failed", "cut_recording", "pending_replays", "poster_json", "publish",
+__all__ = ["PROFILE_ID", "ReplayJobOptions", "retry_failed", "problem_replays", "prepare_retry", "cut_recording", "pending_replays", "poster_json", "publish",
            "publish_unpublished", "target_dir", "run"]

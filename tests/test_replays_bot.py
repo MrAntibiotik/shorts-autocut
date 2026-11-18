@@ -491,6 +491,62 @@ class ReplaysBotTest(unittest.TestCase):
         self.rb.watchdog()
         self.assertEqual(len(self.bot.sent), n)
 
+    def _problems_setup(self):
+        import json
+        rd = self.d / "replays"
+        rd.mkdir(exist_ok=True)
+        out = self.d / "out_en"
+        self.settings["paths"]["replays_output_dir"] = str(out)
+        a = make_replay(rd / "a.wotreplay")                       # не записався
+        a.with_suffix(".failed").write_text("OBS не відповідає", encoding="utf-8")
+        b = make_replay(rd / "b.wotreplay")                       # записався, шортса немає
+        vb = self.d / "b.mkv"
+        vb.write_bytes(b"v")
+        b.with_suffix(".recorded").write_text(str(vb), encoding="utf-8")
+        c = make_replay(rd / "c.wotreplay")                       # записався, файл запису зник
+        c.with_suffix(".recorded").write_text(str(self.d / "gone.mkv"), encoding="utf-8")
+        d = make_replay(rd / "d.wotreplay")                       # усе гаразд: є шортс
+        vd = self.d / "d.mkv"
+        vd.write_bytes(b"v")
+        d.with_suffix(".recorded").write_text(str(vd), encoding="utf-8")
+        (out / "job_1").mkdir(parents=True)
+        (out / "job_1" / "job.json").write_text(json.dumps({"recordings": [
+            {"path": str(vd), "shorts": [{"mp4": "x.mp4"}]}, {"path": str(vb), "shorts": []}]}), encoding="utf-8")
+        return rd
+
+    def test_problem_replays_kinds(self):
+        rd = self._problems_setup()
+        items = {it["rp"].stem: it for it in replay_job.problem_replays(self.settings, rd)}
+        self.assertEqual({k: v["kind"] for k, v in items.items()}, {"a": "failed", "b": "uncut", "c": "lost"})
+        self.assertIn("OBS", items["a"]["reason"])
+        self.assertIn("не знайшла моментів", items["b"]["reason"])
+        cut_only = replay_job.prepare_retry(list(items.values()))
+        self.assertEqual([p.stem for p in cut_only], ["b"])                  # лише нарізка — без гри
+        self.assertFalse((rd / "a.failed").exists())                         # знову в черзі на запис
+        self.assertFalse((rd / "c.recorded").exists())
+        self.assertEqual(sorted(p.stem for p in replay_job.pending_replays(rd)), ["a", "c"])
+
+    def test_bot_shows_problems_and_retries(self):
+        rd = self._problems_setup()
+        self.rb.show()
+        datas = [b.get("callback_data") for b in buttons(self.bot.sent[-1][1])]
+        self.assertIn("F|probs", datas)                                      # «♻ Не вдалися (3)»
+        self.rb.on_callback({"message": {}}, "probs")
+        text, markup = self.bot.sent[-1]
+        self.assertIn("Реплеї без шортса: 3", text)
+        self.assertIn("F|again:*", [b["callback_data"] for b in buttons(markup)])
+        calls = []
+
+        def fake_run(settings, jopts, ropts, who="", on_stage=None, **kw):
+            calls.append((jopts.record, [Path(x).stem for x in jopts.only] if jopts.only else "черга"))
+            return {"recorded": 0, "shorts": ["s"], "published": [], "errors": []}
+        with mock.patch.object(replay_job, "run", fake_run):
+            toast = self.rb.on_callback({"message": {"message_id": 3}}, "again:*")
+            self.rb.thread.join(5)
+        self.assertIn("1 — лише нарізка", toast)
+        self.assertEqual(calls[0], (False, ["b"]))                            # спершу нарізка з готового запису
+        self.assertEqual(calls[1][1], "черга")                               # потім запис не записаних
+
     def test_auto_start_after_idle(self):
         started = []
         self.rb.start = lambda manual: started.append(manual) or "ok"

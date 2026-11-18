@@ -194,6 +194,7 @@ class ReplaysBot:
             [b("📋 Бої за фільтром", "list:1"),
              {"text": "🌐 Відкрити на сайті", "url": build_url(self.selection(st), sort=st.get("sort") or "date")}],
             [b(f"🎬 EU: записати й нарізати зібрані ({self.pending(st)})", "go")],
+            *([[b(f"♻ Не вдалися ({n_bad}) — повторити", "probs")]] if (n_bad := self.n_problems(st)) else []),
             [b("🔄 Оновити цей екран", "ref"), b("♻ Скинути фільтр", "r")],
         ]
         return {"inline_keyboard": rows}
@@ -257,6 +258,12 @@ class ReplaysBot:
                     self.bot.delete_msg(msg.get("message_id"))     # підказку прибираємо, показуємо меню знову
                     self.show()
                     return f"{LIMIT_NAMES[field].capitalize()} від {fmt_n(int(num))}" if int(num) else "Без порогу"
+        elif kind == "probs":                    # «♻ Не вдалися» — список із причинами
+            self.show_problems()
+            return None
+        elif kind == "again":                    # «🔁» — повторити один (номер) або всі («*»)
+            self.bot.delete_msg(msg.get("message_id"))
+            return self.retry_problems(val)
         elif kind == "retry":                    # «🔁 Перезапустити запис» під помилкою чи «завис»
             self.bot.delete_msg(msg.get("message_id"))
             return self.restart(val)
@@ -486,6 +493,81 @@ class ReplaysBot:
             self.last_received = 0.0
             self.start(manual=False)
 
+    KIND_ICON = {"failed": "⏺ не записався", "lost": "📼 запис зник", "uncut": "✂ шортса немає"}
+
+    def n_problems(self, st: dict) -> int:
+        try:
+            from autocut.eu.replay_job import problem_replays
+            return len(problem_replays(self.settings, Path(st["replays_dir"])))
+        except Exception:  # noqa: BLE001
+            return 0
+
+    def show_problems(self) -> None:
+        """Реплеї, з яких не вийшов шортс: причина й кнопки повтору (усі / по одному)."""
+        from autocut.eu.replay_job import problem_replays
+        st = self.state()
+        items = problem_replays(self.settings, Path(st["replays_dir"]))
+        if not items:
+            self.bot.send("👍 Невдалих реплеїв немає: з усіх записаних вийшли шортси.")
+            return
+        self.problems = {str(i): it["rp"].stem for i, it in enumerate(items)}
+        lines = [f"♻ Реплеї без шортса: {len(items)}", ""]
+        rows = [[{"text": f"🔁 Повторити всі ({len(items)})", "callback_data": "F|again:*"}]]
+        for i, it in enumerate(items):
+            name = it["rp"].stem.removeprefix("wr_")[:40]
+            lines.append(f"{i + 1}. {name}\n   {self.KIND_ICON[it['kind']]}: {str(it['reason'])[:120]}")
+            if i < 10:
+                rows.append([{"text": f"🔁 {i + 1}. {name}"[:60], "callback_data": f"F|again:{i}"}])
+        lines += ["", "Повтор: не записані — запис знову; запис є, шортса немає — лише нарізка (без гри)."]
+        self.bot.send("\n".join(lines), {"inline_keyboard": rows})
+
+    def retry_problems(self, val: str) -> str:
+        from autocut.eu.replay_job import prepare_retry, problem_replays
+        st = self.state()
+        items = problem_replays(self.settings, Path(st["replays_dir"]))
+        if val != "*":
+            stem = (getattr(self, "problems", {}) or {}).get(val)
+            items = [it for it in items if it["rp"].stem == stem]
+            if not items:
+                return "Список застарів — відкрийте «♻ Не вдалися» ще раз"
+        if (self.thread and self.thread.is_alive()) or busy(Path(st["replays_dir"]), own_running=False):
+            return "⏺ Зараз іде запис — повторю, коли закінчиться (натисніть ще раз пізніше)"
+        cut_only = prepare_retry(items)
+        self.cancel = threading.Event()
+        self.last_beat, self.stall_warned = time.time(), False
+        self.user_stopped = False
+        self.hold_until = 0.0
+        self.thread = threading.Thread(target=self._retry_work, args=(st, cut_only), daemon=True, name="replays-retry")
+        self.thread.start()
+        n_rec = len(items) - len(cut_only)
+        return (f"🔁 Повторюю: {len(cut_only)} — лише нарізка" + (f", {n_rec} — запис знову" if n_rec else ""))
+
+    def _retry_work(self, st: dict, cut_only: list) -> None:
+        """Спершу — нарізка з готових записів (без гри), потім — запис тих, що не записались."""
+        import dataclasses
+
+        from autocut.eu.replay_job import run
+        if cut_only:
+            _ropts, jopts = self._opts(st)
+            jopts = dataclasses.replace(jopts, record=False, cut=True, only=[str(p) for p in cut_only])
+            self.bot.send(f"✂ Нарізаю заново {len(cut_only)} реплеїв із готових записів (гра не потрібна)…")
+            try:
+                cancel = self.cancel
+
+                def on_stage(*a, _cards=self.cards):
+                    self.beat()
+                    _cards.stage(*a)
+                summary = run(self.settings, jopts, None, who="Telegram-бот", on_stage=on_stage,
+                              progress=self.beat, cancel=cancel.is_set)
+                lines = [f"✂ Нарізку повторено: шортсів {len(summary['shorts'])}, у Poster {len(summary['published'])}."]
+                lines += [f"❌ {e}" for e in summary["errors"][:5]]
+                self.bot.send("\n".join(lines))
+            except Exception as e:  # noqa: BLE001
+                log.exception("Повтор нарізки")
+                self.bot.send(f"❌ Повтор нарізки не вдався: {e}")
+        if self.pending(st):
+            self._work(st)
+
     STALL_S = 240                         # стільки без ознак життя — запис завис
 
     def beat(self, *_a) -> None:
@@ -586,13 +668,9 @@ class ReplaysBot:
                           "(тоді папку EU-каналу ще не було видно). У твій канал вони не потрапляють.")
         return len(caught)
 
-    def _work(self, st: dict) -> None:
-        from autocut.eu.replay_job import ReplayJobOptions, run
-        from autocut.eu.replay_record import RecordError, RecordOptions
-        n = self.pending(st)
-        if not st.get("instant", True) or n > 1:
-            self.bot.send(f"🎬 Почав запис {n} реплеїв на ПК: гра відкриється на весь екран, OBS записує. "
-                          "Готові шортси підуть у Poster EN-каналу, сюди — коротко про кожен.")
+    def _opts(self, st: dict):
+        from autocut.eu.replay_job import ReplayJobOptions
+        from autocut.eu.replay_record import RecordOptions
         ropts = RecordOptions(game_dir=Path(st["game_dir"]), obs_host=st["obs_host"], obs_port=int(st["obs_port"]),
                               obs_password=st["obs_password"], load_s=float(st["load_s"]),
                               click_at=(str(int(st.get("click_s") or 0)),) if int(st.get("click_s") or 0) else (),
@@ -603,6 +681,16 @@ class ReplaysBot:
                                  publish_dir=Path(st["publish_dir"]) if str(st.get("publish_dir") or "").strip() else None,
                                  cta_text=cta_text(st), credit_author=bool(st.get("credit", True)),
                                  record=bool(st.get("do_record", True)), cut=bool(st.get("do_cut", True)))
+        return ropts, jopts
+
+    def _work(self, st: dict) -> None:
+        from autocut.eu.replay_job import run
+        from autocut.eu.replay_record import RecordError
+        n = self.pending(st)
+        if not st.get("instant", True) or n > 1:
+            self.bot.send(f"🎬 Почав запис {n} реплеїв на ПК: гра відкриється на весь екран, OBS записує. "
+                          "Готові шортси підуть у Poster EN-каналу, сюди — коротко про кожен.")
+        ropts, jopts = self._opts(st)
 
         total = {"recorded": 0, "shorts": 0, "published": 0, "errors": []}
         self.catch_up(jopts)
