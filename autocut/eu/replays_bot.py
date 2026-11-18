@@ -684,6 +684,42 @@ class ReplaysBot:
         self.thread.start()
         return f"🎬 Починаю запис: {n}"
 
+    def recording_now(self) -> bool:
+        """Чи йде зараз запис/нарізка реплеїв (з бота чи з вкладки на ПК)."""
+        try:
+            return bool(self.thread and self.thread.is_alive()) or busy(Path(self.state()["replays_dir"]))
+        except Exception:  # noqa: BLE001
+            return False
+
+    def recover(self) -> None:
+        """Після запуску бота: запис реплею обірвався (оновлення, збій, вимкнули світло) — зупинити OBS, повернути
+        його профіль / сцени / папку, закрити гру, прибрати недописаний файл; реплей лишається в черзі."""
+        from autocut.eu.replay_record import kill_game, recover_obs
+        from autocut.eu.replay_state import lock_path, lock_pid, pid_alive
+        st = self.state()
+        rdir = Path(st["replays_dir"])
+        pid = lock_pid(rdir)
+        orphan = lock_path(rdir).exists() and not (pid and pid_alive(pid))   # замок від процесу, якого вже немає
+        if lock_path(rdir).exists() and not orphan:      # запис іде з вкладки на ПК (живий процес) — не чіпаємо
+            return
+        res = recover_obs(st["obs_host"], int(st["obs_port"]), st.get("obs_password") or "")
+        if not (orphan or res["stopped"] or res["restored"]):
+            return
+        if res["stopped"] or orphan:
+            kill_game()
+        from autocut.eu.replay_state import clear_lock
+        clear_lock(rdir)
+        part = Path(res["stopped"]) if res["stopped"] and res["stopped"] != "?" else None
+        if part is not None and part.exists():
+            try:
+                part.unlink()                            # недописаний бій — у шортс не годиться
+            except OSError:
+                pass
+        self.bot.send("⚠️ Запис реплею обірвався (бот перезапускався)."
+                      + (" OBS зупинено." if res["stopped"] else "")
+                      + (" Профіль, сцени й папку запису OBS повернуто." if res["restored"] else "")
+                      + " Гру закрито. Реплей лишився в черзі — запишеться знову.", ttl=60 * 60)
+
     def stop(self) -> str:
         """«⏹ Зупинити запис»: OBS зупиняється, гра закривається, позначка «іде запис» знімається."""
         from autocut.eu.replay_record import kill_game
@@ -695,6 +731,11 @@ class ReplaysBot:
         if not running:                      # запис ішов не з бота або обірвався — прибираємо самі
             kill_game()
             clear_lock(Path(st["replays_dir"]))
+            try:                             # і запис OBS, якщо він досі пише реплей (+ його налаштування)
+                from autocut.eu.replay_record import recover_obs
+                recover_obs(st["obs_host"], int(st["obs_port"]), st.get("obs_password") or "")
+            except Exception as e:  # noqa: BLE001
+                log.warning("OBS при зупинці: %s", e)
             self.bot.send("⏹ Позначку «іде запис» знято, гру закрито. Можна знову «🎬 Записати зібрані».")
             return "⏹ Зупинено"
         return "⏹ Зупиняю… (до кількох секунд)"

@@ -136,6 +136,16 @@ class BotChatTest(unittest.TestCase):
         self.assertFalse(keep & gone)
         self.assertTrue(set(range(101, self.api.n - 1)) - keep <= gone | {self.api.n})
 
+    def test_update_waits_for_replay_recording(self):
+        import types
+        busy = {"v": True}
+        self.bot.replays = types.SimpleNamespace(recording_now=lambda: busy["v"])
+        with mock.patch("autocut.cli.update.apply_update") as upd:
+            self.bot.do_update()
+            upd.assert_not_called()                                       # запис іде — не перезапускаємось
+            self.assertEqual(self.bot.update_after_rec, "update")
+            self.assertIn("оновлю програму одразу після нього", self.api.calls[-1][1]["text"])
+
     def test_reconcile_restores_buttons_or_resends(self):
         self.bot.cmd_shorts()
         self.bot.reconcile()

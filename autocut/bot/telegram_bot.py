@@ -746,6 +746,10 @@ class Bot:
 
     def do_rollback(self, key: str):
         from autocut.cli import update
+        if self.replay_busy():
+            self.update_after_rec = f"rollback:{key}"
+            self.send("⏺ Зараз іде запис реплею — відкочу версію одразу після нього (сам).", ttl=TTL_BUTTONS)
+            return
         name = (getattr(self, "rollback_names", {}) or {}).get(key)
         if not name:
             self.send("Список застарів — натисніть «⏪ Відкотити версію» ще раз.")
@@ -763,7 +767,20 @@ class Bot:
                   "відкрийте знову.")
         self.restart()
 
+    def _recover_replays(self) -> None:
+        try:
+            self.replays.recover()
+        except Exception as e:  # noqa: BLE001
+            log.warning("Відновлення після обірваного запису реплею: %s", e)
+
+    def replay_busy(self) -> bool:
+        return bool(self.replays is not None and self.replays.recording_now())
+
     def do_update(self):
+        if self.replay_busy():                   # перезапуск бота обірвав би запис реплею (гра закриється, OBS — ні)
+            self.update_after_rec = "update"
+            self.send("⏺ Зараз іде запис реплею — оновлю програму одразу після нього (сам).", ttl=TTL_BUTTONS)
+            return
         st = read_status(self.settings) or {}
         if st.get("status") == "running" and time.time() - float(st.get("heartbeat") or 0) < 120:
             self.send("⏳ Зараз іде обробка — оновлю, коли закінчиться (натисніть «Оновити» ще раз пізніше).")
@@ -1327,6 +1344,8 @@ class Bot:
             log.warning("setMyCommands: %s", e)
         log.info("Бот запущено, власник: %s", self.owner)
         self.migrate_content()
+        if self.replays is not None:             # запис реплею обірвався (оновлення / збій) — прибрати за ним
+            threading.Thread(target=self._recover_replays, daemon=True, name="replays-recover").start()
         for c in self.access.recipients():
             try:
                 with self.as_chat(c):
@@ -1352,6 +1371,13 @@ class Bot:
                         log.warning("Чат %s: %s", c, e)
                 try:
                     self.check_updates()
+                    todo = getattr(self, "update_after_rec", None)
+                    if todo and not self.replay_busy():  # запис реплею закінчився — тепер можна оновитись
+                        self.update_after_rec = None
+                        if todo == "update":
+                            self.do_update()
+                        elif todo.startswith("rollback:"):
+                            self.do_rollback(todo.split(":", 1)[1])
                 except Exception as e:
                     log.warning("Перевірка оновлень: %s", e)
                 try:

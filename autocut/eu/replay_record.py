@@ -351,6 +351,7 @@ class Obs:
             log.warning("OBS: не вдалося прочитати профіль/набір сцен: %s", e)
             return
         self.prev = (cur_p, cur_c)
+        _save_prev(profile=cur_p, collection=cur_c)       # на диск: якщо бот впаде посеред запису — повернемо
         try:
             if collection and collection != cur_c:
                 self.cl.set_current_scene_collection(collection)
@@ -371,6 +372,7 @@ class Obs:
         Path(folder).mkdir(parents=True, exist_ok=True)
         try:
             self.prev_dir = str(getattr(self.cl.get_record_directory(), "record_directory", "") or "")
+            _save_prev(dir=self.prev_dir, replay_dir=str(folder))
             if os.path.normcase(os.path.abspath(self.prev_dir or ".")) != os.path.normcase(os.path.abspath(folder)):
                 self.cl.set_record_directory(str(folder))
                 log.info("OBS: записи реплеїв — у %s", folder)
@@ -396,6 +398,66 @@ class Obs:
                 self.cl.set_current_scene_collection(c)
         except Exception as e:  # noqa: BLE001
             log.warning("OBS: не вдалося повернути профіль/набір сцен: %s", e)
+            return
+        _prev_file().unlink(missing_ok=True)            # повернули — більше не потрібно
+
+
+def _prev_file() -> Path:
+    """Що було в OBS до запису реплеїв (профіль, набір сцен, папка) — щоб повернути навіть після збою бота."""
+    try:
+        from autocut.core.config import load_settings, work_dir
+        return work_dir(load_settings()) / "obs_before_replays.json"
+    except Exception:  # noqa: BLE001
+        return Path.home() / ".obs_before_replays.json"
+
+
+def _save_prev(**kw) -> None:
+    import json
+    f = _prev_file()
+    try:
+        data = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    except (OSError, ValueError):
+        data = {}
+    data.update({k: v for k, v in kw.items() if v is not None})
+    try:
+        f.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    except OSError as e:
+        log.warning("Не збережено стан OBS: %s", e)
+
+
+def recover_obs(host: str, port: int, password: str = "") -> dict:
+    """Після збою чи перезапуску бота посеред запису реплею: зупинити запис OBS (якщо він писав реплей),
+    повернути профіль / набір сцен / папку запису, які були до реплеїв. Повертає {"stopped": шлях|"", "restored": bool}."""
+    import json
+    f = _prev_file()
+    try:
+        prev = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    except (OSError, ValueError):
+        prev = {}
+    out = {"stopped": "", "restored": False}
+    try:
+        obs = Obs(host, int(port), password)
+    except RecordError:
+        return out                                       # OBS закритий — запис і так не йде
+    try:
+        cur_dir = str(getattr(obs.cl.get_record_directory(), "record_directory", "") or "")
+    except Exception:  # noqa: BLE001
+        cur_dir = ""
+    if not prev:
+        return out                                       # реплей не записувався — нічого не чіпаємо
+    norm = lambda x: os.path.normcase(os.path.abspath(x)) if x else ""   # noqa: E731
+    if prev.get("replay_dir") and norm(cur_dir) == norm(prev["replay_dir"]):
+        try:                                             # OBS досі пише в папку реплеїв — це наш запис, не стрім
+            if obs.recording():
+                out["stopped"] = obs.stop() or "?"
+        except Exception as e:  # noqa: BLE001
+            log.warning("OBS не зупинився: %s", e)
+    if prev:
+        obs.prev = (prev.get("profile", ""), prev.get("collection", ""))
+        obs.prev_dir = prev.get("dir", "")
+        obs.restore()
+        out["restored"] = True
+    return out
 
 
 RECORD_FOLDER = "wot replays eu"

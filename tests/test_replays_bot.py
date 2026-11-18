@@ -569,6 +569,79 @@ class ReplaysBotTest(unittest.TestCase):
         self.assertIn("Прибрано", self.rb.on_callback({"message": {"message_id": 50}}, f"eudel:{key}"))
         self.assertFalse(mp4.exists() or mp4.with_suffix(".json").exists())   # з черги Poster EU — прибрано
 
+    def _fake_obs(self, record_dir, recording=True):
+        import types
+        calls = []
+
+        class FakeObs:
+            def __init__(self, host, port, password=""):
+                self.cl = types.SimpleNamespace(
+                    get_record_directory=lambda: types.SimpleNamespace(record_directory=record_dir),
+                    set_record_directory=lambda d: calls.append(("dir", d)),
+                    get_profile_list=lambda: types.SimpleNamespace(current_profile_name="Replays"),
+                    get_scene_collection_list=lambda: types.SimpleNamespace(current_scene_collection_name="Replays"),
+                    set_current_profile=lambda p: calls.append(("profile", p)),
+                    set_current_scene_collection=lambda c: calls.append(("collection", c)))
+                self.prev, self.prev_dir = ("", ""), ""
+
+            def recording(self):
+                return recording
+
+            def stop(self):
+                calls.append(("stop",))
+                return str(Path(record_dir) / "part.mkv")
+
+        from shorts import replay_record as rr
+        FakeObs.restore = rr.Obs.restore                                  # справжнє «повернути як було»
+        return FakeObs, calls
+
+    def test_recover_obs_stops_only_replay_recording(self):
+        import json
+        from shorts import replay_record as rr
+        prev = self.d / "obs_prev.json"
+        prev.write_text(json.dumps({"profile": "Стрім", "collection": "Мої сцени", "dir": "C:/Videos",
+                                    "replay_dir": str(self.d / "eu_rec")}), encoding="utf-8")
+        fake, calls = self._fake_obs(str(self.d / "eu_rec"))
+        with mock.patch.object(rr, "_prev_file", return_value=prev), mock.patch.object(rr, "Obs", fake):
+            res = rr.recover_obs("localhost", 4455)
+        self.assertTrue(res["stopped"] and res["restored"])
+        self.assertIn(("stop",), calls)                                   # писав реплей — зупинено
+        self.assertIn(("profile", "Стрім"), calls)                        # твій профіль — повернуто
+        self.assertIn(("dir", "C:/Videos"), calls)
+        self.assertFalse(prev.exists())
+        prev.write_text(json.dumps({"profile": "Стрім", "replay_dir": str(self.d / "eu_rec")}), encoding="utf-8")
+        fake2, calls2 = self._fake_obs("C:/Videos")                       # OBS пише інше (стрім) — не чіпаємо
+        with mock.patch.object(rr, "_prev_file", return_value=prev), mock.patch.object(rr, "Obs", fake2):
+            res = rr.recover_obs("localhost", 4455)
+        self.assertNotIn(("stop",), calls2)
+        self.assertFalse(res["stopped"])
+        prev.unlink(missing_ok=True)
+        fake3, calls3 = self._fake_obs(str(self.d / "eu_rec"))            # реплей не записувався — нічого
+        with mock.patch.object(rr, "_prev_file", return_value=prev), mock.patch.object(rr, "Obs", fake3):
+            self.assertEqual(rr.recover_obs("localhost", 4455), {"stopped": "", "restored": False})
+        self.assertFalse(calls3)
+
+    def test_recover_after_restart_mid_recording(self):
+        from shorts import replay_record as rr
+        rdir = self.d / "replays"
+        rdir.mkdir(exist_ok=True)
+        replay_state.lock_path(rdir).write_text("Telegram-бот, PID 999999", encoding="utf-8")   # процесу вже немає
+        part = self.d / "part.mkv"
+        part.write_bytes(b"x")
+        with mock.patch.object(rr, "recover_obs", return_value={"stopped": str(part), "restored": True}), \
+                mock.patch.object(rr, "kill_game") as kill:
+            self.rb.recover()
+        kill.assert_called_once()
+        self.assertFalse(replay_state.lock_path(rdir).exists())
+        self.assertFalse(part.exists())                                   # недописаний бій прибрано
+        self.assertIn("Запис реплею обірвався", self.bot.sent[-1][0])
+        n = len(self.bot.sent)
+        with mock.patch.object(rr, "recover_obs", return_value={"stopped": "", "restored": False}), \
+                mock.patch.object(rr, "kill_game") as kill2:
+            self.rb.recover()                                             # звичайний запуск — тихо
+        kill2.assert_not_called()
+        self.assertEqual(len(self.bot.sent), n)
+
     def test_auto_start_after_idle(self):
         started = []
         self.rb.start = lambda manual: started.append(manual) or "ok"
