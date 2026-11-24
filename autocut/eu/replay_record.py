@@ -60,6 +60,9 @@ class RecordOptions:
     end_tail_s: float = 4.0       # скільки ще писати після «Перемога» / «Відтворення… закінчено»
     default_battle_s: float = 900  # якщо тривалість у реплеї невідома (бій не дограно)
     max_s: float = 1500
+    # розрахований час вийшов (гра вантажилась довше, бій довший), а «Перемога»/«Поразка» на екрані ще немає —
+    # писати далі ще стільки секунд, щоб не обрізати кінець бою
+    overrun_s: float = 240
 
 
 STEAM_ROOTS = [r"C:\Program Files (x86)\Steam", r"C:\Program Files\Steam"]
@@ -272,8 +275,16 @@ class EndDetector:
         return state
 
     def ended(self, img) -> str | None:
-        t = self.text(img)
-        return next((w for w in END_WORDS if w in t), None)
+        return end_word(self.text(img))
+
+
+def end_word(text: str) -> str | None:
+    """Слово кінця бою як окреме слово («draw», а не «withdraw»/«drawn»)."""
+    t = (text or "").lower()
+    for w in END_WORDS:
+        if re.search(r"(?<![\w])" + re.escape(w) + r"(?![\w])", t):
+            return w
+    return None
 
 
 def record_seconds(info: ReplayInfo | None, opts: RecordOptions) -> float:
@@ -731,12 +742,24 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
         if cam:
             cam.warm()                       # моделі розпізнавання — завантажити, поки гра вантажиться
         last_end_check, end_at = t0, None
-        while time.time() - t0 < total:
+        end_hits, overrun_logged = 0, False
+        while True:
+            el = time.time() - t0
+            watching = bool(detector and not detector.failed and end_at is None)
+            if el >= total and watching and el < min(opts.max_s, total + opts.overrun_s):
+                if not overrun_logged:
+                    overrun_logged = True
+                    log.info("Розрахований час запису вийшов, а кінця бою на екрані ще немає — пишу далі "
+                             "(до +%d с), щоб не обрізати бій", int(opts.overrun_s))
+            elif el >= total:
+                if watching:
+                    log.warning("Кінця бою на екрані так і не видно (+%d с) — зупиняю запис", int(el - total))
+                break
             if cancel and cancel():
                 raise Cancelled()
             if progress:
                 progress(f"Запис {replay.name}: {int(time.time() - t0)} / {int(total)} с"
-                         + (f" · OBS ● REC {obs_tc}" if obs_tc else ""), (time.time() - t0) / total)
+                         + (f" · OBS ● REC {obs_tc}" if obs_tc else ""), min(1.0, (time.time() - t0) / total))
             if time.time() - t0 > opts.load_s and time.time() - last_game_check >= 5:
                 last_game_check = time.time()
                 alive = game_running()
@@ -759,9 +782,12 @@ def record_one(replay: Path, info: ReplayInfo | None, opts: RecordOptions, obs: 
                     and time.time() - last_end_check >= 5):
                 last_end_check = time.time()
                 word = detector.ended(obs.screenshot())
-                if word:
+                end_hits = end_hits + 1 if word else 0
+                if word and end_hits == 1:
+                    log.info("На екрані «%s» — схоже на кінець бою, перевіряю ще раз", word)
+                if end_hits >= 2:                # двічі поспіль (5 с) — справді екран кінця, а не випадкове слово
                     log.info("На екрані «%s» — кінець бою, ще %.0f с і зупиняю", word, opts.end_tail_s)
-                    end_at = time.time() + opts.end_tail_s
+                    end_at = time.time() + max(0.0, opts.end_tail_s - 5)
             while clicks and time.time() - launched >= clicks[0]:   # камера від обличчя гравця
                 clicks.pop(0)
                 if cam_done:                                        # уже зафіксовано — більше не клікаємо

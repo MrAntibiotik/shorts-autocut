@@ -802,6 +802,47 @@ class CameraCheckTest(unittest.TestCase):
             rr.record_one(Path(__file__), None, opts, obs)
         self.assertEqual(len(clicks), 1)
 
+    def _record_end(self, ended_at):
+        """record_one з розпізнаванням кінця бою: ended_at(секунда від старту) -> слово або None.
+        Повертає, на якій секунді зупинився запис."""
+        from unittest import mock
+        from shorts import replay_record as rr
+        clock = {"t": 1000.0}
+        opts = rr.RecordOptions(game_dir=Path("."), load_s=5, click_at=(), tail_s=0, default_battle_s=100,
+                                max_s=1000, detect_end=True, check_camera=False, end_tail_s=4)
+        obs = mock.Mock()
+        obs.status.return_value = (True, "00:00:10")
+        obs.stop.side_effect = lambda: (stopped.append(clock["t"] - 1000.0), __file__)[1]
+        stopped = []
+        proc = mock.Mock()
+        proc.poll.return_value = None
+        with mock.patch.object(rr, "game_exe", return_value=Path(__file__)), \
+                mock.patch.object(rr.subprocess, "Popen", return_value=proc), mock.patch.object(rr, "kill_game"), \
+                mock.patch.object(rr, "game_running", return_value=True), \
+                mock.patch.object(rr.EndDetector, "ended", lambda self, img: ended_at(clock["t"] - 1000.0)), \
+                mock.patch.object(rr.time, "time", side_effect=lambda: clock["t"]), \
+                mock.patch.object(rr.time, "sleep", side_effect=lambda s: clock.__setitem__("t", clock["t"] + s)):
+            rr.record_one(Path(__file__), None, opts, obs)
+        return stopped[0]
+
+    def test_battle_longer_than_estimate_is_not_cut(self):
+        """Гра вантажилась довше / бій довший за розрахунок — запис іде далі, поки на екрані немає «Victory»."""
+        stop = self._record_end(lambda t: "victory" if t >= 200 else None)   # розрахунок ~135 с
+        self.assertGreaterEqual(stop, 200)
+        self.assertLess(stop, 215)
+
+    def test_single_false_end_word_does_not_stop(self):
+        """Одне випадкове «перемога» на екрані (чат, підказка) — не кінець: потрібно двічі поспіль."""
+        stop = self._record_end(lambda t: "victory" if 100 <= t < 103 or t >= 130 else None)
+        self.assertGreaterEqual(stop, 130)
+
+    def test_end_word_is_whole_word(self):
+        from shorts.replay_record import end_word
+        self.assertIsNone(end_word("withdraw from the base"))
+        self.assertIsNone(end_word("drawn"))
+        self.assertEqual(end_word("DRAW"), "draw")
+        self.assertEqual(end_word("ПЕРЕМОГА!"), "перемога")
+
     def test_replay_shorts_go_to_separate_output(self):
         from unittest import mock
         from shorts import replay_job
