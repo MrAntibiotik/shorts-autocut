@@ -259,12 +259,9 @@ def hq_settings(settings: dict, hcfg: dict, info=None) -> dict:
 def poster_texts(settings: dict, b: dict) -> dict:
     """Назва, опис і хештеги хайлайту для Poster (YouTube, звичайне відео)."""
     dmg, assist = int(b.get("damage_total") or 0), int(b.get("assist_total") or 0)
-    parts = []
-    if dmg:
-        parts.append(f"{dmg} шкоди")
-    if assist:
-        parts.append(f"{assist} засвіту")
-    stats = " і ".join(parts)
+    # у назві — більше з двох: шкода або засвіт («7 412 шкоди»); назву можна змінити в боті Poster
+    stats = (f"{dmg:,}".replace(",", " ") + " шкоди" if dmg >= assist else
+             f"{assist:,}".replace(",", " ") + " засвіту") if (dmg or assist) else ""
     title = f"{stats} — хайлайт бою | World of Tanks 🔥" if stats else "Хайлайт бою | World of Tanks 🔥"
     cta = ((settings.get("highlight_cta") or {}).get("text") or "").strip()
     tags = ["#wot", "#worldoftanks", "#танки", "#wotua"]

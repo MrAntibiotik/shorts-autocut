@@ -67,3 +67,12 @@ class ObsCropTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HighlightTitleTest(unittest.TestCase):
+    def test_bigger_stat_in_title(self):
+        from autocut.main.highlights import poster_texts
+        self.assertTrue(poster_texts({}, {"damage_total": 7412, "assist_total": 1200})["title"].startswith("7 412 шкоди — "))
+        t = poster_texts({}, {"damage_total": 900, "assist_total": 6133})["title"]
+        self.assertTrue(t.startswith("6 133 засвіту — "))
+        self.assertNotIn("900", t)
