@@ -163,8 +163,9 @@ def compute_highlight_layout(profile: dict, rec_w: int, rec_h: int, webcam_file:
     if webcam_file is not None:
         cam_src_full, src_kind = Rect(0, 0, webcam_file["width"], webcam_file["height"]), "webcam_file"
         csw, csh = int(webcam_file["width"]), int(webcam_file["height"])
-        if zones.get("webcam_file"):
-            cam_src_full = Rect(*zone_px(zones["webcam_file"], csw, csh))
+        crop = zones.get("webcam_file") or webcam_file.get("crop")   # вручну або як обрізано в OBS
+        if crop:
+            cam_src_full = Rect(*zone_px(crop, csw, csh))
     elif cam_zone is not None:
         cam_src_full, src_kind, csw, csh = cam_zone, "recording", rec_w, rec_h
     else:

@@ -216,13 +216,26 @@ class VideoWizard:
         self.webcam = path
         if path:
             crop = (_raw(self.pid).get("zones") or {}).get("webcam_file")
+            obs = self.obs_crop(path) if not crop else None
             cut = (f"обрізано {int(crop[2] * 100)}×{int(crop[3] * 100)}% кадру" if crop else
+                   f"обрізано як на стрімі (OBS) — {int(obs[2] * 100)}×{int(obs[3] * 100)}% кадру" if obs else
                    "уся камера — «✂ Обрізати вебку…», щоб прибрати зайве")
             self.cam_lbl.config(text=f"окремий файл: {Path(path).name} · {cut}", fg="#2e7d32")
             self.crop_btn.config(state="normal")
         else:
             self.cam_lbl.config(text="з кадру запису (рамка «Вебкамера»)", fg="#555")
             self.crop_btn.config(state="disabled")
+
+    def obs_crop(self, path: str):
+        """Обрізка вебки зі сцени OBS (як на стрімі) або None."""
+        try:
+            from autocut.core.media import probe
+            from autocut.core.obs_scene import webcam_crop
+            wi = probe(self.settings, Path(path))
+            got = webcam_crop(wi.width, wi.height)
+            return got[0] if got else None
+        except Exception:  # noqa: BLE001
+            return None
 
     def crop_cam(self):
         """Обрізка окремого файлу вебки — зберігається в рамках («webcam_file»), як і інші рамки."""
@@ -234,7 +247,7 @@ class VideoWizard:
             from autocut.core.config import load_profile
             img = get_frame(self.settings, Path(self.webcam), self.t)
             raw = _raw(self.pid)
-            dlg = CamCropDialog(self.w, img, (raw.get("zones") or {}).get("webcam_file"),
+            dlg = CamCropDialog(self.w, img, (raw.get("zones") or {}).get("webcam_file") or self.obs_crop(self.webcam),
                                 target_aspect(load_profile(self.pid)))
         except Exception as e:  # noqa: BLE001
             from tkinter import messagebox

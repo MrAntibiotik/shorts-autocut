@@ -43,6 +43,8 @@ def main() -> int:
         off, how = webcam_offset(settings, info, wi)
         print(f"Окремий файл вебкамери: {w.name}, зсув {off:+.3f} с — {how}")
         webcam = {"path": str(w), "width": wi.width, "height": wi.height, "fps": wi.fps, "offset": off}
+        from autocut.core.obs_scene import apply_to_webcam
+        apply_to_webcam(webcam, prof)
     layout = compute_layout(prof, info.width, info.height, webcam)
     for w in layout.warnings:
         print(f"[УВАГА] {w}")

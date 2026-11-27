@@ -243,6 +243,8 @@ class Job:
                       "offset": off, "audio": winfo.audio_streams > 0}
             log.info("Окремий файл вебкамери: %s (%d×%d), зсув %+.3f с — %s", wpath.name, winfo.width,
                      winfo.height, off, how)
+            from autocut.core.obs_scene import apply_to_webcam
+            apply_to_webcam(webcam, prof)          # обрізка як на стрімі (з OBS), якщо вручну не обрізано
         elif st["recording"]["mode"] == "separate":
             log.info("Окремого файлу вебкамери («%s%s.mkv») немає — камера з кадру запису.",
                      path.stem, st["recording"]["separate"]["webcam_file_suffix"])
